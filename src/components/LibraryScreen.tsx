@@ -6,6 +6,9 @@ import {
   Star,
   Download,
   ArrowLeft,
+  RefreshCw,
+  AlertCircle,
+  FolderPlus,
 } from 'lucide-react';
 import { Track } from '../types/music';
 import { MusicRow } from './MusicRow';
@@ -21,6 +24,10 @@ interface LibraryScreenProps {
   onToggleDownload: (track: Track) => void;
   onOpenLibrarySearch: () => void;
   onImportDeviceTracks?: (files: FileList) => Promise<number>;
+  onScanDeviceAudio?: () => Promise<number>;
+  onScanDirectory?: () => Promise<number>;
+  isScanning?: boolean;
+  permissionDenied?: boolean;
 }
 
 export const LibraryScreen: React.FC<LibraryScreenProps> = ({
@@ -34,12 +41,16 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   onToggleDownload,
   onOpenLibrarySearch,
   onImportDeviceTracks,
+  onScanDeviceAudio,
+  onScanDirectory,
+  isScanning = false,
+  permissionDenied = false,
 }) => {
   const [selectedCollection, setSelectedCollection] = useState<
     'liked' | 'library 1' | 'library 2' | 'Downloads' | null
   >(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // Filter tracks for the active collection
   const collectionTracks = React.useMemo(() => {
@@ -48,7 +59,14 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
       return tracks.filter((t) => likedIds.has(t.id));
     }
     if (selectedCollection === 'Downloads') {
-      return tracks.filter((t) => downloadedIds.has(t.id));
+      // In Downloads, show all real downloaded/device tracks
+      return tracks.filter(
+        (t) =>
+          downloadedIds.has(t.id) ||
+          t.id.startsWith('android-media-') ||
+          t.id.startsWith('device-file-') ||
+          t.id.startsWith('device-')
+      );
     }
     if (selectedCollection === 'library 1') {
       return tracks.filter((t) => t.collection === 'library 1');
@@ -62,8 +80,30 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0 && onImportDeviceTracks) {
       const count = await onImportDeviceTracks(e.target.files);
-      setImportStatus(`${count} آهنگ با موفقیت از گوشی اضافه شد`);
-      setTimeout(() => setImportStatus(null), 4000);
+      setStatusMessage(`${count} آهنگ با موفقیت از گوشی اضافه شد`);
+      setTimeout(() => setStatusMessage(null), 4000);
+    }
+  };
+
+  const handleManualScan = async () => {
+    if (onScanDeviceAudio) {
+      const count = await onScanDeviceAudio();
+      if (count > 0) {
+        setStatusMessage(`${count} آهنگ جدید از گوشی شناسایی شد`);
+      } else {
+        setStatusMessage('اسکن پایان یافت؛ برای انتخاب دستی از دکمه زیر استفاده کنید');
+      }
+      setTimeout(() => setStatusMessage(null), 4000);
+    }
+  };
+
+  const handleDirectoryScan = async () => {
+    if (onScanDirectory) {
+      const count = await onScanDirectory();
+      if (count > 0) {
+        setStatusMessage(`${count} آهنگ از پوشه انتخاب‌شده افزوده شد`);
+      }
+      setTimeout(() => setStatusMessage(null), 4000);
     }
   };
 
@@ -91,13 +131,29 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             <span className="font-tech uppercase tracking-wider">Back</span>
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
-          >
-            + انتخاب آهنگ‌های گوشی
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleManualScan}
+              disabled={isScanning}
+              className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
+              title="اسکن خودکار حافظه"
+            >
+              <RefreshCw className={`w-3 h-3 ${isScanning ? 'animate-spin' : ''}`} />
+              <span>اسکن آهنگ‌های گوشی</span>
+            </button>
+            {typeof window !== 'undefined' && 'showDirectoryPicker' in window && (
+              <button
+                type="button"
+                onClick={handleDirectoryScan}
+                className="text-[11px] font-medium text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
+                title="انتخاب پوشه موزیک"
+              >
+                <FolderPlus className="w-3 h-3" />
+                <span>پوشه موزیک</span>
+              </button>
+            )}
+          </div>
         )}
 
         <button
@@ -109,6 +165,28 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
           <SearchIcon className="w-5 h-5 stroke-[2]" />
         </button>
       </div>
+
+      {statusMessage && (
+        <div className="w-full mb-3 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs text-center font-medium animate-fadeIn">
+          {statusMessage}
+        </div>
+      )}
+
+      {permissionDenied && (
+        <div className="w-full mb-3 p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-between text-right">
+          <div className="flex items-center gap-2 text-amber-300 text-xs">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>مجوز دسترسی به فایل‌های صوتی تایید نشد.</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleManualScan}
+            className="px-2.5 py-1 rounded-lg bg-amber-400 text-black text-[11px] font-bold hover:bg-amber-300 transition-colors"
+          >
+            تلاش مجدد
+          </button>
+        </div>
+      )}
 
       {selectedCollection === null ? (
         /* 4 Collection Tiles Grid (2x2) strictly matching Figma reference */
@@ -184,12 +262,6 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
       ) : (
         /* Collection Tracks List reusing the 5-row architecture */
         <div className="flex flex-col gap-4">
-          {importStatus && (
-            <div className="w-full px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs text-center font-medium">
-              {importStatus}
-            </div>
-          )}
-
           <div className="flex items-center justify-between pb-1 px-1">
             <span className="font-tech text-lg text-[#d1d5db] font-semibold">
               {selectedCollection}
@@ -208,7 +280,12 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             </div>
           </div>
 
-          {collectionTracks.length > 0 ? (
+          {isScanning ? (
+            <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
+              <RefreshCw className="w-6 h-6 animate-spin text-emerald-400" />
+              <p className="text-sm text-[#7e828d]">در حال بررسی آهنگ‌های گوشی...</p>
+            </div>
+          ) : collectionTracks.length > 0 ? (
             collectionTracks.map((track) => (
               <MusicRow
                 key={track.id}
@@ -225,15 +302,24 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
           ) : (
             <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
               <p className="text-[#7e828d] text-sm">
-                هیچ آهنگی در بخش {selectedCollection} وجود ندارد
+                هیچ آهنگی در بخش {selectedCollection} یافت نشد
               </p>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-colors cursor-pointer shadow-md"
-              >
-                انتخاب آهنگ‌های گوشی (MP3)
-              </button>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={handleManualScan}
+                  className="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-colors cursor-pointer shadow-md"
+                >
+                  اسکن فایل‌های صوتی گوشی
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 rounded-xl bg-[#2a2a2a] text-white font-semibold text-xs hover:bg-[#333333] border border-white/10 transition-colors cursor-pointer"
+                >
+                  انتخاب فایل (MP3)
+                </button>
+              </div>
             </div>
           )}
         </div>

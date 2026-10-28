@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { NavTab, ScreenState, Track, MoodType } from './types/music';
 import { INITIAL_TRACKS } from './data/initialTracks';
 import { audioService } from './services/audioPlayer';
@@ -13,6 +13,7 @@ import { DeviceLibrarySearchScreen } from './components/DeviceLibrarySearchScree
 import { WhenPlayingWidget } from './components/WhenPlayingWidget';
 import { SocialAccountModal } from './components/SocialAccountModal';
 import { DeviceAudioScanner } from './services/deviceAudioScanner';
+import { NativeAudioScanner } from './services/nativeMediaStore';
 import { IndexedDbAudioService } from './services/indexedDbAudio';
 
 export default function App() {
@@ -27,6 +28,10 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [, setCurrentTime] = useState<number>(0);
   const [, setDuration] = useState<number>(0);
+
+  // Scan state for local phone storage
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [permissionDenied, setPermissionDenied] = useState<boolean>(false);
 
   // Info modal state
   const [showAccountModal, setShowAccountModal] = useState<boolean>(false);
@@ -56,29 +61,85 @@ export default function App() {
     StorageService.setDownloadedIds(downloadedIds);
   }, [downloadedIds]);
 
+  // Scan phone audio files
+  const handleScanDeviceAudio = useCallback(async (): Promise<number> => {
+    setIsScanning(true);
+    setPermissionDenied(false);
+
+    try {
+      const res = await DeviceAudioScanner.autoDiscoverDeviceTracks();
+      if (res.permissionDenied) {
+        setPermissionDenied(true);
+        setIsScanning(false);
+        return 0;
+      }
+
+      if (res.tracks && res.tracks.length > 0) {
+        setTracks((prev) => {
+          const existingIds = new Set(prev.map((t) => t.id));
+          const newItems = res.tracks.filter((t) => !existingIds.has(t.id));
+          return [...newItems, ...prev];
+        });
+
+        setDownloadedIds((prev) => {
+          const next = new Set(prev);
+          res.tracks.forEach((t) => next.add(t.id));
+          return next;
+        });
+
+        setIsScanning(false);
+        return res.tracks.length;
+      }
+    } catch (e) {
+      console.warn('Error discovering device tracks:', e);
+    }
+
+    setIsScanning(false);
+    return 0;
+  }, []);
+
+  // Scan via Directory Picker
+  const handleScanDirectory = useCallback(async (): Promise<number> => {
+    setIsScanning(true);
+    try {
+      const dirTracks = await NativeAudioScanner.scanViaDirectoryPicker();
+      if (dirTracks.length > 0) {
+        setTracks((prev) => {
+          const existingIds = new Set(prev.map((t) => t.id));
+          const newItems = dirTracks.filter((t) => !existingIds.has(t.id));
+          return [...newItems, ...prev];
+        });
+
+        setDownloadedIds((prev) => {
+          const next = new Set(prev);
+          dirTracks.forEach((t) => next.add(t.id));
+          return next;
+        });
+
+        setIsScanning(false);
+        return dirTracks.length;
+      }
+    } catch (e) {
+      console.warn('Directory scan error:', e);
+    }
+    setIsScanning(false);
+    return 0;
+  }, []);
+
   // Hydrate device tracks and run automated phone MP3 discovery
   useEffect(() => {
     IndexedDbAudioService.hydrateDeviceTracks(tracks).then((hydrated) => {
       setTracks(hydrated);
     });
 
-    DeviceAudioScanner.autoDiscoverDeviceTracks().then((discovered) => {
-      setTracks((prev) => {
-        const existingIds = new Set(prev.map((t) => t.id));
-        const toAdd = discovered.filter((d) => !existingIds.has(d.id));
-        return [...toAdd, ...prev];
-      });
-      setDownloadedIds((prev) => {
-        const next = new Set(prev);
-        discovered.forEach((d) => next.add(d.id));
-        return next;
-      });
-    });
-  }, []);
+    // Auto discover upon startup
+    handleScanDeviceAudio();
+  }, [handleScanDeviceAudio]);
 
-  // Handle Playback
-  const handlePlayTrack = (track: Track) => {
-    audioService.playTrack(track);
+  // Handle Playback with Queue
+  const handlePlayTrack = (track: Track, customQueue?: Track[]) => {
+    const queueToUse = customQueue || tracks;
+    audioService.playTrack(track, queueToUse);
 
     // Update recents in track list
     setTracks((prev) => {
@@ -91,7 +152,11 @@ export default function App() {
   const handleImportDeviceTracks = async (files: FileList): Promise<number> => {
     const imported = await DeviceAudioScanner.processFiles(files);
     if (imported.length > 0) {
-      setTracks((prev) => [...imported, ...prev]);
+      setTracks((prev) => {
+        const existingIds = new Set(prev.map((t) => t.id));
+        const newItems = imported.filter((t) => !existingIds.has(t.id));
+        return [...newItems, ...prev];
+      });
       setDownloadedIds((prev) => {
         const next = new Set(prev);
         imported.forEach((t: Track) => next.add(t.id));
@@ -158,8 +223,19 @@ export default function App() {
   const capsuleTitle = useMemo(() => {
     if (screenState === 'home') return 'Home';
     if (screenState === 'online_search') return 'Search';
-    return 'Library'; // Library, Library Search, and Device Library Search show "Library"
+    return 'Library';
   }, [screenState]);
+
+  // Real local tracks from phone memory or imported files
+  const deviceTracks = useMemo(() => {
+    return tracks.filter(
+      (t) =>
+        t.id.startsWith('android-media-') ||
+        t.id.startsWith('device-file-') ||
+        t.id.startsWith('device-') ||
+        t.id.startsWith('local-device-')
+    );
+  }, [tracks]);
 
   // Tracks for local library: all tracks marked as liked, in library 1/2, or downloaded
   const localLibraryTracks = useMemo(() => {
@@ -168,41 +244,22 @@ export default function App() {
         likedIds.has(t.id) ||
         downloadedIds.has(t.id) ||
         t.collection === 'library 1' ||
-        t.collection === 'library 2'
+        t.collection === 'library 2' ||
+        t.id.startsWith('android-media-') ||
+        t.id.startsWith('device-file-')
     );
   }, [tracks, likedIds, downloadedIds]);
-
-  // Tracks automatically scanned and indexed from device storage
-  const deviceTracks = useMemo(() => {
-    return tracks.filter(
-      (t) =>
-        t.isDownloaded ||
-        t.collection === 'Downloads' ||
-        t.id.startsWith('phone-mp3-') ||
-        t.id.startsWith('device-')
-    );
-  }, [tracks]);
 
   const handleTogglePlay = () => {
     audioService.togglePlay();
   };
 
   const handleNextTrack = () => {
-    if (!tracks.length) return;
-    const currentIndex = currentTrack
-      ? tracks.findIndex((t) => t.id === currentTrack.id)
-      : -1;
-    const nextIndex = (currentIndex + 1) % tracks.length;
-    handlePlayTrack(tracks[nextIndex]);
+    audioService.playNext();
   };
 
   const handlePreviousTrack = () => {
-    if (!tracks.length) return;
-    const currentIndex = currentTrack
-      ? tracks.findIndex((t) => t.id === currentTrack.id)
-      : 0;
-    const prevIndex = (currentIndex - 1 + tracks.length) % tracks.length;
-    handlePlayTrack(tracks[prevIndex]);
+    audioService.playPrevious();
   };
 
   return (
@@ -213,11 +270,11 @@ export default function App() {
         <div className="w-full h-full flex flex-col overflow-hidden relative">
           {screenState === 'home' && (
             <HomeScreen
-              recentTracks={tracks}
+              recentTracks={tracks.length > 0 ? tracks : INITIAL_TRACKS}
               currentTrack={currentTrack}
               isPlaying={isPlaying}
               selectedMood={selectedMood}
-              onPlayTrack={handlePlayTrack}
+              onPlayTrack={(t) => handlePlayTrack(t, tracks)}
               onSelectMood={handleSelectMood}
               onOpenDeviceLibrary={() => setScreenState('device_library_search')}
             />
@@ -228,13 +285,17 @@ export default function App() {
               deviceTracks={deviceTracks}
               currentTrack={currentTrack}
               isPlaying={isPlaying}
-              onPlayTrack={handlePlayTrack}
+              onPlayTrack={(t) => handlePlayTrack(t, deviceTracks)}
               onToggleLike={handleToggleLike}
               onToggleDownload={handleToggleDownload}
               likedIds={likedIds}
               downloadedIds={downloadedIds}
               onBackToHome={() => setScreenState('home')}
               onImportDeviceTracks={handleImportDeviceTracks}
+              onScanDeviceAudio={handleScanDeviceAudio}
+              onScanDirectory={handleScanDirectory}
+              isScanning={isScanning}
+              permissionDenied={permissionDenied}
             />
           )}
 
@@ -243,7 +304,7 @@ export default function App() {
               allTracks={tracks}
               currentTrack={currentTrack}
               isPlaying={isPlaying}
-              onPlayTrack={handlePlayTrack}
+              onPlayTrack={(t) => handlePlayTrack(t, tracks)}
               onToggleLike={handleToggleLike}
               onToggleDownload={handleToggleDownload}
               likedIds={likedIds}
@@ -258,11 +319,15 @@ export default function App() {
               isPlaying={isPlaying}
               likedIds={likedIds}
               downloadedIds={downloadedIds}
-              onPlayTrack={handlePlayTrack}
+              onPlayTrack={(t) => handlePlayTrack(t, localLibraryTracks)}
               onToggleLike={handleToggleLike}
               onToggleDownload={handleToggleDownload}
               onOpenLibrarySearch={() => setScreenState('library_search')}
               onImportDeviceTracks={handleImportDeviceTracks}
+              onScanDeviceAudio={handleScanDeviceAudio}
+              onScanDirectory={handleScanDirectory}
+              isScanning={isScanning}
+              permissionDenied={permissionDenied}
             />
           )}
 
@@ -271,7 +336,7 @@ export default function App() {
               libraryTracks={localLibraryTracks}
               currentTrack={currentTrack}
               isPlaying={isPlaying}
-              onPlayTrack={handlePlayTrack}
+              onPlayTrack={(t) => handlePlayTrack(t, localLibraryTracks)}
               onToggleLike={handleToggleLike}
               onToggleDownload={handleToggleDownload}
               likedIds={likedIds}
@@ -310,7 +375,7 @@ export default function App() {
           isPlaying={isPlaying}
         />
 
-        {/* Warm Glassmorphism Modal for Account & Listening with Friends ("گوش دادن با رفیق‌ها") */}
+        {/* Modal for Account & Listening with Friends ("گوش دادن با رفیق‌ها") */}
         <SocialAccountModal
           isOpen={showAccountModal}
           onClose={() => setShowAccountModal(false)}
