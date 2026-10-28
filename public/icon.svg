@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGrad" cx="30%" cy="20%" r="90%">
+      <stop offset="0%" stop-color="#2a2b2f"/>
+      <stop offset="100%" stop-color="#141416"/>
+    </radialGradient>
+    <linearGradient id="discGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#40434a"/>
+      <stop offset="50%" stop-color="#212121"/>
+      <stop offset="100%" stop-color="#121315"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded App Squircle -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <rect x="8" y="8" width="496" height="496" rx="120" fill="none" stroke="url(#glow)" stroke-width="4"/>
+  
+  <!-- Outer Vinyl Disc / Speaker Rim -->
+  <circle cx="256" cy="256" r="160" fill="url(#discGrad)" stroke="#32343a" stroke-width="6"/>
+  <circle cx="256" cy="256" r="130" fill="none" stroke="#25272c" stroke-width="3" stroke-dasharray="8 6"/>
+  <circle cx="256" cy="256" r="100" fill="none" stroke="#1d1e22" stroke-width="2"/>
+  <circle cx="256" cy="256" r="68" fill="#17181a" stroke="#ffffff" stroke-opacity="0.2" stroke-width="2"/>
+
+  <!-- Center Music Note Symbol -->
+  <path d="M236 295 A 25 25 0 1 1 216 270 L 216 180 C 216 175 220 170 225 170 L 285 158 C 291 157 296 161 296 168 L 296 280 A 25 25 0 1 1 276 255 L 276 205 L 236 213 L 236 295 Z" fill="#ffffff" fill-opacity="0.95"/>
+</svg>

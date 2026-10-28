@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #212121;
+    color: #ffffff;
+    font-family: 'Roboto', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    margin: 0;
+    box-sizing: border-box;
+  }
+}
+
+.font-audex {
+  font-family: 'Audex', 'Chakra Petch', 'Orbitron', sans-serif;
+}
+
+.font-roboto {
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Exact Figma Neumorphic Shadows from Android Compact - 1 spec */
+.shadow-figma-top-navbar {
+  background-color: #212121;
+  box-shadow: -17px -17px 34px 0px #2B2B2B, 17px 17px 34px 0px #171717;
+}
+
+.shadow-figma-card {
+  background-color: #212121;
+  box-shadow: -17px -17px 34px 0px #2B2B2B, 17px 17px 34px 0px #171717;
+}
+
+.shadow-figma-button {
+  background-color: #212121;
+  box-shadow: -13px -13px 10px 0px #262626, 13px 13px 10px 0px #1C1C1C;
+}
+
+.shadow-figma-button:active {
+  box-shadow: inset -4px -4px 8px #262626, inset 4px 4px 8px #1C1C1C;
+}
+
+.shadow-figma-bottom-navbar {
+  background-color: #212121;
+  box-shadow: -23px -23px 46px 0px #2A2A2A, 23px 23px 46px 0px #181818;
+}
+
+.shadow-figma-playing-info {
+  background-color: #212121;
+  box-shadow: inset 0px -29px 10.3px 0px rgba(0, 0, 0, 0.25), inset 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+}
+
+.shadow-figma-ellipse {
+  box-shadow: 0px 10px 24px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+.neumorph-input {
+  background: #1a1b1e;
+  box-shadow: inset 4px 4px 10px rgba(0, 0, 0, 0.8), inset -2px -2px 6px rgba(255, 255, 255, 0.02);
+}
+
+.neumorph-row-outer {
+  background-color: #212121;
+  box-shadow: -8px -8px 20px 0px #2B2B2B, 8px 8px 20px 0px #171717;
+}
+
+/* Spinning vinyl animation */
+@keyframes spin-vinyl {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-vinyl {
+  animation: spin-vinyl 14s linear infinite;
+}
+
+.animation-paused {
+  animation-play-state: paused !important;
+}
+
+/* Ping-pong Marquee for track title */
+@keyframes marquee-pingpong {
+  0%, 20% {
+    transform: translateX(0%);
+  }
+  50%, 70% {
+    transform: translateX(-35%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.animate-marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee-pingpong 6s ease-in-out infinite;
+}
+
+/* Custom scrollbar hiding */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

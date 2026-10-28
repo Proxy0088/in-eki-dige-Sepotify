@@ -1,0 +1,6 @@
+{
+  "name": "Music Player",
+  "description": "A sleek, dark neumorphic music player designed from Figma with online search, local library filtering, mood curation, and real audio playback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

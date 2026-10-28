@@ -1,0 +1,290 @@
+# Pixel-perfect Figma rebuild: Android Compact - 1
+
+## Guidelines
+- Reproduce this component with **pixel-perfect visual fidelity** using the JSON spec below
+- Use semantic HTML elements
+- The JSON contains the full node tree with layout, style, and children
+- Preserve JSON child order as paint order unless the parent has `layout.itemReverseZIndex: true`; normally later siblings render above earlier siblings
+- Preserve `style.fills` and `style.strokes` paint-stack order when present; convenience fields like `backgroundColor` and `imageFillHash` only summarize the first renderable paints
+- Preserve `textStyleRanges` when present; node-level text style is only the common/default style
+- Preserve `reactions` as the interaction contract; implement every trigger/action in order instead of inferring behavior from pixels or node names
+- Preserve `prototype` scrolling, fixed-layer, and overlay settings; these behaviors cannot be recovered from the reference PNG
+- Use `componentPropertyDefinitions` as the component's typed public API and `componentPropertyDetails` as the active instance values; do not coerce booleans to strings
+- Preserve `annotations`, `componentPropertyReferences`, `variableBindings`, `explicitVariableModes`, and `referencedVariables` as developer-authored contracts; use the catalog's per-mode values and code syntax for prototype state
+- `layout.mode`: horizontal → flex row, vertical → flex column
+- `layout.wrap: wrap` → `flex-wrap: wrap`; preserve wrapped-track spacing/alignment
+- `layout.mode: grid` → CSS Grid with exact tracks, gaps, anchors, and spans
+- `layout.mode: none` → position children by `layout.x/y` relative to the parent
+- `layout.layoutPositioning: absolute` → remove from parent flex flow and position by `layout.x/y`
+- `layout.sizing`: hug → auto, fill → 100%/flex:1, fixed → explicit px
+- Normalize the selected root frame to left: 0, top: 0; root `layout.x/y` is Figma canvas position
+- Use `box-sizing: border-box` so width/height include padding and borders
+- `style.variables` → use as CSS custom properties
+- INSTANCE nodes → reusable sub-components, import or stub them
+
+## Design Tokens
+### Colors
+- `#212121` (background)
+- `#212121` (background)
+- `#FFFFFF` (text)
+- `#FFFFFF` (text)
+- `#D9D9D9` (background)
+- `#D9D9D9` (background)
+- `#999999` (background)
+- `#999999` (background)
+- `#E4E4E4` (text)
+- `#E4E4E4` (text)
+- `#000000` (background)
+- `#999999` (border)
+- `#000000` (background)
+- `#999999` (border)
+- `#999999` (text)
+- `#999999` (text)
+### Typography
+- Roboto 700 13.3px, letter-spacing: 1.33px
+- Roboto 400 12px
+- Audex 400 20px
+- Audex 400 40px
+- Audex 400 24px
+### Shadows
+- drop-shadow: -13px -13px 10px 0px #262626
+- drop-shadow: 13px 13px 10px 0px #1C1C1C
+- inner-shadow: 0px -29px 10.3px 0px #000000, opacity: 0.25
+- inner-shadow: 0px 4px 4px 0px #000000, opacity: 0.25
+- drop-shadow: -23px -23px 46px 0px #2A2A2A
+- drop-shadow: 23px 23px 46px 0px #181818
+- drop-shadow: -17px -17px 34px 0px #2B2B2B
+- drop-shadow: 17px 17px 34px 0px #171717
+### Spacing & Radii
+- Border radii: 14.67px, 20px, 36px
+
+## Interaction Contract
+Implement these Figma prototype settings and reactions explicitly. Preserve scrolling, fixed layers, overlay behavior, trigger/action order, and transitions; do not infer a different behavior from appearance or node names.
+- `Android Compact - 1` (`11:6`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > Button` (`29:115`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > Button` (`29:122`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > Button` (`29:118`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > Button` (`29:124`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > When is playing > info` (`78:4`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > When is playing > Pause` (`78:26`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > When is playing > Skip next` (`78:32`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > When is playing > Skip next` (`78:36`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > bottem navbar` (`12:10`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > bottem navbar > search > Search` (`20:7`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > bottem navbar > library > Library music` (`28:29`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > Navbar > People alt` (`28:59`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `Android Compact - 1 > Navbar > Account circle` (`28:78`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+
+## Fidelity Risk Summary
+- Estimated risk: high (68 visible nodes, max depth 6)
+- Layout risks: 8 clipped containers, 38 boxes extend outside the root viewport, 52 nodes with constraints, 4 nodes with target aspect ratio
+- Asset risks: 1 image fills, 1 image fills with crop/filter/opacity metadata, 15 vector-like nodes
+- Paint risks: 11 shadowed nodes, 62 nodes with layer blend mode, 4 nodes with detailed stroke metadata
+
+## Geometry Checklist
+Use these absolute boxes after normalizing the selected root to left 0, top 0. They are derived from `layout.x/y` and help catch drift before styling polish.
+- Root `layout.x/y` is the Figma canvas position; do not offset the rendered component by it.
+### Bounding Boxes
+- Android Compact - 1 [FRAME]: left 0, top 0, width 412, height 917, signals: root/clips
+- Android Compact - 1 > Button [FRAME]: left 25, top 650, width 115.91, height 41.66, signals: top-level
+- Android Compact - 1 > Button > Feels good [TEXT]: left 51.66, top 663.33, width 62.59, height 15
+- Android Compact - 1 > Button [FRAME]: left 25, top 722, width 115.91, height 41.66, signals: top-level
+- Android Compact - 1 > Button > Chill [TEXT]: left 51.66, top 735.33, width 62.59, height 15
+- Android Compact - 1 > Button [FRAME]: left 165, top 650, width 115.91, height 41.66, signals: top-level
+- Android Compact - 1 > Button > Gaming [TEXT]: left 191.66, top 663.33, width 62.59, height 15
+- Android Compact - 1 > Button [FRAME]: left 165, top 722, width 115.91, height 41.66, signals: top-level
+- Android Compact - 1 > Button > Focus [TEXT]: left 191.66, top 735.33, width 62.59, height 15
+- Android Compact - 1 > When is playing [GROUP]: left 52, top 709, width 307, height 135, signals: top-level
+- Android Compact - 1 > When is playing > info [FRAME]: left 104, top 1445, width 307, height 69
+- Android Compact - 1 > When is playing > info > Name [TEXT]: left 117, top 1472, width 62.59, height 15
+- Android Compact - 1 > When is playing > info > Artis [TEXT]: left 334, top 1472, width 62.59, height 15
+- Android Compact - 1 > When is playing > Ellipse 1 [ELLIPSE]: left 190, top 1418, width 135, height 135
+- Android Compact - 1 > When is playing > Pause [FRAME]: left 234, top 1460, width 47, height 47, signals: clips
+- Android Compact - 1 > When is playing > Pause > Vector [VECTOR]: left 234, top 1460, width 47, height 47, signals: vector
+- Android Compact - 1 > When is playing > Pause > Vector [VECTOR]: left 246, top 1465, width 23.5, height 27.42, signals: vector
+- Android Compact - 1 > When is playing > Skip next [FRAME]: left 275, top 1457, width 43, height 43, signals: clips
+- Android Compact - 1 > When is playing > Skip next > Vector [VECTOR]: left 275, top 1457, width 43, height 43, signals: vector
+- Android Compact - 1 > When is playing > Skip next > Vector [VECTOR]: left 285.75, top 1467.75, width 21.5, height 21.5, signals: vector
+- Android Compact - 1 > When is playing > Skip next [FRAME]: left 239, top 1458, width 43, height 43, signals: clips
+- Android Compact - 1 > When is playing > Skip next > Vector [VECTOR]: left 239, top 1458, width 43, height 43, signals: vector
+- Android Compact - 1 > When is playing > Skip next > Vector [VECTOR]: left 249.75, top 1468.75, width 21.5, height 21.5, signals: vector
+- Android Compact - 1 > bottem navbar [FRAME]: left 35, top 809, width 342, height 69, signals: top-level
+- Android Compact - 1 > bottem navbar > search [GROUP]: left 63, top 825, width 33, height 34
+- Android Compact - 1 > bottem navbar > search > Home [TEXT]: left 91, top 868.6, width 33, height 6.4
+- Android Compact - 1 > bottem navbar > search > Search [FRAME]: left 97, top 841, width 22, height 21.94, signals: clips
+- Android Compact - 1 > bottem navbar > search > Search > Vector [VECTOR]: left 97, top 841, width 22, height 21.94, signals: vector
+- Android Compact - 1 > bottem navbar > search > Search > Vector [VECTOR]: left 99.75, top 843.74, width 16.03, height 15.99, signals: vector
+- Android Compact - 1 > bottem navbar > library [GROUP]: left 307, top 823, width 46, height 36
+- Android Compact - 1 > bottem navbar > library > Library [TEXT]: left 579, top 866, width 46, height 7
+- Android Compact - 1 > bottem navbar > library > Library music [FRAME]: left 590, top 837, width 24, height 24, signals: clips
+- Android Compact - 1 > bottem navbar > library > Library music > Vector [VECTOR]: left 590, top 837, width 24, height 24, signals: vector
+- Android Compact - 1 > bottem navbar > library > Library music > Vector [VECTOR]: left 592, top 839, width 20, height 20, signals: vector
+- Android Compact - 1 > bottem navbar > Hom3 [GROUP]: left 187, top 821, width 33, height 36
+- Android Compact - 1 > bottem navbar > Hom3 > Home [RECTANGLE]: left 344, top 833, width 24, height 24, signals: image
+- Android Compact - 1 > bottem navbar > Hom3 > Home [TEXT]: left 339, top 862, width 33, height 7
+- Android Compact - 1 > music [GROUP]: left 25, top 198, width 167, height 161, signals: top-level
+- Android Compact - 1 > music > Rectangle 1 [RECTANGLE]: left 50, top 396, width 167, height 161
+- Android Compact - 1 > music > Rectangle 3 [RECTANGLE]: left 57, top 404, width 153, height 146
+- Android Compact - 1 > music [GROUP]: left 215, top 198, width 170, height 161, signals: top-level
+- Android Compact - 1 > music > Rectangle 2 [RECTANGLE]: left 430, top 396, width 170, height 161
+- Android Compact - 1 > music > Rectangle 4 [RECTANGLE]: left 437, top 404, width 153, height 146
+- Android Compact - 1 > music [GROUP]: left 25, top 398, width 170, height 161, signals: top-level
+- Android Compact - 1 > music > Rectangle 2 [RECTANGLE]: left 50, top 796, width 170, height 161
+- Android Compact - 1 > music > Rectangle 4 [RECTANGLE]: left 57, top 804, width 153, height 146
+- Android Compact - 1 > music [GROUP]: left 215, top 398, width 170, height 161, signals: top-level
+- Android Compact - 1 > music > Rectangle 2 [RECTANGLE]: left 430, top 796, width 170, height 161
+- Android Compact - 1 > music > Rectangle 4 [RECTANGLE]: left 437, top 804, width 153, height 146
+- Android Compact - 1 > Navbar [GROUP]: left 149, top 45, width 236, height 48, signals: top-level
+- Android Compact - 1 > Navbar > Rectangle 5 [RECTANGLE]: left 298, top 90, width 236, height 48
+- Android Compact - 1 > Navbar > People alt [FRAME]: left 424, top 102, width 24, height 24, signals: clips
+- Android Compact - 1 > Navbar > People alt > Group [GROUP]: left 425, top 106, width 22, height 16
+- Android Compact - 1 > Navbar > People alt > Group > Group [GROUP]: left 426, top 110, width 22, height 16
+- Android Compact - 1 > Navbar > People alt > Group > Group > Group [GROUP]: left 442.67, top 123.13, width 6.33, height 6.87
+- Android Compact - 1 > Navbar > People alt > Group > Group > Group > Vector [VECTOR]: left 459.34, top 136.26, width 6.33, height 6.87, signals: vector
+- Android Compact - 1 > Navbar > People alt > Group > Group > Group [GROUP]: left 431, top 114, width 8, height 8
+- Android Compact - 1 > Navbar > People alt > Group > Group > Group > Vector [VECTOR]: left 436, top 118, width 8, height 8, signals: vector
+- Android Compact - 1 > Navbar > People alt > Group > Group > Group [GROUP]: left 439.67, top 114, width 5.33, height 8
+- Android Compact - 1 > Navbar > People alt > Group > Group > Group > Vector [VECTOR]: left 453.34, top 118, width 5.33, height 8, signals: vector
+- Android Compact - 1 > Navbar > People alt > Group > Group > Group [GROUP]: left 427, top 123, width 16, height 7
+- Android Compact - 1 > Navbar > People alt > Group > Group > Group > Vector [VECTOR]: left 428, top 136, width 16, height 7, signals: vector
+- Android Compact - 1 > Navbar > Account circle [FRAME]: left 479, top 102, width 24, height 24, signals: clips
+- Android Compact - 1 > Navbar > Account circle > Group [GROUP]: left 481, top 104, width 20, height 20
+- Android Compact - 1 > Navbar > Account circle > Group > Vector [VECTOR]: left 483, top 106, width 20, height 20, signals: vector
+- Android Compact - 1 > Navbar > Home [TEXT]: left 329, top 102, width 52, height 23
+- Android Compact - 1 > recents [TEXT]: left 35, top 129, width 153, height 46, signals: top-level
+- Android Compact - 1 > what is your mood ? [TEXT]: left 25, top 598, width 250, height 28, signals: top-level
+
+## Assets
+A single rendered composite image is required as the visual reference for the whole frame. Attach this downloaded file alongside the prompt. Do NOT reference any individual image files; they are already baked into this composite:
+- `Android_Compact_-_1.png` → whole composite (412×917)
+
+## Pixel Perfect Template
+You are rebuilding this Figma frame for an exact visual match. Treat the JSON as geometry/style data and the reference image/assets as visual evidence.
+
+### Required Inputs
+- JSON component structure below.
+- Export/download the whole-frame composite and attach it alongside this prompt as the visual source of truth.
+- Use every listed exported image file exactly; if any required asset is missing, stop and ask for it.
+
+### Render Target
+- Build one exact 412×917 frame.
+- Set `html, body { margin: 0; }` and global `box-sizing: border-box`.
+- Normalize the selected root frame to `left: 0; top: 0`; root `layout.x/y` is only Figma canvas position.
+
+### Verification Loop
+1. Implement the frame at the exact target size.
+2. Capture a lossless PNG screenshot at that same size; do not use JPEG/WebP compression.
+3. Compare it against the reference image; give the screenshot to the user for Figma to Prompt's built-in **Verify AI screenshot** checker.
+4. If the checker reports a non-zero diff, download its correction ZIP and use reference.png, candidate.png, visual-diff.png, and verification.json to fix position, size, color, typography, image crop, vector geometry, and z-order.
+5. Repeat until the screenshot is visually indistinguishable.
+
+Do not approximate missing images, icons, logos, or text. If a required path or asset cannot be loaded, stop and ask for the correct input.
+
+## Implementation Checks
+- Build against one exact 412×917 viewport with `html, body { margin: 0; }` and global `box-sizing: border-box`.
+- Screenshot comparison against the reference render is required; do not declare completion from code inspection alone.
+- For text, set explicit `font-size`, `font-weight`, `line-height`, and CSS `letter-spacing`; convert percent letter spacing to px from the font size.
+- For mixed text, use `textStyleRanges` to split spans and preserve range-level fills, styles, links, and paragraph/list metadata.
+- For `layout.mode: none`, position children from their `layout.x/y` offsets relative to the parent.
+- `layout.wrap: wrap` → `flex-wrap: wrap`; use `counterAxisSpacing` as the wrapped-track gap and preserve `counterAxisAlignContent`.
+- `layout.mode: grid` → CSS Grid; map row/column counts, gaps, track sizes, anchors, spans, and `gridChildHorizontalAlign/gridChildVerticalAlign` exactly.
+- Apply `layout.minWidth/maxWidth/minHeight/maxHeight` as CSS size bounds without replacing the extracted fixed target size.
+- Preserve `layout.relativeTransform` for rotation/skew; use `layout.x/y` as the containing-parent offset and avoid applying translation twice.
+- `layout.renderBounds` is the effect/stroke-inclusive box relative to the regular node box; use its offset and size when positioning a rendered fallback or checking visual overflow.
+- For `layout.layoutPositioning: absolute`, remove that node from the parent flex flow and position it by `layout.x/y` even when the parent uses auto layout.
+- `layout.itemReverseZIndex: true` reverses sibling paint order; otherwise later JSON siblings paint above earlier siblings.
+- Preserve `style.textAlignVertical` inside fixed text boxes and map `style.textAutoResize` to wrapping/intrinsic sizing behavior.
+- `style.textTruncation: ending` requires an ellipsis; combine it with `style.maxLines` using deterministic line clamping.
+- Preserve `style.textDecorationStyle`, offset, thickness, color, and skip-ink behavior; a plain underline is not equivalent to a wavy or dotted decoration.
+- Preserve the exact font face from `style.fontStyleName`, map `style.openTypeFeatures` to `font-feature-settings`, and honor paragraph/list/hanging/leading-trim metadata.
+- Preserve `prototype.overflowDirection`, `fixedChildIds`, and overlay settings as runtime behavior; fixed layers stay above scrolling content.
+- Treat `annotations`, `componentPropertyReferences`, `variableBindings`, `explicitVariableModes`, and `referencedVariables` as developer-authored implementation constraints.
+- `style.cornerSmoothing` is a Figma squircle, not a plain CSS rounded rectangle; use the bundled fallback or exact superellipse geometry when required.
+- Rebuild partial ellipses and donut shapes from `arcData` instead of rendering a full oval.
+- Preserve paint metadata such as fill opacity, image crop transforms, image filters, and gradient transforms when present in `style`.
+- `style.advancedEffects` records Figma noise, texture, and glass parameters. Treat the node-matched rendered fallback as authoritative because plain CSS cannot reproduce these effects exactly.
+- Any critical `unsupported-fill-*` or `unsupported-effect-*` warning means the known node contains a visual feature the native implementation must not silently drop.
+- Multiple visible fills/strokes and Figma linear-burn/linear-dodge compositing are critical fallback cases; browser background layers or blend modes are not accepted as pixel-equivalent evidence.
+- Preserve stroke metadata such as stroke alignment, caps, joins, dash pattern, miter limit, and side-specific stroke weights when present in `style`.
+- Render exact SVG paths from `vectorPaths`, `fillGeometry`, or `strokeGeometry` when present; do not replace them with approximate icons.
+- For `TEXT_PATH`, place the exact text on `vectorPaths` beginning at `textPathStartData`; use the bundled rendered fallback if browser text-path metrics differ.
+- For `TRANSFORM_GROUP`, reproduce every `transformModifiers` repeat in order, including repeat type, count, axis, offset, and whether the offset uses px or relative units.
+- Give the final exact-size screenshot to the user so they can run Figma to Prompt's built-in **Verify AI screenshot** checker.
+- Use the separately attached whole-frame composite as visual reference only; do not crop it into runtime assets.
+
+## Tree Outline
+```
+Android Compact - 1 (FRAME, fixed×fixed)
+├── Button (FRAME, fixed×fixed)
+│   └── Feels good (TEXT, fixed×fixed) "Feels good"
+├── Button (FRAME, fixed×fixed)
+│   └── Chill (TEXT, fixed×fixed) "Chill"
+├── Button (FRAME, fixed×fixed)
+│   └── Gaming (TEXT, fixed×fixed) "Gaming"
+├── Button (FRAME, fixed×fixed)
+│   └── Focus (TEXT, fixed×fixed) "Focus"
+├── When is playing (GROUP, fixed×fixed)
+│   ├── info (FRAME, fixed×fixed)
+│   │   ├── Name (TEXT, fixed×fixed) "Name"
+│   │   └── Artis (TEXT, fixed×fixed) "Artis"
+│   ├── Ellipse 1 (ELLIPSE, fixed×fixed)
+│   ├── Pause (FRAME, fixed×fixed)
+│   │   ├── Vector (VECTOR, fixed×fixed)
+│   │   └── Vector (VECTOR, fixed×fixed)
+│   ├── Skip next (FRAME, fixed×fixed)
+│   │   ├── Vector (VECTOR, fixed×fixed)
+│   │   └── Vector (VECTOR, fixed×fixed)
+│   └── Skip next (FRAME, fixed×fixed)
+│       ├── Vector (VECTOR, fixed×fixed)
+│       └── Vector (VECTOR, fixed×fixed)
+├── bottem navbar (FRAME, fixed×fixed)
+│   ├── search (GROUP, fixed×fixed)
+│   │   ├── Home (TEXT, fixed×fixed) "Home"
+│   │   └── Search (FRAME, fixed×fixed)
+│   │       ├── Vector (VECTOR, fixed×fixed)
+│   │       └── Vector (VECTOR, fixed×fixed)
+│   ├── library (GROUP, fixed×fixed)
+│   │   ├── Library (TEXT, fixed×fixed) "Library"
+│   │   └── Library music (FRAME, fixed×fixed)
+│   │       ├── Vector (VECTOR, fixed×fixed)
+│   │       └── Vector (VECTOR, fixed×fixed)
+│   └── Hom3 (GROUP, fixed×fixed)
+│       ├── Home (RECTANGLE, fixed×fixed)
+│       └── Home (TEXT, fixed×fixed) "Home"
+├── music (GROUP, fixed×fixed)
+│   ├── Rectangle 1 (RECTANGLE, fixed×fixed)
+│   └── Rectangle 3 (RECTANGLE, fixed×fixed)
+├── music (GROUP, fixed×fixed)
+│   ├── Rectangle 2 (RECTANGLE, fixed×fixed)
+│   └── Rectangle 4 (RECTANGLE, fixed×fixed)
+├── music (GROUP, fixed×fixed)
+│   ├── Rectangle 2 (RECTANGLE, fixed×fixed)
+│   └── Rectangle 4 (RECTANGLE, fixed×fixed)
+├── music (GROUP, fixed×fixed)
+│   ├── Rectangle 2 (RECTANGLE, fixed×fixed)
+│   └── Rectangle 4 (RECTANGLE, fixed×fixed)
+├── Navbar (GROUP, fixed×fixed)
+│   ├── Rectangle 5 (RECTANGLE, fixed×fixed)
+│   ├── People alt (FRAME, fixed×fixed)
+│   │   └── Group (GROUP, fixed×fixed)
+│   │       └── Group (GROUP, fixed×fixed)
+│   │           ├── Group (GROUP, fixed×fixed)
+│   │           │   └── Vector (VECTOR, fixed×fixed)
+│   │           ├── Group (GROUP, fixed×fixed)
+│   │           │   └── Vector (VECTOR, fixed×fixed)
+│   │           ├── Group (GROUP, fixed×fixed)
+│   │           │   └── Vector (VECTOR, fixed×fixed)
+│   │           └── Group (GROUP, fixed×fixed)
+│   │               └── Vector (VECTOR, fixed×fixed)
+│   ├── Account circle (FRAME, fixed×fixed)
+│   │   └── Group (GROUP, fixed×fixed)
+│   │       └── Vector (VECTOR, fixed×fixed)
+│   └── Home (TEXT, fixed×fixed) "Home"
+├── recents (TEXT, fixed×fixed) "recents "
+└── what is your mood ? (TEXT, fixed×fixed) "what is your mood  ?"
+```
+
+## Component Structure
+```
+{"id":"11:6","name":"Android Compact - 1","type":"FRAME","layout":{"width":412,"height":917,"x":-59,"y":-179,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121"},"children":[{"id":"29:115","name":"Button","type":"FRAME","layout":{"width":115.91,"height":41.66,"x":25,"y":650,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":14.67,"shadows":[{"type":"drop","color":"#262626","offsetX":-13,"offsetY":-13,"blur":10,"spread":0},{"type":"drop","color":"#1C1C1C","offsetX":13,"offsetY":13,"blur":10,"spread":0}]},"children":[{"id":"29:116","name":"Feels good","type":"TEXT","text":"Feels good","style":{"fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Roboto","fontStyleName":"Bold","fontSize":13.3,"fontWeight":700,"letterSpacing":1.33,"letterSpacingUnit":"px","textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":62.59,"height":15,"x":26.66,"y":13.33,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}}]},{"id":"29:122","name":"Button","type":"FRAME","layout":{"width":115.91,"height":41.66,"x":25,"y":722,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":14.67,"shadows":[{"type":"drop","color":"#262626","offsetX":-13,"offsetY":-13,"blur":10,"spread":0},{"type":"drop","color":"#1C1C1C","offsetX":13,"offsetY":13,"blur":10,"spread":0}]},"children":[{"id":"29:123","name":"Chill","type":"TEXT","text":"Chill","style":{"fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Roboto","fontStyleName":"Bold","fontSize":13.3,"fontWeight":700,"letterSpacing":1.33,"letterSpacingUnit":"px","textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":62.59,"height":15,"x":26.66,"y":13.33,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}}]},{"id":"29:118","name":"Button","type":"FRAME","layout":{"width":115.91,"height":41.66,"x":165,"y":650,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":14.67,"shadows":[{"type":"drop","color":"#262626","offsetX":-13,"offsetY":-13,"blur":10,"spread":0},{"type":"drop","color":"#1C1C1C","offsetX":13,"offsetY":13,"blur":10,"spread":0}]},"children":[{"id":"29:119","name":"Gaming","type":"TEXT","text":"Gaming","style":{"fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Roboto","fontStyleName":"Bold","fontSize":13.3,"fontWeight":700,"letterSpacing":1.33,"letterSpacingUnit":"px","textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":62.59,"height":15,"x":26.66,"y":13.33,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}}]},{"id":"29:124","name":"Button","type":"FRAME","layout":{"width":115.91,"height":41.66,"x":165,"y":722,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":14.67,"shadows":[{"type":"drop","color":"#262626","offsetX":-13,"offsetY":-13,"blur":10,"spread":0},{"type":"drop","color":"#1C1C1C","offsetX":13,"offsetY":13,"blur":10,"spread":0}]},"children":[{"id":"29:125","name":"Focus","type":"TEXT","text":"Focus","style":{"fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Roboto","fontStyleName":"Bold","fontSize":13.3,"fontWeight":700,"letterSpacing":1.33,"letterSpacingUnit":"px","textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":62.59,"height":15,"x":26.66,"y":13.33,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}}]},{"id":"78:21","name":"When is playing","type":"GROUP","layout":{"width":307,"height":135,"x":52,"y":709,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","shadows":[{"type":"inner","color":"#000000","opacity":0.25,"offsetX":0,"offsetY":-29,"blur":10.3,"spread":0},{"type":"inner","color":"#000000","opacity":0.25,"offsetX":0,"offsetY":4,"blur":4,"spread":0}]},"children":[{"id":"78:4","name":"info","type":"FRAME","layout":{"width":307,"height":69,"x":52,"y":736,"layoutAlign":"inherit","constraints":{"horizontal":"center","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":20},"children":[{"id":"78:24","name":"Name","type":"TEXT","text":"Name","style":{"fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Roboto","fontStyleName":"Bold","fontSize":13.3,"fontWeight":700,"letterSpacing":1.33,"letterSpacingUnit":"px","textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":62.59,"height":15,"x":13,"y":27,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}},{"id":"78:25","name":"Artis","type":"TEXT","text":"Artis","style":{"fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Roboto","fontStyleName":"Bold","fontSize":13.3,"fontWeight":700,"letterSpacing":1.33,"letterSpacingUnit":"px","textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":62.59,"height":15,"x":230,"y":27,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}}]},{"id":"78:2","name":"Ellipse 1","type":"ELLIPSE","arcData":{"startingAngle":0,"endingAngle":6.2831854820251465,"innerRadius":0},"layout":{"width":135,"height":135,"x":138,"y":709,"layoutAlign":"inherit","constraints":{"horizontal":"center","vertical":"min"},"targetAspectRatio":{"x":143,"y":143},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#D9D9D9"}],"backgroundColor":"#D9D9D9"}},{"id":"78:26","name":"Pause","type":"FRAME","layout":{"width":47,"height":47,"x":182,"y":751,"layoutAlign":"inherit","constraints":{"horizontal":"center","vertical":"min"},"targetAspectRatio":{"x":96,"y":96},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"78:27","name":"Vector","type":"VECTOR","layout":{"width":47,"height":47}},{"id":"78:28","name":"Vector","type":"VECTOR","layout":{"width":23.5,"height":27.42}}]},{"id":"78:32","name":"Skip next","type":"FRAME","layout":{"width":43,"height":43,"x":223,"y":748,"layoutAlign":"inherit","constraints":{"horizontal":"scale","vertical":"center"},"targetAspectRatio":{"x":96,"y":96},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"78:33","name":"Vector","type":"VECTOR","layout":{"width":43,"height":43}},{"id":"78:34","name":"Vector","type":"VECTOR","layout":{"width":21.5,"height":21.5}}]},{"id":"78:36","name":"Skip next","type":"FRAME","layout":{"width":43,"height":43,"x":187,"y":749,"layoutAlign":"inherit","rotation":-180,"constraints":{"horizontal":"scale","vertical":"center"},"targetAspectRatio":{"x":96,"y":96},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"78:37","name":"Vector","type":"VECTOR","layout":{"width":43,"height":43}},{"id":"78:38","name":"Vector","type":"VECTOR","layout":{"width":21.5,"height":21.5}}]}]},{"id":"12:10","name":"bottem navbar","type":"FRAME","layout":{"width":342,"height":69,"x":35,"y":809,"layoutAlign":"inherit","constraints":{"horizontal":"center","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":20,"shadows":[{"type":"drop","color":"#2A2A2A","offsetX":-23,"offsetY":-23,"blur":46,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#181818","offsetX":23,"offsetY":23,"blur":46,"spread":0,"showShadowBehindNode":true}]},"children":[{"id":"20:3","name":"search","type":"GROUP","layout":{"width":33,"height":34,"x":28,"y":16,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"20:2","name":"Home","type":"TEXT","text":"Home","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#E4E4E4"}],"color":"#E4E4E4","fontFamily":"Roboto","fontStyleName":"Regular","fontSize":12,"fontWeight":400,"textAlign":"center","textAlignVertical":"top","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":33,"height":6.4,"x":28,"y":43.6,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}},{"id":"20:7","name":"Search","type":"FRAME","layout":{"width":22,"height":21.94,"x":34,"y":16,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"20:8","name":"Vector","type":"VECTOR","layout":{"width":22,"height":21.94}},{"id":"20:9","name":"Vector","type":"VECTOR","layout":{"width":16.03,"height":15.99}}]}]},{"id":"20:4","name":"library","type":"GROUP","layout":{"width":46,"height":36,"x":272,"y":14,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"20:6","name":"Library","type":"TEXT","text":"Library","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#E4E4E4"}],"color":"#E4E4E4","fontFamily":"Roboto","fontStyleName":"Regular","fontSize":12,"fontWeight":400,"textAlign":"center","textAlignVertical":"top","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":46,"height":7,"x":272,"y":43,"layoutAlign":"inherit","constraints":{"horizontal":"center","vertical":"center"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}},{"id":"28:29","name":"Library music","type":"FRAME","layout":{"width":24,"height":24,"x":283,"y":14,"layoutAlign":"inherit","constraints":{"horizontal":"center","vertical":"min"},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"28:30","name":"Vector","type":"VECTOR","layout":{"width":24,"height":24}},{"id":"28:31","name":"Vector","type":"VECTOR","layout":{"width":20,"height":20}}]}]},{"id":"20:10","name":"Hom3","type":"GROUP","layout":{"width":33,"height":36,"x":152,"y":12,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"20:11","name":"Home","type":"RECTANGLE","layout":{"width":24,"height":24,"x":157,"y":12,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"image","sourceType":"IMAGE","imageHash":"4d17bb90396b01ed1aaf5bb7dd32908cc2086599","scaleMode":"fit","transform":[[1,0,0],[0,1,0]],"scalingFactor":1,"filters":{"exposure":0.44}}],"imageFillHash":"4d17bb90396b01ed1aaf5bb7dd32908cc2086599","imageFillScaleMode":"fit","imageFillTransform":[[1,0,0],[0,1,0]],"imageFillScalingFactor":1,"imageFillFilters":{"exposure":0.44}}},{"id":"20:12","name":"Home","type":"TEXT","text":"Home","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#E4E4E4"}],"color":"#E4E4E4","fontFamily":"Roboto","fontStyleName":"Regular","fontSize":12,"fontWeight":400,"textAlign":"center","textAlignVertical":"top","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":33,"height":7,"x":152,"y":41,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}}]}]},{"id":"29:84","name":"music","type":"GROUP","layout":{"width":167,"height":161,"x":25,"y":198,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"23:23","name":"Rectangle 1","type":"RECTANGLE","layout":{"width":167,"height":161,"x":25,"y":198,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}]}},{"id":"28:27","name":"Rectangle 3","type":"RECTANGLE","layout":{"width":153,"height":146,"x":32,"y":206,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#000000"}],"backgroundColor":"#000000","borderRadius":36,"strokes":[{"type":"solid","sourceType":"SOLID","color":"#999999"}],"borderColor":"#999999","borderWidth":1,"strokeAlign":"inside","strokeCap":"none","strokeJoin":"miter","strokeMiterLimit":4,"strokeDashPattern":[],"strokeWeights":{"top":1,"right":1,"bottom":1,"left":1}}}]},{"id":"29:85","name":"music","type":"GROUP","layout":{"width":170,"height":161,"x":215,"y":198,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"28:26","name":"Rectangle 2","type":"RECTANGLE","layout":{"width":170,"height":161,"x":215,"y":198,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}]}},{"id":"28:28","name":"Rectangle 4","type":"RECTANGLE","layout":{"width":153,"height":146,"x":222,"y":206,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#000000"}],"backgroundColor":"#000000","borderRadius":36,"strokes":[{"type":"solid","sourceType":"SOLID","color":"#999999"}],"borderColor":"#999999","borderWidth":1,"strokeAlign":"inside","strokeCap":"none","strokeJoin":"miter","strokeMiterLimit":4,"strokeDashPattern":[],"strokeWeights":{"top":1,"right":1,"bottom":1,"left":1}}}]},{"id":"29:86","name":"music","type":"GROUP","layout":{"width":170,"height":161,"x":25,"y":398,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"29:87","name":"Rectangle 2","type":"RECTANGLE","layout":{"width":170,"height":161,"x":25,"y":398,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}]}},{"id":"29:88","name":"Rectangle 4","type":"RECTANGLE","layout":{"width":153,"height":146,"x":32,"y":406,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#000000"}],"backgroundColor":"#000000","borderRadius":36,"strokes":[{"type":"solid","sourceType":"SOLID","color":"#999999"}],"borderColor":"#999999","borderWidth":1,"strokeAlign":"inside","strokeCap":"none","strokeJoin":"miter","strokeMiterLimit":4,"strokeDashPattern":[],"strokeWeights":{"top":1,"right":1,"bottom":1,"left":1}}}]},{"id":"29:92","name":"music","type":"GROUP","layout":{"width":170,"height":161,"x":215,"y":398,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"29:93","name":"Rectangle 2","type":"RECTANGLE","layout":{"width":170,"height":161,"x":215,"y":398,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}]}},{"id":"29:94","name":"Rectangle 4","type":"RECTANGLE","layout":{"width":153,"height":146,"x":222,"y":406,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#000000"}],"backgroundColor":"#000000","borderRadius":36,"strokes":[{"type":"solid","sourceType":"SOLID","color":"#999999"}],"borderColor":"#999999","borderWidth":1,"strokeAlign":"inside","strokeCap":"none","strokeJoin":"miter","strokeMiterLimit":4,"strokeDashPattern":[],"strokeWeights":{"top":1,"right":1,"bottom":1,"left":1}}}]},{"id":"46:167","name":"Navbar","type":"GROUP","layout":{"width":236,"height":48,"x":149,"y":45,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"28:34","name":"Rectangle 5","type":"RECTANGLE","layout":{"width":236,"height":48,"x":149,"y":45,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#212121"}],"backgroundColor":"#212121","borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}]}},{"id":"28:59","name":"People alt","type":"FRAME","layout":{"width":24,"height":24,"x":275,"y":57,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"28:62","name":"Group","type":"GROUP","layout":{"width":22,"height":16,"x":1,"y":4,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"28:64","name":"Group","type":"GROUP","layout":{"width":22,"height":16,"x":1,"y":4,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"28:65","name":"Group","type":"GROUP","layout":{"width":6.33,"height":6.87,"x":16.67,"y":13.13,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"28:66","name":"Vector","type":"VECTOR","layout":{"width":6.33,"height":6.87}}]},{"id":"28:67","name":"Group","type":"GROUP","layout":{"width":8,"height":8,"x":5,"y":4,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"28:68","name":"Vector","type":"VECTOR","layout":{"width":8,"height":8}}]},{"id":"28:69","name":"Group","type":"GROUP","layout":{"width":5.33,"height":8,"x":13.67,"y":4,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"28:70","name":"Vector","type":"VECTOR","layout":{"width":5.33,"height":8}}]},{"id":"28:71","name":"Group","type":"GROUP","layout":{"width":16,"height":7,"x":1,"y":13,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"28:72","name":"Vector","type":"VECTOR","layout":{"width":16,"height":7}}]}]}]}]},{"id":"28:78","name":"Account circle","type":"FRAME","layout":{"width":24,"height":24,"x":330,"y":57,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"28:81","name":"Group","type":"GROUP","layout":{"width":20,"height":20,"x":2,"y":2,"layoutAlign":"inherit","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"28:82","name":"Vector","type":"VECTOR","layout":{"width":20,"height":20}}]}]},{"id":"28:83","name":"Home","type":"TEXT","text":"Home","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#999999"}],"color":"#999999","fontFamily":"Audex","fontStyleName":"Regular","fontSize":20,"fontWeight":400,"textAlignVertical":"top","textAutoResize":"width-and-height","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":52,"height":23,"x":180,"y":57,"layoutAlign":"inherit","constraints":{"horizontal":"center","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}}]},{"id":"23:25","name":"recents","type":"TEXT","text":"recents ","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#999999"}],"color":"#999999","fontFamily":"Audex","fontStyleName":"Regular","fontSize":40,"fontWeight":400,"textAlignVertical":"top","textAutoResize":"width-and-height","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":153,"height":46,"x":35,"y":129,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}},{"id":"29:95","name":"what is your mood ?","type":"TEXT","text":"what is your mood  ?","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#999999"}],"color":"#999999","fontFamily":"Audex","fontStyleName":"Regular","fontSize":24,"fontWeight":400,"textAlignVertical":"top","textAutoResize":"width-and-height","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":250,"height":28,"x":25,"y":598,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}}]}
+```
