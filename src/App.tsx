@@ -206,28 +206,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#141414] flex items-center justify-center sm:py-6 select-none font-sans">
+    <div className="h-[100dvh] min-h-[100dvh] sm:min-h-screen w-full bg-[#141414] flex items-center justify-center sm:py-6 select-none font-sans overflow-hidden">
       {/* 412 x 917 Android Compact - 1 root container matching Figma exact composition */}
-      <div className="w-full sm:max-w-[412px] h-screen sm:h-[917px] bg-[#212121] sm:rounded-[44px] sm:border sm:border-white/5 sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] flex flex-col justify-between overflow-hidden relative">
-        {/* Top Navigation Capsule matching Figma */}
-        <TopCapsule
-          title={capsuleTitle}
-          onProfileClick={() => {
-            setAccountModalType('profile');
-            setShowAccountModal(true);
-          }}
-          onGroupClick={() => {
-            setAccountModalType('group');
-            setShowAccountModal(true);
-          }}
-          onMobileClick={() => {
-            setAccountModalType('mobile');
-            setShowAccountModal(true);
-          }}
-        />
-
-        {/* Dynamic Screen Content strictly aligned with the 4 screen states */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+      <div className="w-full sm:max-w-[412px] h-[100dvh] sm:h-[917px] max-h-[100dvh] sm:max-h-[917px] bg-[#212121] sm:rounded-[44px] sm:border sm:border-white/5 sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] relative overflow-hidden">
+        {/* Dynamic Screen Content strictly aligned with the 4 screen states - takes full screen from top 0 to bottom */}
+        <div className="w-full h-full flex flex-col overflow-hidden relative">
           {screenState === 'home' && (
             <HomeScreen
               recentTracks={tracks}
@@ -251,6 +234,7 @@ export default function App() {
               likedIds={likedIds}
               downloadedIds={downloadedIds}
               onBackToHome={() => setScreenState('home')}
+              onImportDeviceTracks={handleImportDeviceTracks}
             />
           )}
 
@@ -278,6 +262,7 @@ export default function App() {
               onToggleLike={handleToggleLike}
               onToggleDownload={handleToggleDownload}
               onOpenLibrarySearch={() => setScreenState('library_search')}
+              onImportDeviceTracks={handleImportDeviceTracks}
             />
           )}
 
@@ -295,6 +280,19 @@ export default function App() {
             />
           )}
         </div>
+
+        {/* Top Navigation Capsule floating over screen content matching Figma exact coordinates */}
+        <TopCapsule
+          title={capsuleTitle}
+          onProfileClick={() => {
+            setAccountModalType('profile');
+            setShowAccountModal(true);
+          }}
+          onGroupClick={() => {
+            setAccountModalType('group');
+            setShowAccountModal(true);
+          }}
+        />
 
         {/* Floating When-is-playing Controller Widget */}
         <WhenPlayingWidget

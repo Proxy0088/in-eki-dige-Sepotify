@@ -26,9 +26,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const tiles = recentTracks.slice(0, 4);
 
   return (
-    <div className="flex-1 flex flex-col px-[25px] overflow-y-auto no-scrollbar pb-32">
+    <div className="flex-1 flex flex-col px-[25px] overflow-y-auto no-scrollbar pt-[max(calc(env(safe-area-inset-top,0px)+96px),108px)] sm:pt-[118px] pb-36">
       {/* Top Header Row: "recents" (Audex 40px, left 35, top 129) & Figma Node 88:39 Library Icon (x: 340, y: 140) */}
-      <div className="flex items-center justify-between pl-[10px] pr-[15px] mt-[12px] mb-[23px]">
+      <div className="flex items-center justify-between pl-[10px] pr-[15px] mt-[11px] mb-[23px]">
         <h1 className="font-audex text-[40px] leading-tight text-[#999999] select-none lowercase">
           recents
         </h1>

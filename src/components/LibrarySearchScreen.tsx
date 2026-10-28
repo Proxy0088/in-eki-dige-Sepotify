@@ -42,7 +42,7 @@ export const LibrarySearchScreen: React.FC<LibrarySearchScreenProps> = ({
   const displayRows = filtered.slice(0, 5);
 
   return (
-    <div className="flex-1 flex flex-col px-7 pt-2 pb-6 overflow-y-auto no-scrollbar">
+    <div className="flex-1 flex flex-col px-7 pt-[max(calc(env(safe-area-inset-top,0px)+96px),108px)] sm:pt-[118px] pb-36 overflow-y-auto no-scrollbar">
       {/* Search Field with Magnifying Glass icon on the right (matching right screenshot) */}
       <div className="w-full relative mb-7 flex items-center gap-2">
         <button

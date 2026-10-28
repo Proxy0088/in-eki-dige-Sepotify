@@ -13,6 +13,7 @@ interface DeviceLibrarySearchScreenProps {
   likedIds: Set<string>;
   downloadedIds: Set<string>;
   onBackToHome: () => void;
+  onImportDeviceTracks?: (files: FileList) => Promise<number>;
 }
 
 export const DeviceLibrarySearchScreen: React.FC<DeviceLibrarySearchScreenProps> = ({
@@ -25,8 +26,11 @@ export const DeviceLibrarySearchScreen: React.FC<DeviceLibrarySearchScreenProps>
   likedIds,
   downloadedIds,
   onBackToHome,
+  onImportDeviceTracks,
 }) => {
   const [query, setQuery] = useState('');
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Live filter over auto-scanned device tracks
   const filtered = query.trim()
@@ -41,10 +45,32 @@ export const DeviceLibrarySearchScreen: React.FC<DeviceLibrarySearchScreenProps>
   // Render 5 result rows matching Figma geometry
   const displayRows = filtered.slice(0, 5);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0 && onImportDeviceTracks) {
+      const count = await onImportDeviceTracks(e.target.files);
+      setImportStatus(`${count} آهنگ با موفقیت از گوشی اضافه شد`);
+      setTimeout(() => setImportStatus(null), 4000);
+    }
+  };
+
+  const handleOpenPicker = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
-    <div className="flex-1 flex flex-col px-7 pt-2 pb-6 overflow-y-auto no-scrollbar">
+    <div className="flex-1 flex flex-col px-7 pt-[max(calc(env(safe-area-inset-top,0px)+96px),108px)] sm:pt-[118px] pb-36 overflow-y-auto no-scrollbar">
+      {/* Hidden native input for audio files */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac"
+        multiple
+        className="hidden"
+      />
+
       {/* Header bar with Back button and search input */}
-      <div className="w-full relative mb-4 flex items-center gap-2">
+      <div className="w-full relative mb-3 flex items-center gap-2">
         <button
           type="button"
           onClick={onBackToHome}
@@ -70,15 +96,40 @@ export const DeviceLibrarySearchScreen: React.FC<DeviceLibrarySearchScreenProps>
         </div>
       </div>
 
+      {/* Device Scan / Import Action Card */}
+      <div className="w-full mb-4 p-3 rounded-2xl bg-[#262626] border border-white/10 flex items-center justify-between shadow-md">
+        <div className="flex flex-col text-right">
+          <span className="text-xs font-semibold text-white">انتخاب آهنگ‌های دانلود شده در گوشی</span>
+          <span className="text-[11px] text-[#9aa0a6]">پوشه Download یا Music گوشی شما</span>
+        </div>
+        <button
+          type="button"
+          onClick={handleOpenPicker}
+          className="px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-bold hover:bg-neutral-200 transition-colors cursor-pointer shrink-0 shadow"
+        >
+          انتخاب فایل‌ها
+        </button>
+      </div>
+
+      {importStatus && (
+        <div className="w-full mb-3 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs text-center font-medium animate-fadeIn">
+          {importStatus}
+        </div>
+      )}
+
       {/* Auto-Scanned Device Music Status Badge */}
       <div className="flex items-center justify-between px-1 mb-4 text-xs text-[#9aa0a6]">
-        <span className="flex items-center gap-1.5 font-medium text-teal-400">
+        <span className="flex items-center gap-1.5 font-medium text-emerald-400">
           <Smartphone className="w-3.5 h-3.5" />
-          <span>آهنگ‌های شناسایی‌شده در گوشی</span>
+          <span>آهنگ‌های گوشی ({filtered.length})</span>
         </span>
-        <span className="font-mono text-[11px] text-[#e5e7eb]">
-          {filtered.length} فایل صوتی
-        </span>
+        <button
+          type="button"
+          onClick={handleOpenPicker}
+          className="text-xs text-emerald-400 hover:underline cursor-pointer"
+        >
+          + افزودن آهنگ بیشتر
+        </button>
       </div>
 
       {/* 5 Vertically Stacked Music Rows */}

@@ -20,6 +20,7 @@ interface LibraryScreenProps {
   onToggleLike: (track: Track) => void;
   onToggleDownload: (track: Track) => void;
   onOpenLibrarySearch: () => void;
+  onImportDeviceTracks?: (files: FileList) => Promise<number>;
 }
 
 export const LibraryScreen: React.FC<LibraryScreenProps> = ({
@@ -32,10 +33,13 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   onToggleLike,
   onToggleDownload,
   onOpenLibrarySearch,
+  onImportDeviceTracks,
 }) => {
   const [selectedCollection, setSelectedCollection] = useState<
     'liked' | 'library 1' | 'library 2' | 'Downloads' | null
   >(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
 
   // Filter tracks for the active collection
   const collectionTracks = React.useMemo(() => {
@@ -55,8 +59,26 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
     return [];
   }, [selectedCollection, tracks, likedIds, downloadedIds]);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0 && onImportDeviceTracks) {
+      const count = await onImportDeviceTracks(e.target.files);
+      setImportStatus(`${count} آهنگ با موفقیت از گوشی اضافه شد`);
+      setTimeout(() => setImportStatus(null), 4000);
+    }
+  };
+
   return (
-    <div className="flex-1 flex flex-col px-7 pt-1 pb-6 overflow-y-auto no-scrollbar">
+    <div className="flex-1 flex flex-col px-7 pt-[max(calc(env(safe-area-inset-top,0px)+96px),108px)] sm:pt-[118px] pb-36 overflow-y-auto no-scrollbar">
+      {/* Hidden native input for audio files */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac"
+        multiple
+        className="hidden"
+      />
+
       {/* Top action row: Magnifying glass button on the right to open Library Search */}
       <div className="w-full flex items-center justify-between mb-4 px-1">
         {selectedCollection ? (
@@ -69,7 +91,13 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             <span className="font-tech uppercase tracking-wider">Back</span>
           </button>
         ) : (
-          <div />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
+          >
+            + انتخاب آهنگ‌های گوشی
+          </button>
         )}
 
         <button
@@ -156,13 +184,28 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
       ) : (
         /* Collection Tracks List reusing the 5-row architecture */
         <div className="flex flex-col gap-4">
+          {importStatus && (
+            <div className="w-full px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs text-center font-medium">
+              {importStatus}
+            </div>
+          )}
+
           <div className="flex items-center justify-between pb-1 px-1">
             <span className="font-tech text-lg text-[#d1d5db] font-semibold">
               {selectedCollection}
             </span>
-            <span className="text-xs text-[#7e828d]">
-              {collectionTracks.length} tracks
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#7e828d]">
+                {collectionTracks.length} tracks
+              </span>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs text-emerald-400 hover:underline cursor-pointer"
+              >
+                + افزودن فایل
+              </button>
+            </div>
           </div>
 
           {collectionTracks.length > 0 ? (
@@ -180,8 +223,17 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               />
             ))
           ) : (
-            <div className="py-16 text-center text-[#7e828d] text-sm">
-              No tracks in {selectedCollection} yet.
+            <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
+              <p className="text-[#7e828d] text-sm">
+                هیچ آهنگی در بخش {selectedCollection} وجود ندارد
+              </p>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-colors cursor-pointer shadow-md"
+              >
+                انتخاب آهنگ‌های گوشی (MP3)
+              </button>
             </div>
           )}
         </div>

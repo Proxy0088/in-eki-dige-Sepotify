@@ -83,7 +83,11 @@ export class IndexedDbAudioService {
   public static async hydrateDeviceTracks(tracks: Track[]): Promise<Track[]> {
     const updated = await Promise.all(
       tracks.map(async (t) => {
-        if (t.id.startsWith('local-device-')) {
+        if (
+          t.id.startsWith('local-device-') ||
+          t.id.startsWith('device-file-') ||
+          t.id.startsWith('device-')
+        ) {
           const blob = await IndexedDbAudioService.getAudioFile(t.id);
           if (blob) {
             return {

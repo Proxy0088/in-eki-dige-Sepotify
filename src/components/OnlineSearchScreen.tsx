@@ -41,7 +41,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
   const displayRows = filtered.slice(0, 5);
 
   return (
-    <div className="flex-1 flex flex-col px-7 pt-2 pb-6 overflow-y-auto no-scrollbar">
+    <div className="flex-1 flex flex-col px-7 pt-[max(calc(env(safe-area-inset-top,0px)+96px),108px)] sm:pt-[118px] pb-36 overflow-y-auto no-scrollbar">
       {/* Rounded Search Bar with Globe Icon matching reference */}
       <div className="w-full relative mb-7">
         <div className="w-full h-13 rounded-full neumorph-input border border-white/5 flex items-center px-5 py-2">

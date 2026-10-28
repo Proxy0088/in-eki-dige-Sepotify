@@ -81,7 +81,7 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
           setIsDismissed(false);
           setAutoHidden(false);
         }}
-        className={`absolute bottom-[114px] left-1/2 -translate-x-1/2 z-30 transition-all duration-500 ease-out cursor-pointer flex flex-col items-center gap-1 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/10 shadow-lg ${
+        className={`fixed sm:absolute bottom-[98px] sm:bottom-[118px] left-1/2 -translate-x-1/2 z-40 transition-all duration-500 ease-out cursor-pointer flex flex-col items-center gap-1 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/10 shadow-lg ${
           !isVisible
             ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
             : 'opacity-0 translate-y-6 scale-90 pointer-events-none'
@@ -97,11 +97,11 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
         <div className="w-10 h-1 bg-white/50 rounded-full hover:bg-white transition-colors" />
       </div>
 
-      {/* Main Figma Node 78:21 "When is playing" (width: 307, height: 135, top: 709, z-index: 10 behind navbar at 809) */}
+      {/* Main Figma Node 78:21 "When is playing" (width: 307, height: 135, pinned relative to bottom navbar) */}
       <div
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        className={`absolute top-[709px] left-1/2 -translate-x-1/2 w-[307px] h-[135px] z-10 transition-all duration-500 ease-out ${
+        className={`fixed sm:absolute bottom-[74px] sm:bottom-[94px] left-1/2 -translate-x-1/2 w-[307px] max-w-[calc(100%-48px)] h-[135px] z-20 transition-all duration-500 ease-out ${
           isVisible
             ? 'opacity-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 translate-y-44 pointer-events-none'

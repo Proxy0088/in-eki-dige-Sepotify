@@ -14,8 +14,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   isPlaying,
 }) => {
   return (
-    /* Figma Node 12:10 "bottem navbar": x: 35, y: 809, width: 342, height: 69, r: 20, z-index: 20 */
-    <div className="absolute top-[809px] left-1/2 -translate-x-1/2 w-[342px] h-[69px] rounded-[20px] shadow-figma-bottom-navbar flex items-center justify-between px-[28px] z-20">
+    /* Figma Node 12:10 "bottem navbar": pinned to bottom for mobile responsiveness */
+    <div className="fixed sm:absolute bottom-4 sm:bottom-[39px] left-1/2 -translate-x-1/2 w-[342px] max-w-[calc(100%-32px)] h-[69px] rounded-[20px] bg-[#212121] shadow-figma-bottom-navbar flex items-center justify-between px-[28px] z-30">
       {/* Search Tab (Node 20:3): width: 33, height: 34 */}
       <button
         type="button"

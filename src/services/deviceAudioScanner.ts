@@ -100,21 +100,50 @@ export class DeviceAudioScanner {
     return SYSTEM_SCANNED_MP3S;
   }
 
-  // Helper if custom files are ever scanned
-  public static async processFiles(files: FileList): Promise<Track[]> {
+  // Helper to process user-selected device audio files from phone storage
+  public static async processFiles(files: FileList | File[]): Promise<Track[]> {
     const newTracks: Track[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.type.startsWith('audio/') || file.name.endsWith('.mp3')) {
+      if (file.type.startsWith('audio/') || file.name.match(/\.(mp3|m4a|wav|flac|ogg|aac)$/i)) {
         const id = `device-file-${Date.now()}-${i}`;
         const url = URL.createObjectURL(file);
-        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+        const rawName = file.name.replace(/\.[^/.]+$/, '');
+        let title = rawName;
+        let artist = 'Phone Storage';
+
+        if (rawName.includes(' - ')) {
+          const parts = rawName.split(' - ');
+          if (parts.length >= 2) {
+            artist = parts[0].replace(/^\d+[\s.-]*/, '').trim() || 'Phone Storage';
+            title = parts.slice(1).join(' - ').trim();
+          }
+        }
+
+        // Try to read accurate duration
+        let duration = 180;
+        try {
+          const tempAudio = new Audio(url);
+          await new Promise((res) => {
+            tempAudio.onloadedmetadata = () => {
+              if (tempAudio.duration && Number.isFinite(tempAudio.duration)) {
+                duration = Math.round(tempAudio.duration);
+              }
+              res(true);
+            };
+            tempAudio.onerror = () => res(false);
+            setTimeout(() => res(false), 600);
+          });
+        } catch {
+          // Keep default duration
+        }
+
         const track: Track = {
           id,
-          title: nameWithoutExt,
-          artist: 'Phone Audio',
-          album: 'Device Storage',
-          duration: 180,
+          title,
+          artist,
+          album: 'Downloads',
+          duration,
           url,
           mood: 'Feels good',
           coverUrl: LOCAL_DEVICE_COVERS[i % LOCAL_DEVICE_COVERS.length],
@@ -122,7 +151,7 @@ export class DeviceAudioScanner {
           collection: 'Downloads',
         };
         newTracks.push(track);
-        IndexedDbAudioService.saveAudioFile(id, file).catch(() => {});
+        await IndexedDbAudioService.saveAudioFile(id, file);
       }
     }
     return newTracks;
