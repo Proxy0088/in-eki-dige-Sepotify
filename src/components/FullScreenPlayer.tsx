@@ -112,14 +112,18 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   };
 
   // Save to Library modal selection handler
-  const handleSelectLibrary = (libraryName: string) => {
+  const handleCloseLibraryModal = useCallback(() => {
+    setShowLibraryModal(false);
+  }, []);
+
+  const handleSelectLibrary = useCallback((libraryName: string) => {
     if (onSaveToLibrary && currentTrack) {
       onSaveToLibrary(currentTrack, libraryName);
     }
     if (!isLiked && currentTrack) {
       onToggleLike(currentTrack);
     }
-  };
+  }, [onSaveToLibrary, currentTrack, isLiked, onToggleLike]);
 
   // Progress Bar Arc Geometry
   const R = 126;
@@ -574,7 +578,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
       {/* Save to Library Modal */}
       <AskListLibraryModal
         isOpen={showLibraryModal}
-        onClose={() => setShowLibraryModal(false)}
+        onClose={handleCloseLibraryModal}
         onSelectLibrary={handleSelectLibrary}
       />
     </div>
