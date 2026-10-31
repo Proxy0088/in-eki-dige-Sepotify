@@ -92,7 +92,7 @@ export class StorageService {
     } catch {
       // ignore
     }
-    return ['Liked', 'Library 1', 'Library 2', 'Library 3', 'Library 4', 'Downloads'];
+    return ['Liked', 'Library 1', 'Library 2', 'Library 3', 'Library 6', 'Library 5'];
   }
 
   public static addUserLibrary(name: string): string[] {
