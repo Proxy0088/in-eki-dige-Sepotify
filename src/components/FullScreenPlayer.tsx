@@ -318,7 +318,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
               fill="#212121"
               stroke="#D9D9D9"
               strokeWidth="2.5"
-              className={`drop-shadow-md ${scrubRatio !== null ? 'scale-115' : 'transition-all duration-150 ease-linear'}`}
+              className="drop-shadow-md"
             />
           </svg>
 
