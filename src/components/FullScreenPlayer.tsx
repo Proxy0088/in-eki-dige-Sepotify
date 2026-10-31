@@ -511,8 +511,8 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                 <div className="w-[10.5px] h-[32px] bg-[#E4E4E4] rounded-[2px]" />
               </div>
             ) : (
-              <svg className="w-[34px] h-[34px] fill-[#E4E4E4] ml-1.5" viewBox="0 0 24 24">
-                <polygon points="7,4 21,12 7,20" />
+              <svg className="w-[34px] h-[34px] fill-[#E4E4E4]" viewBox="0 0 24 24">
+                <polygon points="6.5,4 19.5,12 6.5,20" />
               </svg>
             )}
           </button>
