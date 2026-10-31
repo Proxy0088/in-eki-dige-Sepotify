@@ -8,6 +8,7 @@ interface WhenPlayingWidgetProps {
   onTogglePlay: () => void;
   onNextTrack: () => void;
   onPreviousTrack: () => void;
+  onOpenPlayer?: () => void;
 }
 
 export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
@@ -16,11 +17,17 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
   onTogglePlay,
   onNextTrack,
   onPreviousTrack,
+  onOpenPlayer,
 }) => {
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [autoHidden, setAutoHidden] = useState<boolean>(false);
+  const [coverError, setCoverError] = useState<boolean>(false);
   const pauseTimerRef = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+
+  useEffect(() => {
+    setCoverError(false);
+  }, [currentTrack?.coverUrl]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -118,7 +125,10 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
         </button>
 
         {/* Node 78:4 "info" Frame: width: 307, height: 69, top: 27px, borderRadius: 20, bg: #212121, inner-shadows */}
-        <div className="absolute top-[27px] left-0 w-[307px] h-[69px] rounded-[20px] shadow-figma-playing-info flex items-center justify-between px-[13px]">
+        <div
+          onClick={onOpenPlayer}
+          className="absolute top-[27px] left-0 w-[307px] h-[69px] rounded-[20px] shadow-figma-playing-info flex items-center justify-between px-[13px] cursor-pointer hover:bg-[#252525] transition-colors"
+        >
           {/* Name Text: x: 13, y: 27, Roboto Bold 13.3px, letter-spacing: 1.33px, #FFFFFF */}
           <div className="w-[64px] overflow-hidden flex items-center justify-center">
             <span
@@ -144,8 +154,12 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
 
         {/* Node 78:2 "Ellipse 1": width: 135, height: 135, centered horizontally at left: 86px (138 - 52), top: 0 */}
         <div
-          className="absolute left-[86px] top-0 w-[135px] h-[135px] rounded-full overflow-hidden shadow-figma-ellipse select-none"
+          onClick={onOpenPlayer}
+          className="absolute left-[86px] top-0 w-[135px] h-[135px] rounded-full overflow-hidden shadow-figma-ellipse select-none cursor-pointer active:scale-95 transition-transform"
           style={{ backgroundColor: '#D9D9D9' }}
+          role="button"
+          aria-label="Open Fullscreen Player"
+          title="Open Player"
         >
           {/* Rotating Album Artwork */}
           <div
@@ -153,12 +167,17 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
               isPlaying ? '' : 'animation-paused'
             }`}
           >
-            {currentTrack.coverUrl && (
+            {currentTrack.coverUrl && !coverError ? (
               <img
                 src={currentTrack.coverUrl}
                 alt={currentTrack.title}
+                onError={() => setCoverError(true)}
                 className="w-full h-full object-cover"
               />
+            ) : (
+              <div className="w-full h-full bg-[#1b1b1b] flex items-center justify-center">
+                <Music className="w-12 h-12 text-[#999999]" />
+              </div>
             )}
           </div>
 

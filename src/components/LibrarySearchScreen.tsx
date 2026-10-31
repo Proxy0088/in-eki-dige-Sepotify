@@ -7,7 +7,7 @@ interface LibrarySearchScreenProps {
   libraryTracks: Track[];
   currentTrack: Track | null;
   isPlaying: boolean;
-  onPlayTrack: (track: Track) => void;
+  onPlayTrack: (track: Track, queue?: Track[]) => void;
   onToggleLike: (track: Track) => void;
   onToggleDownload: (track: Track) => void;
   likedIds: Set<string>;
@@ -79,7 +79,7 @@ export const LibrarySearchScreen: React.FC<LibrarySearchScreenProps> = ({
               track={track}
               isCurrent={currentTrack?.id === track.id}
               isPlaying={isPlaying}
-              onPlay={onPlayTrack}
+              onPlay={(t) => onPlayTrack(t, displayRows)}
               onToggleLike={onToggleLike}
               onToggleDownload={onToggleDownload}
               isLiked={likedIds.has(track.id)}

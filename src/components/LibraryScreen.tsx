@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search as SearchIcon,
   Heart,
@@ -6,12 +6,12 @@ import {
   Star,
   Download,
   ArrowLeft,
-  RefreshCw,
-  AlertCircle,
   FolderPlus,
+  Music,
 } from 'lucide-react';
 import { Track } from '../types/music';
 import { MusicRow } from './MusicRow';
+import { StorageService } from '../services/storage';
 
 interface LibraryScreenProps {
   tracks: Track[];
@@ -19,15 +19,10 @@ interface LibraryScreenProps {
   isPlaying: boolean;
   likedIds: Set<string>;
   downloadedIds: Set<string>;
-  onPlayTrack: (track: Track) => void;
+  onPlayTrack: (track: Track, queue?: Track[]) => void;
   onToggleLike: (track: Track) => void;
   onToggleDownload: (track: Track) => void;
   onOpenLibrarySearch: () => void;
-  onImportDeviceTracks?: (files: FileList) => Promise<number>;
-  onScanDeviceAudio?: () => Promise<number>;
-  onScanDirectory?: () => Promise<number>;
-  isScanning?: boolean;
-  permissionDenied?: boolean;
 }
 
 export const LibraryScreen: React.FC<LibraryScreenProps> = ({
@@ -40,86 +35,81 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   onToggleLike,
   onToggleDownload,
   onOpenLibrarySearch,
-  onImportDeviceTracks,
-  onScanDeviceAudio,
-  onScanDirectory,
-  isScanning = false,
-  permissionDenied = false,
 }) => {
-  const [selectedCollection, setSelectedCollection] = useState<
-    'liked' | 'library 1' | 'library 2' | 'Downloads' | null
-  >(null);
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
+  const [userLibraries, setUserLibraries] = useState<string[]>(() =>
+    StorageService.getUserLibraries()
+  );
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [newFolderName, setNewFolderName] = useState<string>('');
 
-  // Filter tracks for the active collection
-  const collectionTracks = React.useMemo(() => {
+  // Keep libraries synchronized from storage & tracks
+  useEffect(() => {
+    const stored = StorageService.getUserLibraries();
+    // Also include any distinct collection names found on tracks
+    const trackCollections = new Set(
+      tracks
+        .map((t) => t.collection?.trim())
+        .filter((c): c is string => Boolean(c && c !== 'recents'))
+    );
+    const combined = Array.from(new Set([...stored, ...Array.from(trackCollections)]));
+    setUserLibraries(combined);
+  }, [tracks]);
+
+  // Filter tracks for the active collection, strictly sorted by date (dateAdded DESC)
+  const collectionTracks = useMemo(() => {
     if (!selectedCollection) return [];
-    if (selectedCollection === 'liked') {
-      return tracks.filter((t) => likedIds.has(t.id));
-    }
-    if (selectedCollection === 'Downloads') {
-      // In Downloads, show all real downloaded/device tracks
-      return tracks.filter(
+    const lower = selectedCollection.toLowerCase();
+    let list: Track[] = [];
+
+    if (lower === 'liked' || lower.includes('like') || lower.includes('علاقه')) {
+      list = tracks.filter((t) => likedIds.has(t.id));
+    } else if (lower === 'downloads' || lower.includes('دانلود')) {
+      list = tracks.filter(
         (t) =>
           downloadedIds.has(t.id) ||
           t.id.startsWith('android-media-') ||
           t.id.startsWith('device-file-') ||
           t.id.startsWith('device-')
       );
+    } else {
+      // Dynamic matching for any custom folder / library created by user
+      list = tracks.filter(
+        (t) => (t.collection || '').trim().toLowerCase() === lower
+      );
     }
-    if (selectedCollection === 'library 1') {
-      return tracks.filter((t) => t.collection === 'library 1');
-    }
-    if (selectedCollection === 'library 2') {
-      return tracks.filter((t) => t.collection === 'library 2');
-    }
-    return [];
+    return list.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
   }, [selectedCollection, tracks, likedIds, downloadedIds]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0 && onImportDeviceTracks) {
-      const count = await onImportDeviceTracks(e.target.files);
-      setStatusMessage(`${count} آهنگ با موفقیت از گوشی اضافه شد`);
-      setTimeout(() => setStatusMessage(null), 4000);
+  const handleCreateFolder = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newFolderName.trim();
+    if (trimmed) {
+      const updated = StorageService.addUserLibrary(trimmed);
+      setUserLibraries(updated);
+      setNewFolderName('');
+      setShowAddModal(false);
+      setSelectedCollection(trimmed);
     }
   };
 
-  const handleManualScan = async () => {
-    if (onScanDeviceAudio) {
-      const count = await onScanDeviceAudio();
-      if (count > 0) {
-        setStatusMessage(`${count} آهنگ جدید از گوشی شناسایی شد`);
-      } else {
-        setStatusMessage('اسکن پایان یافت؛ برای انتخاب دستی از دکمه زیر استفاده کنید');
-      }
-      setTimeout(() => setStatusMessage(null), 4000);
+  const getCollectionIcon = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower === 'liked' || lower.includes('like') || lower.includes('علاقه')) {
+      return <Heart className="w-12 h-12 text-[#d1d5db] fill-[#d1d5db]" />;
     }
-  };
-
-  const handleDirectoryScan = async () => {
-    if (onScanDirectory) {
-      const count = await onScanDirectory();
-      if (count > 0) {
-        setStatusMessage(`${count} آهنگ از پوشه انتخاب‌شده افزوده شد`);
-      }
-      setTimeout(() => setStatusMessage(null), 4000);
+    if (lower === 'downloads' || lower.includes('دانلود')) {
+      return <Download className="w-12 h-12 text-[#d1d5db] stroke-[2.5]" />;
     }
+    if (lower.includes('2')) {
+      return <Star className="w-12 h-12 text-[#d1d5db] fill-[#d1d5db]" />;
+    }
+    return <Bookmark className="w-12 h-12 text-[#d1d5db] fill-[#d1d5db]" />;
   };
 
   return (
     <div className="flex-1 flex flex-col px-7 pt-[max(calc(env(safe-area-inset-top,0px)+96px),108px)] sm:pt-[118px] pb-36 overflow-y-auto no-scrollbar">
-      {/* Hidden native input for audio files */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac"
-        multiple
-        className="hidden"
-      />
-
-      {/* Top action row: Magnifying glass button on the right to open Library Search */}
+      {/* Top action row: Back button & Magnifying glass */}
       <div className="w-full flex items-center justify-between mb-4 px-1">
         {selectedCollection ? (
           <button
@@ -131,29 +121,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             <span className="font-tech uppercase tracking-wider">Back</span>
           </button>
         ) : (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleManualScan}
-              disabled={isScanning}
-              className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
-              title="اسکن خودکار حافظه"
-            >
-              <RefreshCw className={`w-3 h-3 ${isScanning ? 'animate-spin' : ''}`} />
-              <span>اسکن آهنگ‌های گوشی</span>
-            </button>
-            {typeof window !== 'undefined' && 'showDirectoryPicker' in window && (
-              <button
-                type="button"
-                onClick={handleDirectoryScan}
-                className="text-[11px] font-medium text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
-                title="انتخاب پوشه موزیک"
-              >
-                <FolderPlus className="w-3 h-3" />
-                <span>پوشه موزیک</span>
-              </button>
-            )}
-          </div>
+          <div />
         )}
 
         <button
@@ -166,162 +134,129 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
         </button>
       </div>
 
-      {statusMessage && (
-        <div className="w-full mb-3 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs text-center font-medium animate-fadeIn">
-          {statusMessage}
-        </div>
-      )}
-
-      {permissionDenied && (
-        <div className="w-full mb-3 p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-between text-right">
-          <div className="flex items-center gap-2 text-amber-300 text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>مجوز دسترسی به فایل‌های صوتی تایید نشد.</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleManualScan}
-            className="px-2.5 py-1 rounded-lg bg-amber-400 text-black text-[11px] font-bold hover:bg-amber-300 transition-colors"
-          >
-            تلاش مجدد
-          </button>
-        </div>
-      )}
-
       {selectedCollection === null ? (
-        /* 4 Collection Tiles Grid (2x2) strictly matching Figma reference */
-        <div className="grid grid-cols-2 gap-x-5 gap-y-7">
-          {/* Tile 1: liked */}
-          <div className="flex flex-col items-center">
-            <button
-              type="button"
-              onClick={() => setSelectedCollection('liked')}
-              className="w-full aspect-square rounded-[34px] p-2 neumorph-tile-outer border border-white/5 cursor-pointer active:scale-[0.98] transition-transform flex items-center justify-center"
-              aria-label="Liked songs"
-            >
-              <div className="w-full h-full rounded-[25px] bg-black border border-[#444850] flex items-center justify-center shadow-inner">
-                <Heart className="w-12 h-12 text-[#d1d5db] fill-[#d1d5db]" />
-              </div>
-            </button>
-            <span className="font-tech text-base md:text-lg font-bold text-[#9aa0a6] mt-3 tracking-wide select-none lowercase">
-              liked
-            </span>
-          </div>
+        /* Collection Tiles Grid - Shows all user libraries dynamically with identical neumorphic design */
+        <div className="grid grid-cols-2 gap-x-5 gap-y-7 pb-4">
+          {userLibraries.map((libName) => (
+            <div key={libName} className="flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => setSelectedCollection(libName)}
+                className="w-full aspect-square rounded-[34px] p-2 neumorph-tile-outer border border-white/5 cursor-pointer active:scale-[0.98] transition-transform flex items-center justify-center"
+                aria-label={`Open ${libName} folder`}
+              >
+                <div className="w-full h-full rounded-[25px] bg-black border border-[#444850] flex items-center justify-center shadow-inner">
+                  {getCollectionIcon(libName)}
+                </div>
+              </button>
+              <span className="font-tech text-base md:text-lg font-bold text-[#9aa0a6] mt-3 tracking-wide select-none text-center truncate max-w-[140px]">
+                {libName}
+              </span>
+            </div>
+          ))}
 
-          {/* Tile 2: library 1 */}
+          {/* Add New Folder Tile */}
           <div className="flex flex-col items-center">
             <button
               type="button"
-              onClick={() => setSelectedCollection('library 1')}
-              className="w-full aspect-square rounded-[34px] p-2 neumorph-tile-outer border border-white/5 cursor-pointer active:scale-[0.98] transition-transform flex items-center justify-center"
-              aria-label="Library 1 playlist"
+              onClick={() => setShowAddModal(true)}
+              className="w-full aspect-square rounded-[34px] p-2 neumorph-tile-outer border border-dashed border-white/10 hover:border-white/30 cursor-pointer active:scale-[0.98] transition-transform flex items-center justify-center group"
+              aria-label="Add new folder"
             >
-              <div className="w-full h-full rounded-[25px] bg-black border border-[#444850] flex items-center justify-center shadow-inner">
-                <Bookmark className="w-12 h-12 text-[#d1d5db] fill-[#d1d5db]" />
+              <div className="w-full h-full rounded-[25px] bg-black/60 border border-[#444850]/50 flex items-center justify-center shadow-inner group-hover:bg-black/80 transition-colors">
+                <FolderPlus className="w-11 h-11 text-[#7e828d] group-hover:text-white transition-colors" />
               </div>
             </button>
-            <span className="font-tech text-base md:text-lg font-bold text-[#9aa0a6] mt-3 tracking-wide select-none lowercase">
-              library 1
-            </span>
-          </div>
-
-          {/* Tile 3: library 2 */}
-          <div className="flex flex-col items-center">
-            <button
-              type="button"
-              onClick={() => setSelectedCollection('library 2')}
-              className="w-full aspect-square rounded-[34px] p-2 neumorph-tile-outer border border-white/5 cursor-pointer active:scale-[0.98] transition-transform flex items-center justify-center"
-              aria-label="Library 2 playlist"
-            >
-              <div className="w-full h-full rounded-[25px] bg-black border border-[#444850] flex items-center justify-center shadow-inner">
-                <Star className="w-12 h-12 text-[#d1d5db] fill-[#d1d5db]" />
-              </div>
-            </button>
-            <span className="font-tech text-base md:text-lg font-bold text-[#9aa0a6] mt-3 tracking-wide select-none lowercase">
-              library 2
-            </span>
-          </div>
-
-          {/* Tile 4: Downloads */}
-          <div className="flex flex-col items-center">
-            <button
-              type="button"
-              onClick={() => setSelectedCollection('Downloads')}
-              className="w-full aspect-square rounded-[34px] p-2 neumorph-tile-outer border border-white/5 cursor-pointer active:scale-[0.98] transition-transform flex items-center justify-center"
-              aria-label="Downloaded offline songs"
-            >
-              <div className="w-full h-full rounded-[25px] bg-black border border-[#444850] flex items-center justify-center shadow-inner">
-                <Download className="w-12 h-12 text-[#d1d5db] stroke-[2.5]" />
-              </div>
-            </button>
-            <span className="font-tech text-base md:text-lg font-bold text-[#9aa0a6] mt-3 tracking-wide select-none">
-              Downloads
+            <span className="font-tech text-base md:text-lg font-bold text-[#7e828d] mt-3 tracking-wide select-none">
+              + new folder
             </span>
           </div>
         </div>
       ) : (
-        /* Collection Tracks List reusing the 5-row architecture */
+        /* Collection Tracks List */
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between pb-1 px-1">
             <span className="font-tech text-lg text-[#d1d5db] font-semibold">
               {selectedCollection}
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#7e828d]">
-                {collectionTracks.length} tracks
-              </span>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-emerald-400 hover:underline cursor-pointer"
-              >
-                + افزودن فایل
-              </button>
-            </div>
+            <span className="text-xs text-[#7e828d]">
+              {collectionTracks.length} tracks
+            </span>
           </div>
 
-          {isScanning ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
-              <RefreshCw className="w-6 h-6 animate-spin text-emerald-400" />
-              <p className="text-sm text-[#7e828d]">در حال بررسی آهنگ‌های گوشی...</p>
-            </div>
-          ) : collectionTracks.length > 0 ? (
+          {collectionTracks.length > 0 ? (
             collectionTracks.map((track) => (
               <MusicRow
                 key={track.id}
                 track={track}
                 isCurrent={currentTrack?.id === track.id}
                 isPlaying={isPlaying}
-                onPlay={onPlayTrack}
-                onToggleLike={onToggleLike}
-                onToggleDownload={onToggleDownload}
+                onPlay={(t) => onPlayTrack(t, collectionTracks)}
+                onToggleLike={() => onToggleLike(track)}
+                onToggleDownload={() => onToggleDownload(track)}
                 isLiked={likedIds.has(track.id)}
-                isDownloaded={downloadedIds.has(track.id)}
+                isDownloaded={
+                  downloadedIds.has(track.id) ||
+                  track.id.startsWith('android-media-') ||
+                  track.id.startsWith('device-file-') ||
+                  track.id.startsWith('device-')
+                }
               />
             ))
           ) : (
-            <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
-              <p className="text-[#7e828d] text-sm">
-                هیچ آهنگی در بخش {selectedCollection} یافت نشد
+            <div className="flex flex-col items-center justify-center py-16 text-center text-[#7e828d] px-4">
+              <Music className="w-12 h-12 mb-3 text-white/20" />
+              <p className="text-sm font-roboto mb-1 text-white/70">
+                این پوشه در حال حاضر خالی است
               </p>
-              <div className="flex items-center gap-2 mt-1">
-                <button
-                  type="button"
-                  onClick={handleManualScan}
-                  className="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-neutral-200 transition-colors cursor-pointer shadow-md"
-                >
-                  اسکن فایل‌های صوتی گوشی
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 rounded-xl bg-[#2a2a2a] text-white font-semibold text-xs hover:bg-[#333333] border border-white/10 transition-colors cursor-pointer"
-                >
-                  انتخاب فایل (MP3)
-                </button>
-              </div>
+              <p className="text-xs text-[#7e828d]">
+                هنگام پخش هر موزیک روی دکمه قلب کلیک کرده و این پوشه را انتخاب کنید
+              </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* New Folder Modal inside LibraryScreen */}
+      {showAddModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="w-[320px] max-w-[calc(100%-24px)] rounded-[32px] bg-[#1e1e1e] border border-white/15 p-6 flex flex-col items-center select-none shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-['Orbitron',sans-serif] font-bold text-white text-[17px] mb-4 text-center">
+              Create New Folder
+            </h3>
+            <form onSubmit={handleCreateFolder} className="w-full flex flex-col gap-3.5">
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Folder name"
+                autoFocus
+                className="w-full bg-[#141414] border border-white/20 rounded-2xl px-4 py-2.5 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/60 text-center"
+              />
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  type="submit"
+                  disabled={!newFolderName.trim()}
+                  className="flex-1 py-2.5 rounded-xl bg-white text-black text-xs font-bold font-['Orbitron',sans-serif] hover:bg-[#E4E4E4] transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-white/10 text-white text-xs hover:bg-white/20 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

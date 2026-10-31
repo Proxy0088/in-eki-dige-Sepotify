@@ -11,6 +11,7 @@ export interface NativeAudioItem {
   duration: number; // in milliseconds or seconds
   uri: string;      // content:// or file://
   albumArtUri?: string;
+  dateAdded?: number;
 }
 
 export interface MediaStorePlugin {
@@ -29,6 +30,9 @@ export class NativeAudioScanner {
   // Check storage / audio permissions
   public static async checkPermissions(): Promise<'granted' | 'denied' | 'prompt'> {
     if (this.isNativeAndroid()) {
+      if (!Capacitor.isPluginAvailable('MediaStorePlugin')) {
+        return 'prompt';
+      }
       try {
         const res = await NativeMediaStore.checkPermissions();
         return res.audio;
@@ -43,6 +47,9 @@ export class NativeAudioScanner {
   // Request audio read permission
   public static async requestPermissions(): Promise<'granted' | 'denied' | 'prompt'> {
     if (this.isNativeAndroid()) {
+      if (!Capacitor.isPluginAvailable('MediaStorePlugin')) {
+        return 'prompt';
+      }
       try {
         const res = await NativeMediaStore.requestPermissions();
         return res.audio;
@@ -55,8 +62,21 @@ export class NativeAudioScanner {
   }
 
   // Scan real audio files from Android MediaStore or Web File API
-  public static async scanDeviceAudio(): Promise<{ tracks: Track[]; error?: string; permissionDenied?: boolean }> {
+  public static async scanDeviceAudio(): Promise<{
+    tracks: Track[];
+    error?: string;
+    permissionDenied?: boolean;
+    pluginMissing?: boolean;
+  }> {
     if (this.isNativeAndroid()) {
+      if (!Capacitor.isPluginAvailable('MediaStorePlugin')) {
+        return {
+          tracks: [],
+          pluginMissing: true,
+          error: 'از دکمه «+ انتخاب فایل‌ها» برای انتخاب آهنگ‌های گوشی استفاده کنید.',
+        };
+      }
+
       try {
         const perm = await this.requestPermissions();
         if (perm === 'denied') {
@@ -76,15 +96,18 @@ export class NativeAudioScanner {
             coverUrl: t.albumArtUri ? Capacitor.convertFileSrc(t.albumArtUri) : undefined,
             isDownloaded: true,
             collection: 'Downloads',
+            dateAdded: t.dateAdded || 0,
           }));
+          // Ensure sorted newest download first
+          mapped.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
           return { tracks: mapped };
         }
       } catch (e) {
-        console.warn('Native queryAudioFiles failed or plugin not installed yet:', e);
+        console.warn('Native queryAudioFiles failed or plugin error:', e);
       }
     }
 
-    // In web environment or if native plugin is not yet registered, load cached files from IndexedDB
+    // In web environment or fallback, load cached files from IndexedDB
     return { tracks: [] };
   }
 
@@ -155,6 +178,7 @@ export class NativeAudioScanner {
           coverUrl,
           isDownloaded: true,
           collection: 'Downloads',
+          dateAdded: file.lastModified ? Math.floor(file.lastModified / 1000) : Math.floor(Date.now() / 1000),
         };
 
         tracks.push(track);

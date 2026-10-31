@@ -3,6 +3,7 @@ import { Track } from '../types/music';
 type Listener = () => void;
 
 export type RepeatMode = 'off' | 'all' | 'one';
+export type PlaybackCycleMode = 'off' | 'repeat_all' | 'repeat_one' | 'shuffle';
 
 class AudioService {
   private audio: HTMLAudioElement | null = null;
@@ -10,6 +11,7 @@ class AudioService {
   private isPlaying: boolean = false;
   private currentTime: number = 0;
   private duration: number = 0;
+  private isMuted: boolean = false;
   private listeners: Set<Listener> = new Set();
 
   // Playlist Queue management
@@ -54,6 +56,20 @@ class AudioService {
       });
 
       this.audio.addEventListener('durationchange', () => {
+        if (this.audio && this.audio.duration && Number.isFinite(this.audio.duration)) {
+          this.duration = this.audio.duration;
+          this.notify();
+        }
+      });
+
+      this.audio.addEventListener('loadedmetadata', () => {
+        if (this.audio && this.audio.duration && Number.isFinite(this.audio.duration)) {
+          this.duration = this.audio.duration;
+          this.notify();
+        }
+      });
+
+      this.audio.addEventListener('canplay', () => {
         if (this.audio && this.audio.duration && Number.isFinite(this.audio.duration)) {
           this.duration = this.audio.duration;
           this.notify();
@@ -118,25 +134,75 @@ class AudioService {
     this.notify();
   }
 
-  public toggleShuffle() {
-    this.isShuffle = !this.isShuffle;
-    this.notify();
+  public getIsMuted(): boolean {
+    return this.isMuted;
   }
 
-  public toggleRepeat() {
-    if (this.repeatMode === 'off') this.repeatMode = 'all';
-    else if (this.repeatMode === 'all') this.repeatMode = 'one';
-    else this.repeatMode = 'off';
+  public toggleMute(): boolean {
+    this.isMuted = !this.isMuted;
+    if (this.audio) {
+      this.audio.muted = this.isMuted;
+      this.audio.volume = this.isMuted ? 0 : 1;
+    }
     this.notify();
+    return this.isMuted;
+  }
+
+  public getPlaybackCycleMode(): PlaybackCycleMode {
+    if (this.isShuffle) return 'shuffle';
+    if (this.repeatMode === 'one') return 'repeat_one';
+    if (this.repeatMode === 'all') return 'repeat_all';
+    return 'off';
+  }
+
+  public cyclePlaybackMode(): PlaybackCycleMode {
+    const current = this.getPlaybackCycleMode();
+    if (current === 'off') {
+      // 1. Repeat playlist (loops folder/queue)
+      this.repeatMode = 'all';
+      this.isShuffle = false;
+    } else if (current === 'repeat_all') {
+      // 2. Repeat 1 (repeats single song indefinitely)
+      this.repeatMode = 'one';
+      this.isShuffle = false;
+    } else if (current === 'repeat_one') {
+      // 3. Shuffle (random song order)
+      this.repeatMode = 'all';
+      this.isShuffle = true;
+    } else {
+      // 4. Off
+      this.repeatMode = 'off';
+      this.isShuffle = false;
+    }
+    this.notify();
+    return this.getPlaybackCycleMode();
+  }
+
+  public getNextTrack(): Track | null {
+    if (!this.queue || this.queue.length === 0) return null;
+    if (this.queue.length === 1) return this.queue[0];
+
+    if (this.isShuffle) {
+      const remaining = this.queue.filter((t) => String(t.id) !== String(this.currentTrack?.id));
+      return remaining.length > 0 ? remaining[0] : this.queue[0];
+    }
+
+    const currentIndex = this.currentTrack
+      ? this.queue.findIndex((t) => String(t.id) === String(this.currentTrack?.id))
+      : -1;
+    const nextIndex = (currentIndex + 1) % this.queue.length;
+    return this.queue[nextIndex];
   }
 
   public async playTrack(track: Track, newQueue?: Track[]) {
     this.stopSynthPlayback();
 
     if (newQueue && newQueue.length > 0) {
-      this.queue = newQueue;
-    } else if (this.queue.length === 0 || !this.queue.some((t) => t.id === track.id)) {
-      this.queue = [track, ...this.queue.filter((t) => t.id !== track.id)];
+      this.queue = [...newQueue];
+    } else if (this.queue.length === 0) {
+      this.queue = [track];
+    } else if (!this.queue.some((t) => String(t.id) === String(track.id))) {
+      this.queue.push(track);
     }
 
     if (this.currentTrack?.id === track.id && this.audio) {
@@ -164,6 +230,8 @@ class AudioService {
     if (this.audio) {
       try {
         this.audio.src = track.url;
+        this.audio.muted = this.isMuted;
+        this.audio.volume = this.isMuted ? 0 : 1;
         this.audio.load();
         await this.audio.play();
         this.isPlaying = true;
@@ -215,9 +283,19 @@ class AudioService {
   }
 
   public seek(time: number) {
-    this.currentTime = time;
-    if (this.audio && !this.isUsingSynth) {
-      this.audio.currentTime = time;
+    if (!Number.isFinite(time)) return;
+    const safeDuration = this.getDuration();
+    const clampedTime = Math.max(0, Math.min(time, safeDuration));
+    this.currentTime = clampedTime;
+
+    if (this.audio) {
+      try {
+        if (!this.isUsingSynth) {
+          this.audio.currentTime = clampedTime;
+        }
+      } catch (err) {
+        console.warn('Error setting audio currentTime:', err);
+      }
     }
     this.updateMediaSessionPositionState();
     this.notify();
@@ -233,7 +311,7 @@ class AudioService {
 
     let nextTrack: Track | null = null;
     if (this.isShuffle) {
-      const remaining = this.queue.filter((t) => t.id !== this.currentTrack?.id);
+      const remaining = this.queue.filter((t) => String(t.id) !== String(this.currentTrack?.id));
       if (remaining.length > 0) {
         const randomIndex = Math.floor(Math.random() * remaining.length);
         nextTrack = remaining[randomIndex];
@@ -242,18 +320,18 @@ class AudioService {
       }
     } else {
       const currentIndex = this.currentTrack
-        ? this.queue.findIndex((t) => t.id === this.currentTrack?.id)
+        ? this.queue.findIndex((t) => String(t.id) === String(this.currentTrack?.id))
         : -1;
       const nextIndex = currentIndex + 1;
-      if (nextIndex < this.queue.length) {
+      if (nextIndex >= 0 && nextIndex < this.queue.length) {
         nextTrack = this.queue[nextIndex];
-      } else if (this.repeatMode === 'all') {
+      } else if (this.repeatMode === 'all' && this.queue.length > 0) {
         nextTrack = this.queue[0];
       }
     }
 
     if (nextTrack) {
-      this.playTrack(nextTrack);
+      this.playTrack(nextTrack, this.queue);
     } else {
       this.pause();
       this.currentTime = 0;
@@ -271,10 +349,10 @@ class AudioService {
     }
 
     const currentIndex = this.currentTrack
-      ? this.queue.findIndex((t) => t.id === this.currentTrack?.id)
+      ? this.queue.findIndex((t) => String(t.id) === String(this.currentTrack?.id))
       : 0;
     const prevIndex = (currentIndex - 1 + this.queue.length) % this.queue.length;
-    this.playTrack(this.queue[prevIndex]);
+    this.playTrack(this.queue[prevIndex], this.queue);
   }
 
   private handleTrackEnded() {
@@ -394,7 +472,7 @@ class AudioService {
       }
 
       const playTone = () => {
-        if (!this.audioCtx || !this.isPlaying || !this.isUsingSynth) return;
+        if (!this.audioCtx || !this.isPlaying || !this.isUsingSynth || this.isMuted) return;
 
         const semitone = moodNotes[step % moodNotes.length];
         const freq = rootFreq * Math.pow(2, semitone / 12);

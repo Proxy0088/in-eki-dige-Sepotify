@@ -101,11 +101,12 @@ public class MediaStorePlugin extends Plugin {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.ALBUM_ID,
-            MediaStore.Audio.Media.IS_MUSIC
+            MediaStore.Audio.Media.IS_MUSIC,
+            MediaStore.Audio.Media.DATE_ADDED
         };
 
         String selection = MediaStore.Audio.Media.IS_MUSIC + " != 0";
-        String sortOrder = MediaStore.Audio.Media.TITLE + " ASC";
+        String sortOrder = MediaStore.Audio.Media.DATE_ADDED + " DESC";
 
         try (Cursor cursor = getContext().getContentResolver().query(
             collection,
@@ -121,6 +122,7 @@ public class MediaStorePlugin extends Plugin {
                 int albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM);
                 int durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION);
                 int albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID);
+                int dateAddedColumn = cursor.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED);
 
                 while (cursor.moveToNext()) {
                     long id = cursor.getLong(idColumn);
@@ -129,17 +131,12 @@ public class MediaStorePlugin extends Plugin {
                     String album = cursor.getString(albumColumn);
                     long duration = cursor.getLong(durationColumn);
                     long albumId = cursor.getLong(albumIdColumn);
+                    long dateAdded = dateAddedColumn != -1 ? cursor.getLong(dateAddedColumn) : 0;
 
                     // Content URI for the audio file
                     Uri contentUri = ContentUris.withAppendedId(
                         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                         id
-                    );
-
-                    // Album Art URI
-                    Uri albumArtUri = ContentUris.withAppendedId(
-                        Uri.parse("content://media/external/audio/albumart"),
-                        albumId
                     );
 
                     JSObject trackObj = new JSObject();
@@ -149,7 +146,16 @@ public class MediaStorePlugin extends Plugin {
                     trackObj.put("album", (album != null && !album.equals("<unknown>")) ? album : "Phone Storage");
                     trackObj.put("duration", duration > 0 ? (duration / 1000) : 0);
                     trackObj.put("uri", contentUri.toString());
-                    trackObj.put("albumArtUri", albumArtUri.toString());
+                    trackObj.put("dateAdded", dateAdded);
+
+                    // Album Art URI (only if albumId is valid)
+                    if (albumId > 0) {
+                        Uri albumArtUri = ContentUris.withAppendedId(
+                            Uri.parse("content://media/external/audio/albumart"),
+                            albumId
+                        );
+                        trackObj.put("albumArtUri", albumArtUri.toString());
+                    }
 
                     tracksArray.put(trackObj);
                 }

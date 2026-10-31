@@ -1,5 +1,5 @@
-import React from 'react';
-import { Play, Pause, Heart, Download, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Play, Pause, Heart, Download, Check, Music } from 'lucide-react';
 import { Track } from '../types/music';
 
 interface MusicRowProps {
@@ -23,7 +23,12 @@ export const MusicRow: React.FC<MusicRowProps> = ({
   isLiked,
   isDownloaded,
 }) => {
+  const [imgError, setImgError] = useState(false);
   const activePlaying = isCurrent && isPlaying;
+
+  useEffect(() => {
+    setImgError(false);
+  }, [track.coverUrl]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -39,18 +44,23 @@ export const MusicRow: React.FC<MusicRowProps> = ({
       }`}
     >
       <div className="flex items-center gap-3.5 min-w-0 flex-1">
-        {/* Rounded square artwork with music cover art matching Figma dimensions */}
+        {/* Rounded square artwork with music cover art or music note icon */}
         <div className="relative w-14 h-14 rounded-[18px] bg-black border border-[#444850] shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
-          {track.coverUrl && (
+          {track.coverUrl && !imgError ? (
             <img
               src={track.coverUrl}
               alt={track.title}
+              onError={() => setImgError(true)}
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               loading="lazy"
             />
+          ) : (
+            <div className="absolute inset-0 w-full h-full bg-[#1b1b1b] flex items-center justify-center">
+              <Music className="w-6 h-6 text-[#8e929b]" />
+            </div>
           )}
           {/* Subtle dark overlay for contrast */}
-          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
+          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors pointer-events-none" />
 
           {activePlaying ? (
             <div className="relative z-10 flex items-end gap-0.5 h-4 bg-black/60 px-1.5 py-1 rounded-md backdrop-blur-xs">

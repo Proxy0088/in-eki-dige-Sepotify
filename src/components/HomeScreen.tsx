@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Music } from 'lucide-react';
 import { Track, MoodType } from '../types/music';
 import { FigmaLibraryIcon } from './FigmaLibraryIcon';
 
@@ -63,13 +63,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             >
               {/* Inner pitch-black rounded square (153x146, r:36, border 1px #999999) */}
               <div className="w-full h-full rounded-[30px] bg-black border border-[#999999] flex flex-col items-center justify-between p-3 relative overflow-hidden shadow-inner">
-                {track.coverUrl && (
+                {track.coverUrl ? (
                   <img
                     src={track.coverUrl}
                     alt={track.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
                   />
+                ) : (
+                  <div className="absolute inset-0 w-full h-full bg-[#181818] flex items-center justify-center">
+                    <Music className="w-10 h-10 text-[#777777]" />
+                  </div>
                 )}
                 {/* Subtle dark gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/10" />

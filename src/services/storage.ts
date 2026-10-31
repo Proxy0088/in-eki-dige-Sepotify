@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   DOWNLOADED_IDS: 'mp_downloaded_ids_v1',
   RECENT_IDS: 'mp_recent_ids_v1',
   ACTIVE_MOOD: 'mp_active_mood_v1',
+  LIBRARIES: 'mp_user_libraries_v1',
 };
 
 export class StorageService {
@@ -77,5 +78,36 @@ export class StorageService {
     } catch {
       // ignore
     }
+  }
+
+  public static getUserLibraries(): string[] {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.LIBRARIES);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return ['Liked', 'Library 1', 'Library 2', 'Library 3', 'Library 4', 'Downloads'];
+  }
+
+  public static addUserLibrary(name: string): string[] {
+    const trimmed = name.trim();
+    if (!trimmed) return this.getUserLibraries();
+    const current = this.getUserLibraries();
+    if (!current.includes(trimmed)) {
+      const updated = [...current, trimmed];
+      try {
+        localStorage.setItem(STORAGE_KEYS.LIBRARIES, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    }
+    return current;
   }
 }

@@ -1,0 +1,193 @@
+# Pixel-perfect Figma rebuild: ask list library
+
+## Guidelines
+- Reproduce this component with **pixel-perfect visual fidelity** using the JSON spec below
+- Use semantic HTML elements
+- The JSON contains the full node tree with layout, style, and children
+- Preserve JSON child order as paint order unless the parent has `layout.itemReverseZIndex: true`; normally later siblings render above earlier siblings
+- Preserve `style.fills` and `style.strokes` paint-stack order when present; convenience fields like `backgroundColor` and `imageFillHash` only summarize the first renderable paints
+- Preserve `textStyleRanges` when present; node-level text style is only the common/default style
+- Preserve `reactions` as the interaction contract; implement every trigger/action in order instead of inferring behavior from pixels or node names
+- Preserve `prototype` scrolling, fixed-layer, and overlay settings; these behaviors cannot be recovered from the reference PNG
+- Use `componentPropertyDefinitions` as the component's typed public API and `componentPropertyDetails` as the active instance values; do not coerce booleans to strings
+- Preserve `annotations`, `componentPropertyReferences`, `variableBindings`, `explicitVariableModes`, and `referencedVariables` as developer-authored contracts; use the catalog's per-mode values and code syntax for prototype state
+- `layout.mode`: horizontal → flex row, vertical → flex column
+- `layout.wrap: wrap` → `flex-wrap: wrap`; preserve wrapped-track spacing/alignment
+- `layout.mode: grid` → CSS Grid with exact tracks, gaps, anchors, and spans
+- `layout.mode: none` → position children by `layout.x/y` relative to the parent
+- `layout.layoutPositioning: absolute` → remove from parent flex flow and position by `layout.x/y`
+- `layout.sizing`: hug → auto, fill → 100%/flex:1, fixed → explicit px
+- Normalize the selected root frame to left: 0, top: 0; root `layout.x/y` is Figma canvas position
+- Use `box-sizing: border-box` so width/height include padding and borders
+- `style.variables` → use as CSS custom properties
+- INSTANCE nodes → reusable sub-components, import or stub them
+
+## Design Tokens
+### Colors
+- `#212121` (background), opacity: 0.2
+- `#212121` (background), opacity: 0.2
+- `#999999` (background)
+- `#999999` (background)
+- `#FFFFFF` (text)
+- `#FFFFFF` (text)
+### Typography
+- Audex 400 20px
+- Audex 400 15px
+### Shadows
+- drop-shadow: -17px -17px 34px 0px #2B2B2B
+- drop-shadow: 17px 17px 34px 0px #171717
+### Spacing & Radii
+- Border radii: 36px, 57px
+
+## Interaction Contract
+Implement these Figma prototype settings and reactions explicitly. Preserve scrolling, fixed layers, overlay behavior, trigger/action order, and transitions; do not infer a different behavior from appearance or node names.
+- `ask list library` (`118:668`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `ask list library > liked library > Favorite` (`118:662`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `ask list library > library 1 > Bookmark` (`118:684`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `ask list library > library 3 > Bookmark` (`118:698`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+- `ask list library > library 5 > Bookmark` (`118:707`) prototype settings: `{"overflowDirection":"none","overlayPositionType":"center","overlayBackground":{"type":"NONE"},"overlayBackgroundInteraction":"none"}`
+
+## Fidelity Risk Summary
+- Estimated risk: high (29 visible nodes, max depth 3)
+- Layout risks: 5 clipped containers, 15 boxes extend outside the root viewport, 23 nodes with constraints, 9 nodes with target aspect ratio
+- Asset risks: 7 vector-like nodes
+- Paint risks: 6 shadowed nodes, 29 nodes with layer blend mode
+
+## Fidelity Warnings
+These are extracted from the JSON and mark places where the convenience fields may not be enough.
+- [critical] ask list library: unsupported-effect-glass - glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback.
+- [critical] ask list library > liked library > Rectangle 1: unsupported-effect-glass - glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback.
+- [critical] ask list library > library 1 > Rectangle 1: unsupported-effect-glass - glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback.
+- [critical] ask list library > library 2 > Rectangle 1: unsupported-effect-glass - glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback.
+- [critical] ask list library > library 6 > Rectangle 1: unsupported-effect-glass - glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback.
+- [critical] ask list library > library 3 > Rectangle 1: unsupported-effect-glass - glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback.
+- [critical] ask list library > library 5 > Rectangle 1: unsupported-effect-glass - glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback.
+
+## Geometry Checklist
+Use these absolute boxes after normalizing the selected root to left 0, top 0. They are derived from `layout.x/y` and help catch drift before styling polish.
+- Root `layout.x/y` is the Figma canvas position; do not offset the rendered component by it.
+### Bounding Boxes
+- ask list library [FRAME]: left 0, top 0, width 372, height 444, signals: root/clips
+- ask list library > liked library [GROUP]: left 54, top 113, width 95, height 95, signals: top-level
+- ask list library > liked library > Rectangle 1 [RECTANGLE]: left 108, top 226, width 95, height 95
+- ask list library > liked library > Favorite [FRAME]: left 134.74, top 251.96, width 42.1, height 43.66, signals: clips
+- ask list library > liked library > Favorite > Vector [VECTOR]: left 134.74, top 251.96, width 42.1, height 43.66, signals: vector
+- ask list library > liked library > Favorite > Vector [VECTOR]: left 138.25, top 257.42, width 35.08, height 33.39, signals: vector
+- ask list library > library 1 [GROUP]: left 213.2, top 113, width 97.2, height 97.2, signals: top-level
+- ask list library > library 1 > Rectangle 1 [RECTANGLE]: left 426.4, top 226, width 97.2, height 97.2
+- ask list library > library 1 > Bookmark [FRAME]: left 456.4, top 256, width 45, height 45, signals: clips
+- ask list library > library 1 > Bookmark > Vector [VECTOR]: left 458.74, top 257.41, width 32.81, height 41.25, signals: vector
+- ask list library > library 2 [GROUP]: left 54, top 245, width 97.2, height 97.2, signals: top-level
+- ask list library > library 2 > Rectangle 1 [RECTANGLE]: left 108, top 490, width 97.2, height 97.2
+- ask list library > library 2 > Vector [VECTOR]: left 140, top 531.18, width 32.81, height 43.4, signals: vector
+- ask list library > library 6 [GROUP]: left 54, top 383, width 97.2, height 97.2, signals: top-level
+- ask list library > library 6 > Rectangle 1 [RECTANGLE]: left 108, top 766, width 97.2, height 97.2
+- ask list library > library 6 > Vector [VECTOR]: left 140, top 814.37, width 32.81, height 43.4, signals: vector
+- ask list library > library 3 [GROUP]: left 213, top 246, width 97.2, height 97.2, signals: top-level
+- ask list library > library 3 > Rectangle 1 [RECTANGLE]: left 426, top 492, width 97.2, height 97.2
+- ask list library > library 3 > Bookmark [FRAME]: left 457, top 518, width 45, height 45, signals: clips
+- ask list library > library 3 > Bookmark > Vector [VECTOR]: left 459.34, top 519.41, width 32.81, height 41.25, signals: vector
+- ask list library > library 5 [GROUP]: left 213, top 383, width 97.2, height 97.2, signals: top-level
+- ask list library > library 5 > Rectangle 1 [RECTANGLE]: left 426, top 766, width 97.2, height 97.2
+- ask list library > library 5 > Bookmark [FRAME]: left 457, top 792, width 45, height 45, signals: clips
+- ask list library > library 5 > Bookmark > Vector [VECTOR]: left 459.34, top 793.41, width 32.81, height 41.25, signals: vector
+- ask list library > witch library you want to save ? [TEXT]: left 54, top 18, width 254, height 72, signals: top-level
+- ask list library > Liked [TEXT]: left 65, top 208, width 73, height 35, signals: top-level
+- ask list library > Library 1 [TEXT]: left 225, top 208, width 73, height 35, signals: top-level
+- ask list library > Library 2 [TEXT]: left 65, top 343, width 73, height 35, signals: top-level
+- ask list library > Library 3 [TEXT]: left 225, top 343, width 73, height 35, signals: top-level
+
+## Assets
+Each selected layer is exported as a separate rendered image:
+- `ask_list_library.png` → ask list library (372×444)
+
+## Pixel Perfect Template
+You are rebuilding this Figma frame for an exact visual match. Treat the JSON as geometry/style data and the reference image/assets as visual evidence.
+
+### Required Inputs
+- JSON component structure below.
+- If a whole-frame reference image is supplied separately, use it as the visual source of truth.
+- Use every listed exported image file exactly; if any required asset is missing, stop and ask for it.
+
+### Render Target
+- Build one exact 372×444 frame.
+- Set `html, body { margin: 0; }` and global `box-sizing: border-box`.
+- Normalize the selected root frame to `left: 0; top: 0`; root `layout.x/y` is only Figma canvas position.
+
+### Verification Loop
+1. Implement the frame at the exact target size.
+2. Capture a lossless PNG screenshot at that same size; do not use JPEG/WebP compression.
+3. Compare it against the reference image; give the screenshot to the user for Figma to Prompt's built-in **Verify AI screenshot** checker.
+4. If the checker reports a non-zero diff, download its correction ZIP and use reference.png, candidate.png, visual-diff.png, and verification.json to fix position, size, color, typography, image crop, vector geometry, and z-order.
+5. Repeat until the screenshot is visually indistinguishable.
+
+Do not approximate missing images, icons, logos, or text. If a required path or asset cannot be loaded, stop and ask for the correct input.
+
+## Implementation Checks
+- Build against one exact 372×444 viewport with `html, body { margin: 0; }` and global `box-sizing: border-box`.
+- Screenshot comparison against the reference render is required; do not declare completion from code inspection alone.
+- For text, set explicit `font-size`, `font-weight`, `line-height`, and CSS `letter-spacing`; convert percent letter spacing to px from the font size.
+- For mixed text, use `textStyleRanges` to split spans and preserve range-level fills, styles, links, and paragraph/list metadata.
+- For `layout.mode: none`, position children from their `layout.x/y` offsets relative to the parent.
+- `layout.wrap: wrap` → `flex-wrap: wrap`; use `counterAxisSpacing` as the wrapped-track gap and preserve `counterAxisAlignContent`.
+- `layout.mode: grid` → CSS Grid; map row/column counts, gaps, track sizes, anchors, spans, and `gridChildHorizontalAlign/gridChildVerticalAlign` exactly.
+- Apply `layout.minWidth/maxWidth/minHeight/maxHeight` as CSS size bounds without replacing the extracted fixed target size.
+- Preserve `layout.relativeTransform` for rotation/skew; use `layout.x/y` as the containing-parent offset and avoid applying translation twice.
+- `layout.renderBounds` is the effect/stroke-inclusive box relative to the regular node box; use its offset and size when positioning a rendered fallback or checking visual overflow.
+- For `layout.layoutPositioning: absolute`, remove that node from the parent flex flow and position it by `layout.x/y` even when the parent uses auto layout.
+- `layout.itemReverseZIndex: true` reverses sibling paint order; otherwise later JSON siblings paint above earlier siblings.
+- Preserve `style.textAlignVertical` inside fixed text boxes and map `style.textAutoResize` to wrapping/intrinsic sizing behavior.
+- `style.textTruncation: ending` requires an ellipsis; combine it with `style.maxLines` using deterministic line clamping.
+- Preserve `style.textDecorationStyle`, offset, thickness, color, and skip-ink behavior; a plain underline is not equivalent to a wavy or dotted decoration.
+- Preserve the exact font face from `style.fontStyleName`, map `style.openTypeFeatures` to `font-feature-settings`, and honor paragraph/list/hanging/leading-trim metadata.
+- Preserve `prototype.overflowDirection`, `fixedChildIds`, and overlay settings as runtime behavior; fixed layers stay above scrolling content.
+- Treat `annotations`, `componentPropertyReferences`, `variableBindings`, `explicitVariableModes`, and `referencedVariables` as developer-authored implementation constraints.
+- `style.cornerSmoothing` is a Figma squircle, not a plain CSS rounded rectangle; use the bundled fallback or exact superellipse geometry when required.
+- Rebuild partial ellipses and donut shapes from `arcData` instead of rendering a full oval.
+- Preserve paint metadata such as fill opacity, image crop transforms, image filters, and gradient transforms when present in `style`.
+- `style.advancedEffects` records Figma noise, texture, and glass parameters. Treat the node-matched rendered fallback as authoritative because plain CSS cannot reproduce these effects exactly.
+- Any critical `unsupported-fill-*` or `unsupported-effect-*` warning means the known node contains a visual feature the native implementation must not silently drop.
+- Multiple visible fills/strokes and Figma linear-burn/linear-dodge compositing are critical fallback cases; browser background layers or blend modes are not accepted as pixel-equivalent evidence.
+- Preserve stroke metadata such as stroke alignment, caps, joins, dash pattern, miter limit, and side-specific stroke weights when present in `style`.
+- Render exact SVG paths from `vectorPaths`, `fillGeometry`, or `strokeGeometry` when present; do not replace them with approximate icons.
+- For `TEXT_PATH`, place the exact text on `vectorPaths` beginning at `textPathStartData`; use the bundled rendered fallback if browser text-path metrics differ.
+- For `TRANSFORM_GROUP`, reproduce every `transformModifiers` repeat in order, including repeat type, count, axis, offset, and whether the offset uses px or relative units.
+- Give the final exact-size screenshot to the user so they can run Figma to Prompt's built-in **Verify AI screenshot** checker.
+
+## Tree Outline
+```
+ask list library (FRAME, fixed×fixed)
+├── liked library (GROUP, fixed×fixed)
+│   ├── Rectangle 1 (RECTANGLE, fixed×fixed)
+│   └── Favorite (FRAME, fixed×fixed)
+│       ├── Vector (VECTOR, fixed×fixed)
+│       └── Vector (VECTOR, fixed×fixed)
+├── library 1 (GROUP, fixed×fixed)
+│   ├── Rectangle 1 (RECTANGLE, fixed×fixed)
+│   └── Bookmark (FRAME, fixed×fixed)
+│       └── Vector (VECTOR, fixed×fixed)
+├── library 2 (GROUP, fixed×fixed)
+│   ├── Rectangle 1 (RECTANGLE, fixed×fixed)
+│   └── Vector (VECTOR, fixed×fixed)
+├── library 6 (GROUP, fixed×fixed)
+│   ├── Rectangle 1 (RECTANGLE, fixed×fixed)
+│   └── Vector (VECTOR, fixed×fixed)
+├── library 3 (GROUP, fixed×fixed)
+│   ├── Rectangle 1 (RECTANGLE, fixed×fixed)
+│   └── Bookmark (FRAME, fixed×fixed)
+│       └── Vector (VECTOR, fixed×fixed)
+├── library 5 (GROUP, fixed×fixed)
+│   ├── Rectangle 1 (RECTANGLE, fixed×fixed)
+│   └── Bookmark (FRAME, fixed×fixed)
+│       └── Vector (VECTOR, fixed×fixed)
+├── witch library you want to save ? (TEXT, fixed×fixed) "witch library you want to save ?"
+├── Liked (TEXT, fixed×fixed) "Liked"
+├── Library 1 (TEXT, fixed×fixed) "Library 1"
+├── Library 2 (TEXT, fixed×fixed) "Library 2"
+└── Library 3 (TEXT, fixed×fixed) "Library 3"
+```
+
+## Component Structure
+```
+{"id":"118:668","name":"ask list library","type":"FRAME","layout":{"width":372,"height":444,"x":20,"y":248,"layoutAlign":"inherit","constraints":{"horizontal":"center","vertical":"center"},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","borderRadius":57,"advancedEffects":[{"type":"glass","lightIntensity":0.8,"lightAngle":-45,"refraction":1,"depth":62,"dispersion":0,"radius":19}]},"children":[{"id":"118:659","name":"liked library","type":"GROUP","layout":{"width":95,"height":95,"x":54,"y":113,"layoutAlign":"inherit","targetAspectRatio":{"x":161,"y":161},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"118:660","name":"Rectangle 1","type":"RECTANGLE","layout":{"width":95,"height":95,"x":54,"y":113,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","opacity":0.2,"color":"#212121"}],"backgroundColor":"#212121","backgroundOpacity":0.2,"borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}],"advancedEffects":[{"type":"glass","lightIntensity":0.8,"lightAngle":-45,"refraction":0.8,"depth":100,"dispersion":1,"radius":0}]},"fidelityWarnings":[{"code":"unsupported-effect-glass","severity":"critical","message":"glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback."}]},{"id":"118:662","name":"Favorite","type":"FRAME","layout":{"width":42.1,"height":43.66,"x":80.74,"y":138.96,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"118:663","name":"Vector","type":"VECTOR","layout":{"width":42.1,"height":43.66}},{"id":"118:664","name":"Vector","type":"VECTOR","layout":{"width":35.08,"height":33.39}}]}]},{"id":"118:669","name":"library 1","type":"GROUP","layout":{"width":97.2,"height":97.2,"x":213.2,"y":113,"layoutAlign":"inherit","targetAspectRatio":{"x":97.2,"y":97.2},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"118:670","name":"Rectangle 1","type":"RECTANGLE","layout":{"width":97.2,"height":97.2,"x":213.2,"y":113,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","opacity":0.2,"color":"#212121"}],"backgroundColor":"#212121","backgroundOpacity":0.2,"borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}],"advancedEffects":[{"type":"glass","lightIntensity":0.8,"lightAngle":-45,"refraction":0.8,"depth":100,"dispersion":1,"radius":0}]},"fidelityWarnings":[{"code":"unsupported-effect-glass","severity":"critical","message":"glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback."}]},{"id":"118:684","name":"Bookmark","type":"FRAME","layout":{"width":45,"height":45,"x":243.2,"y":143,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"targetAspectRatio":{"x":66,"y":66},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"118:685","name":"Vector","type":"VECTOR","layout":{"width":32.81,"height":41.25}}]}]},{"id":"118:679","name":"library 2","type":"GROUP","layout":{"width":97.2,"height":97.2,"x":54,"y":245,"layoutAlign":"inherit","targetAspectRatio":{"x":161,"y":161},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"118:680","name":"Rectangle 1","type":"RECTANGLE","layout":{"width":97.2,"height":97.2,"x":54,"y":245,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","opacity":0.2,"color":"#212121"}],"backgroundColor":"#212121","backgroundOpacity":0.2,"borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}],"advancedEffects":[{"type":"glass","lightIntensity":0.8,"lightAngle":-45,"refraction":0.8,"depth":100,"dispersion":1,"radius":0}]},"fidelityWarnings":[{"code":"unsupported-effect-glass","severity":"critical","message":"glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback."}]},{"id":"118:693","name":"Vector","type":"VECTOR","layout":{"width":32.81,"height":43.4}}]},{"id":"118:712","name":"library 6","type":"GROUP","layout":{"width":97.2,"height":97.2,"x":54,"y":383,"layoutAlign":"inherit","targetAspectRatio":{"x":161,"y":161},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"118:713","name":"Rectangle 1","type":"RECTANGLE","layout":{"width":97.2,"height":97.2,"x":54,"y":383,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","opacity":0.2,"color":"#212121"}],"backgroundColor":"#212121","backgroundOpacity":0.2,"borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}],"advancedEffects":[{"type":"glass","lightIntensity":0.8,"lightAngle":-45,"refraction":0.8,"depth":100,"dispersion":1,"radius":0}]},"fidelityWarnings":[{"code":"unsupported-effect-glass","severity":"critical","message":"glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback."}]},{"id":"118:714","name":"Vector","type":"VECTOR","layout":{"width":32.81,"height":43.4}}]},{"id":"118:696","name":"library 3","type":"GROUP","layout":{"width":97.2,"height":97.2,"x":213,"y":246,"layoutAlign":"inherit","targetAspectRatio":{"x":161,"y":161},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"118:697","name":"Rectangle 1","type":"RECTANGLE","layout":{"width":97.2,"height":97.2,"x":213,"y":246,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","opacity":0.2,"color":"#212121"}],"backgroundColor":"#212121","backgroundOpacity":0.2,"borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}],"advancedEffects":[{"type":"glass","lightIntensity":0.8,"lightAngle":-45,"refraction":0.8,"depth":100,"dispersion":1,"radius":0}]},"fidelityWarnings":[{"code":"unsupported-effect-glass","severity":"critical","message":"glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback."}]},{"id":"118:698","name":"Bookmark","type":"FRAME","layout":{"width":45,"height":45,"x":244,"y":272,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"targetAspectRatio":{"x":66,"y":66},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"118:699","name":"Vector","type":"VECTOR","layout":{"width":32.81,"height":41.25}}]}]},{"id":"118:705","name":"library 5","type":"GROUP","layout":{"width":97.2,"height":97.2,"x":213,"y":383,"layoutAlign":"inherit","targetAspectRatio":{"x":161,"y":161},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through"},"children":[{"id":"118:706","name":"Rectangle 1","type":"RECTANGLE","layout":{"width":97.2,"height":97.2,"x":213,"y":383,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","opacity":0.2,"color":"#212121"}],"backgroundColor":"#212121","backgroundOpacity":0.2,"borderRadius":36,"shadows":[{"type":"drop","color":"#2B2B2B","offsetX":-17,"offsetY":-17,"blur":34,"spread":0,"showShadowBehindNode":true},{"type":"drop","color":"#171717","offsetX":17,"offsetY":17,"blur":34,"spread":0,"showShadowBehindNode":true}],"advancedEffects":[{"type":"glass","lightIntensity":0.8,"lightAngle":-45,"refraction":0.8,"depth":100,"dispersion":1,"radius":0}]},"fidelityWarnings":[{"code":"unsupported-effect-glass","severity":"critical","message":"glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback."}]},{"id":"118:707","name":"Bookmark","type":"FRAME","layout":{"width":45,"height":45,"x":244,"y":409,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"targetAspectRatio":{"x":66,"y":66},"overflow":"hidden","mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}},"style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","visible":false,"color":"#FFFFFF"}]},"children":[{"id":"118:708","name":"Vector","type":"VECTOR","layout":{"width":32.81,"height":41.25}}]}]},{"id":"118:695","name":"witch library you want to save ?","type":"TEXT","text":"witch library you want to save ?","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Audex","fontStyleName":"Regular","fontSize":20,"fontWeight":400,"textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":254,"height":72,"x":54,"y":18,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}},{"id":"118:709","name":"Liked","type":"TEXT","text":"Liked","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Audex","fontStyleName":"Regular","fontSize":15,"fontWeight":400,"textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":73,"height":35,"x":65,"y":208,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}},{"id":"118:710","name":"Library 1","type":"TEXT","text":"Library 1","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Audex","fontStyleName":"Regular","fontSize":15,"fontWeight":400,"textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":73,"height":35,"x":225,"y":208,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}},{"id":"118:711","name":"Library 2","type":"TEXT","text":"Library 2","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Audex","fontStyleName":"Regular","fontSize":15,"fontWeight":400,"textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":73,"height":35,"x":65,"y":343,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}},{"id":"118:715","name":"Library 3","type":"TEXT","text":"Library 3","style":{"blendMode":"pass_through","fills":[{"type":"solid","sourceType":"SOLID","color":"#FFFFFF"}],"color":"#FFFFFF","fontFamily":"Audex","fontStyleName":"Regular","fontSize":15,"fontWeight":400,"textAlign":"center","textAlignVertical":"center","textAutoResize":"none","textTruncation":"disabled","leadingTrim":"none"},"layout":{"width":73,"height":35,"x":225,"y":343,"layoutAlign":"inherit","constraints":{"horizontal":"min","vertical":"min"},"mode":"none","sizing":{"horizontal":"fixed","vertical":"fixed"}}}],"fidelityWarnings":[{"code":"unsupported-effect-glass","severity":"critical","message":"glass effect metadata is captured when available, but exact rendering requires the Figma-rendered fallback."}]}
+```

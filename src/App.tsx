@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { NavTab, ScreenState, Track, MoodType } from './types/music';
 import { INITIAL_TRACKS } from './data/initialTracks';
 import { audioService } from './services/audioPlayer';
@@ -11,27 +11,29 @@ import { LibraryScreen } from './components/LibraryScreen';
 import { LibrarySearchScreen } from './components/LibrarySearchScreen';
 import { DeviceLibrarySearchScreen } from './components/DeviceLibrarySearchScreen';
 import { WhenPlayingWidget } from './components/WhenPlayingWidget';
+import { FullScreenPlayer } from './components/FullScreenPlayer';
 import { SocialAccountModal } from './components/SocialAccountModal';
 import { DeviceAudioScanner } from './services/deviceAudioScanner';
-import { NativeAudioScanner } from './services/nativeMediaStore';
 import { IndexedDbAudioService } from './services/indexedDbAudio';
 
 export default function App() {
   const [screenState, setScreenState] = useState<ScreenState>('home');
-  const [tracks, setTracks] = useState<Track[]>(() => StorageService.loadTracks());
+  const [tracks, setTracks] = useState<Track[]>(() => {
+    const loaded = StorageService.loadTracks();
+    return loaded.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
+  });
   const [likedIds, setLikedIds] = useState<Set<string>>(() => StorageService.getLikedIds());
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(() => StorageService.getDownloadedIds());
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
+  const [recentTrackIds, setRecentTrackIds] = useState<string[]>([]);
+
+  const previousScreenRef = useRef<ScreenState>('home');
 
   // Audio Player state
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [, setCurrentTime] = useState<number>(0);
-  const [, setDuration] = useState<number>(0);
-
-  // Scan state for local phone storage
-  const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [permissionDenied, setPermissionDenied] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
 
   // Info modal state
   const [showAccountModal, setShowAccountModal] = useState<boolean>(false);
@@ -61,24 +63,17 @@ export default function App() {
     StorageService.setDownloadedIds(downloadedIds);
   }, [downloadedIds]);
 
-  // Scan phone audio files
+  // Scan phone audio files automatically
   const handleScanDeviceAudio = useCallback(async (): Promise<number> => {
-    setIsScanning(true);
-    setPermissionDenied(false);
-
     try {
       const res = await DeviceAudioScanner.autoDiscoverDeviceTracks();
-      if (res.permissionDenied) {
-        setPermissionDenied(true);
-        setIsScanning(false);
-        return 0;
-      }
-
       if (res.tracks && res.tracks.length > 0) {
         setTracks((prev) => {
           const existingIds = new Set(prev.map((t) => t.id));
           const newItems = res.tracks.filter((t) => !existingIds.has(t.id));
-          return [...newItems, ...prev];
+          const combined = [...newItems, ...prev];
+          // Strictly sort by download time (dateAdded descending)
+          return combined.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
         });
 
         setDownloadedIds((prev) => {
@@ -87,83 +82,42 @@ export default function App() {
           return next;
         });
 
-        setIsScanning(false);
         return res.tracks.length;
       }
     } catch (e) {
       console.warn('Error discovering device tracks:', e);
     }
 
-    setIsScanning(false);
-    return 0;
-  }, []);
-
-  // Scan via Directory Picker
-  const handleScanDirectory = useCallback(async (): Promise<number> => {
-    setIsScanning(true);
-    try {
-      const dirTracks = await NativeAudioScanner.scanViaDirectoryPicker();
-      if (dirTracks.length > 0) {
-        setTracks((prev) => {
-          const existingIds = new Set(prev.map((t) => t.id));
-          const newItems = dirTracks.filter((t) => !existingIds.has(t.id));
-          return [...newItems, ...prev];
-        });
-
-        setDownloadedIds((prev) => {
-          const next = new Set(prev);
-          dirTracks.forEach((t) => next.add(t.id));
-          return next;
-        });
-
-        setIsScanning(false);
-        return dirTracks.length;
-      }
-    } catch (e) {
-      console.warn('Directory scan error:', e);
-    }
-    setIsScanning(false);
     return 0;
   }, []);
 
   // Hydrate device tracks and run automated phone MP3 discovery
   useEffect(() => {
     IndexedDbAudioService.hydrateDeviceTracks(tracks).then((hydrated) => {
-      setTracks(hydrated);
+      setTracks((prev) => {
+        const merged = hydrated.length > 0 ? hydrated : prev;
+        return [...merged].sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
+      });
     });
 
     // Auto discover upon startup
     handleScanDeviceAudio();
   }, [handleScanDeviceAudio]);
 
-  // Handle Playback with Queue
-  const handlePlayTrack = (track: Track, customQueue?: Track[]) => {
+  // Handle Playback with Queue - Keep queue and tracks array stable!
+  const handlePlayTrack = (track: Track, customQueue?: Track[], openPlayer: boolean = true) => {
     const queueToUse = customQueue || tracks;
     audioService.playTrack(track, queueToUse);
 
-    // Update recents in track list
-    setTracks((prev) => {
-      const remaining = prev.filter((t) => t.id !== track.id);
-      return [{ ...track, collection: 'recents' }, ...remaining];
-    });
-  };
+    // Track recents without altering the master tracks array ordering
+    setRecentTrackIds((prev) => [track.id, ...prev.filter((id) => id !== track.id)].slice(0, 8));
 
-  // Import local phone MP3 files
-  const handleImportDeviceTracks = async (files: FileList): Promise<number> => {
-    const imported = await DeviceAudioScanner.processFiles(files);
-    if (imported.length > 0) {
-      setTracks((prev) => {
-        const existingIds = new Set(prev.map((t) => t.id));
-        const newItems = imported.filter((t) => !existingIds.has(t.id));
-        return [...newItems, ...prev];
-      });
-      setDownloadedIds((prev) => {
-        const next = new Set(prev);
-        imported.forEach((t: Track) => next.add(t.id));
-        return next;
-      });
+    if (openPlayer) {
+      if (screenState !== 'player') {
+        previousScreenRef.current = screenState;
+      }
+      setScreenState('player');
     }
-    return imported.length;
   };
 
   // Toggle Like
@@ -175,6 +129,36 @@ export default function App() {
       } else {
         next.add(track.id);
       }
+      return next;
+    });
+  };
+
+  // Save to Library Folder
+  const handleSaveToLibrary = (track: Track, libraryName: string) => {
+    const trimmedName = libraryName.trim();
+    StorageService.addUserLibrary(trimmedName);
+
+    // If saving to Liked
+    if (trimmedName.toLowerCase() === 'liked') {
+      setLikedIds((prev) => {
+        const next = new Set(prev);
+        next.add(track.id);
+        return next;
+      });
+      setTracks((prev) =>
+        prev.map((t) => (t.id === track.id ? { ...t, isLiked: true } : t))
+      );
+      return;
+    }
+
+    // Save folder name in collection
+    setTracks((prev) =>
+      prev.map((t) => (t.id === track.id ? { ...t, collection: trimmedName, isLiked: true } : t))
+    );
+
+    setLikedIds((prev) => {
+      const next = new Set(prev);
+      next.add(track.id);
       return next;
     });
   };
@@ -262,6 +246,24 @@ export default function App() {
     audioService.playPrevious();
   };
 
+  // Computed 4 recent tracks for HomeScreen
+  const recentTracks = useMemo(() => {
+    if (recentTrackIds.length === 0) return tracks.slice(0, 4);
+    const result: Track[] = [];
+    for (const id of recentTrackIds) {
+      const found = tracks.find((t) => t.id === id);
+      if (found) result.push(found);
+      if (result.length === 4) break;
+    }
+    for (const t of tracks) {
+      if (result.length >= 4) break;
+      if (!result.some((r) => r.id === t.id)) {
+        result.push(t);
+      }
+    }
+    return result;
+  }, [recentTrackIds, tracks]);
+
   return (
     <div className="h-[100dvh] min-h-[100dvh] sm:min-h-screen w-full bg-[#141414] flex items-center justify-center sm:py-6 select-none font-sans overflow-hidden">
       {/* 412 x 917 Android Compact - 1 root container matching Figma exact composition */}
@@ -270,7 +272,7 @@ export default function App() {
         <div className="w-full h-full flex flex-col overflow-hidden relative">
           {screenState === 'home' && (
             <HomeScreen
-              recentTracks={tracks.length > 0 ? tracks : INITIAL_TRACKS}
+              recentTracks={recentTracks.length > 0 ? recentTracks : INITIAL_TRACKS}
               currentTrack={currentTrack}
               isPlaying={isPlaying}
               selectedMood={selectedMood}
@@ -285,17 +287,12 @@ export default function App() {
               deviceTracks={deviceTracks}
               currentTrack={currentTrack}
               isPlaying={isPlaying}
-              onPlayTrack={(t) => handlePlayTrack(t, deviceTracks)}
+              onPlayTrack={(t, q) => handlePlayTrack(t, q || deviceTracks)}
               onToggleLike={handleToggleLike}
               onToggleDownload={handleToggleDownload}
               likedIds={likedIds}
               downloadedIds={downloadedIds}
               onBackToHome={() => setScreenState('home')}
-              onImportDeviceTracks={handleImportDeviceTracks}
-              onScanDeviceAudio={handleScanDeviceAudio}
-              onScanDirectory={handleScanDirectory}
-              isScanning={isScanning}
-              permissionDenied={permissionDenied}
             />
           )}
 
@@ -319,15 +316,10 @@ export default function App() {
               isPlaying={isPlaying}
               likedIds={likedIds}
               downloadedIds={downloadedIds}
-              onPlayTrack={(t) => handlePlayTrack(t, localLibraryTracks)}
+              onPlayTrack={(t, q) => handlePlayTrack(t, q || localLibraryTracks)}
               onToggleLike={handleToggleLike}
               onToggleDownload={handleToggleDownload}
               onOpenLibrarySearch={() => setScreenState('library_search')}
-              onImportDeviceTracks={handleImportDeviceTracks}
-              onScanDeviceAudio={handleScanDeviceAudio}
-              onScanDirectory={handleScanDirectory}
-              isScanning={isScanning}
-              permissionDenied={permissionDenied}
             />
           )}
 
@@ -336,7 +328,7 @@ export default function App() {
               libraryTracks={localLibraryTracks}
               currentTrack={currentTrack}
               isPlaying={isPlaying}
-              onPlayTrack={(t) => handlePlayTrack(t, localLibraryTracks)}
+              onPlayTrack={(t, q) => handlePlayTrack(t, q || localLibraryTracks)}
               onToggleLike={handleToggleLike}
               onToggleDownload={handleToggleDownload}
               likedIds={likedIds}
@@ -344,36 +336,63 @@ export default function App() {
               onBackToMainLibrary={() => setScreenState('library_main')}
             />
           )}
+
+          {screenState === 'player' && (
+            <FullScreenPlayer
+              currentTrack={currentTrack}
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              duration={duration}
+              likedIds={likedIds}
+              onBack={() => setScreenState(previousScreenRef.current || 'home')}
+              onTogglePlay={handleTogglePlay}
+              onNextTrack={handleNextTrack}
+              onPreviousTrack={handlePreviousTrack}
+              onToggleLike={handleToggleLike}
+              onSaveToLibrary={handleSaveToLibrary}
+              onTabChange={handleTabChange}
+            />
+          )}
         </div>
 
-        {/* Top Navigation Capsule floating over screen content matching Figma exact coordinates */}
-        <TopCapsule
-          title={capsuleTitle}
-          onProfileClick={() => {
-            setAccountModalType('profile');
-            setShowAccountModal(true);
-          }}
-          onGroupClick={() => {
-            setAccountModalType('group');
-            setShowAccountModal(true);
-          }}
-        />
+        {/* Top Navigation Capsule floating over screen content (hidden on player screen) */}
+        {screenState !== 'player' && (
+          <TopCapsule
+            title={capsuleTitle}
+            onProfileClick={() => {
+              setAccountModalType('profile');
+              setShowAccountModal(true);
+            }}
+            onGroupClick={() => {
+              setAccountModalType('group');
+              setShowAccountModal(true);
+            }}
+          />
+        )}
 
-        {/* Floating When-is-playing Controller Widget */}
-        <WhenPlayingWidget
-          currentTrack={currentTrack}
-          isPlaying={isPlaying}
-          onTogglePlay={handleTogglePlay}
-          onNextTrack={handleNextTrack}
-          onPreviousTrack={handlePreviousTrack}
-        />
+        {/* Floating When-is-playing Controller Widget (hidden on player screen) */}
+        {screenState !== 'player' && (
+          <WhenPlayingWidget
+            currentTrack={currentTrack}
+            isPlaying={isPlaying}
+            onTogglePlay={handleTogglePlay}
+            onNextTrack={handleNextTrack}
+            onPreviousTrack={handlePreviousTrack}
+            onOpenPlayer={() => {
+              previousScreenRef.current = screenState;
+              setScreenState('player');
+            }}
+          />
+        )}
 
-        {/* Bottom Navigation Bar */}
-        <BottomNav
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          isPlaying={isPlaying}
-        />
+        {/* Bottom Navigation Bar (hidden on player screen as it has its own Figma navbar) */}
+        {screenState !== 'player' && (
+          <BottomNav
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            isPlaying={isPlaying}
+          />
+        )}
 
         {/* Modal for Account & Listening with Friends ("گوش دادن با رفیق‌ها") */}
         <SocialAccountModal
