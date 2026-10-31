@@ -352,7 +352,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
       */}
       <div className="w-full flex flex-col items-center pb-3 sm:pb-6 z-10 gap-2.5 sm:gap-4 mt-auto">
         {/* SECONDARY CONTROLS ROW */}
-        <div className="w-[300px] sm:w-[320px] max-w-[calc(100%-48px)] flex items-center justify-between px-2">
+        <div className="w-[300px] sm:w-[320px] max-w-[calc(100%-48px)] flex items-center justify-between px-2 mb-3.5 sm:mb-5">
           {/* Like Button */}
           <button
             type="button"
