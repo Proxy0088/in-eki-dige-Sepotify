@@ -218,7 +218,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
       <button
         type="button"
         onClick={onBack}
-        className="absolute left-[20px] sm:left-[25px] top-[24px] sm:top-[44px] z-30 w-11 h-11 flex items-center justify-center text-[#E4E4E4] hover:text-white transition-colors cursor-pointer active:scale-90"
+        className="absolute left-[20px] sm:left-[25px] top-[24px] sm:top-[44px] z-50 w-11 h-11 flex items-center justify-center text-[#E4E4E4] hover:text-white transition-colors cursor-pointer active:scale-90"
         aria-label="Back to previous page"
       >
         <svg
@@ -243,7 +243,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
         1) Music Profile Pill: Top extends beyond frame (-top-[90px]/117px), top is NOT curved (rounded-t-none), bottom is curved (rounded-b-[140px]/158px)
         2) Progress Bar: Placed OUTSIDE the music profile frame as an independent layer, completely unclipped and visible!
       */}
-      <div className="relative mx-auto w-[276px] h-[min(54vh,580px)] min-h-[350px] flex-shrink-0 z-10">
+      <div className="relative mx-auto w-[276px] h-[min(48vh,540px)] min-h-[300px] sm:min-h-[360px] flex-shrink-0 z-30">
         {/* 
           Node 112:129 "music profile":
           Top extends above frame without curve, bottom curved gracefully
@@ -279,7 +279,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
           Anchored right over the bottom curve, fully visible and unclipped
         */}
         <div
-          className="absolute -bottom-[8px] sm:-bottom-[4px] left-1/2 -translate-x-1/2 w-[288px] h-[288px] z-20 pointer-events-auto select-none"
+          className="absolute -bottom-[8px] sm:-bottom-[4px] left-1/2 -translate-x-1/2 w-[288px] h-[288px] z-40 pointer-events-auto select-none"
           style={{ width: 288, height: 288 }}
         >
           <svg
@@ -350,7 +350,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
         3) Bottom Navbar
         Positioned relative to bottom to guarantee 100% visibility on all screen heights
       */}
-      <div className="w-full flex flex-col items-center pb-3 sm:pb-6 z-20 gap-3 sm:gap-4 mt-auto">
+      <div className="w-full flex flex-col items-center pb-3 sm:pb-6 z-10 gap-2.5 sm:gap-4 mt-auto">
         {/* SECONDARY CONTROLS ROW */}
         <div className="w-[300px] sm:w-[320px] max-w-[calc(100%-48px)] flex items-center justify-between px-2">
           {/* Like Button */}
