@@ -11,6 +11,7 @@ interface MusicRowProps {
   onToggleDownload?: (track: Track) => void;
   isLiked?: boolean;
   isDownloaded?: boolean;
+  isDownloading?: boolean;
 }
 
 export const MusicRow: React.FC<MusicRowProps> = ({
@@ -22,6 +23,7 @@ export const MusicRow: React.FC<MusicRowProps> = ({
   onToggleDownload,
   isLiked,
   isDownloaded,
+  isDownloading,
 }) => {
   const [imgError, setImgError] = useState(false);
   const activePlaying = isCurrent && isPlaying;
@@ -125,7 +127,9 @@ export const MusicRow: React.FC<MusicRowProps> = ({
             className="p-1.5 text-[#7f838c] hover:text-white transition-colors cursor-pointer"
             aria-label={isDownloaded ? 'Downloaded' : 'Download for offline'}
           >
-            {isDownloaded ? (
+            {isDownloading ? (
+              <Download className="w-4 h-4 text-white animate-bounce" />
+            ) : isDownloaded ? (
               <Check className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
             ) : (
               <Download className="w-4 h-4 stroke-[1.8]" />

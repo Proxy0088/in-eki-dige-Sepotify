@@ -24,6 +24,7 @@ export default function App() {
   });
   const [likedIds, setLikedIds] = useState<Set<string>>(() => StorageService.getLikedIds());
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(() => StorageService.getDownloadedIds());
+  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
   const [recentTrackIds, setRecentTrackIds] = useState<string[]>([]);
 
@@ -105,12 +106,38 @@ export default function App() {
   }, [handleScanDeviceAudio]);
 
   // Handle Playback with Queue - Keep queue and tracks array stable!
-  const handlePlayTrack = (track: Track, customQueue?: Track[], openPlayer: boolean = true) => {
-    const queueToUse = customQueue || tracks;
-    audioService.playTrack(track, queueToUse);
+  const handlePlayTrack = async (track: Track, customQueue?: Track[], openPlayer: boolean = true) => {
+    let playableTrack = track;
 
-    // Track recents without altering the master tracks array ordering
-    setRecentTrackIds((prev) => [track.id, ...prev.filter((id) => id !== track.id)].slice(0, 8));
+    try {
+      const offlineBlob = await IndexedDbAudioService.getAudioFile(track.id);
+      if (offlineBlob) {
+        playableTrack = {
+          ...track,
+          url: URL.createObjectURL(offlineBlob),
+          isDownloaded: true,
+        };
+      }
+    } catch (e) {
+      console.warn('Offline blob check error:', e);
+    }
+
+    if (playableTrack.isAudius && playableTrack.isStreamable === false && !playableTrack.isDownloaded) {
+      alert('پخش این قطعه توسط هنرمند در شبکه غیرمتمرکز محدود شده است.');
+      return;
+    }
+
+    setTracks((prev) => {
+      if (!prev.some((t) => t.id === playableTrack.id)) {
+        return [playableTrack, ...prev];
+      }
+      return prev.map((t) => (t.id === playableTrack.id ? playableTrack : t));
+    });
+
+    const queueToUse = customQueue || tracks;
+    audioService.playTrack(playableTrack, queueToUse);
+
+    setRecentTrackIds((prev) => [playableTrack.id, ...prev.filter((id) => id !== playableTrack.id)].slice(0, 8));
 
     if (openPlayer) {
       if (screenState !== 'player') {
@@ -164,16 +191,68 @@ export default function App() {
   };
 
   // Toggle Download for offline play
-  const handleToggleDownload = (track: Track) => {
+  const handleToggleDownload = async (track: Track) => {
+    const isDownloaded = downloadedIds.has(track.id);
+
+    if (isDownloaded) {
+      await IndexedDbAudioService.deleteAudioFile(track.id);
+      setDownloadedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(track.id);
+        return next;
+      });
+      setTracks((prev) =>
+        prev.map((t) => (t.id === track.id ? { ...t, isDownloaded: false } : t))
+      );
+      return;
+    }
+
+    if (track.isAudius || track.audiusId) {
+      if (track.isDownloadable === false) {
+        alert('این قطعه توسط هنرمند اجازه دانلود داده نشده است.');
+        return;
+      }
+
+      setDownloadingIds((prev) => new Set(prev).add(track.id));
+      const res = await IndexedDbAudioService.downloadAndSaveAudiusTrack(track);
+      setDownloadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(track.id);
+        return next;
+      });
+
+      if (!res.success) {
+        alert(res.error || 'خطا در دانلود قطعه');
+        return;
+      }
+
+      const updatedTrack: Track = {
+        ...track,
+        url: res.localUrl || track.url,
+        isDownloaded: true,
+        collection: 'Downloads',
+      };
+
+      setTracks((prev) => {
+        const exists = prev.some((t) => t.id === track.id);
+        if (exists) {
+          return prev.map((t) => (t.id === track.id ? updatedTrack : t));
+        }
+        return [updatedTrack, ...prev];
+      });
+
+      setDownloadedIds((prev) => new Set(prev).add(track.id));
+      return;
+    }
+
     setDownloadedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(track.id)) {
-        next.delete(track.id);
-      } else {
-        next.add(track.id);
-      }
+      next.add(track.id);
       return next;
     });
+    setTracks((prev) =>
+      prev.map((t) => (t.id === track.id ? { ...t, isDownloaded: true } : t))
+    );
   };
 
   // Filter or activate Mood
@@ -306,6 +385,7 @@ export default function App() {
               onToggleDownload={handleToggleDownload}
               likedIds={likedIds}
               downloadedIds={downloadedIds}
+              downloadingIds={downloadingIds}
             />
           )}
 

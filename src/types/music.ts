@@ -19,4 +19,9 @@ export interface Track {
   collection?: string;
   dateAdded?: number; // timestamp in seconds
   audioSynthFrequency?: number; // fallback synth tone
+  audiusId?: string;
+  isAudius?: boolean;
+  isStreamable?: boolean;
+  isDownloadable?: boolean;
+  downloadUrl?: string;
 }
