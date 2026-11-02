@@ -1,4 +1,5 @@
 import { Track, MoodType } from '../types/music';
+import { MusicDelService } from './musicDelService';
 
 // Verified, high-availability direct streaming MP3s
 const VERIFIED_IRAN_CATALOG: Track[] = [
@@ -107,7 +108,18 @@ export const IranMusicService = {
     const q = normalizeString(query);
     if (!q) return [];
 
-    // 1. Dynamic search on public audio archives for Iranian songs
+    // 1. Primary search on musicdel.ir (National Net direct 320kbps MP3s)
+    try {
+      const musicDelResults = await MusicDelService.searchTracks(query, signal, limit);
+      if (musicDelResults && musicDelResults.length > 0) {
+        return musicDelResults;
+      }
+    } catch (e: unknown) {
+      if ((e as Error)?.name === 'AbortError') throw e;
+      console.warn('MusicDel search error, falling back:', e);
+    }
+
+    // 2. Dynamic search on public audio archives for Iranian songs
     try {
       const searchUrl = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(
         query + ' AND mediatype:audio'

@@ -1,11 +1,12 @@
 import { Track } from '../types/music';
 import { YouTubeMusicService } from './youtubeMusicService';
+import { MusicDelService } from './musicDelService';
 
 interface ResolvedStream {
   url: string;
   youtubeId?: string;
   duration?: number;
-  source: 'youtube' | 'archive' | 'preview';
+  source: 'youtube' | 'archive' | 'musicdel' | 'preview';
 }
 
 const resolvedCache = new Map<string, ResolvedStream>();
@@ -110,6 +111,10 @@ export const StreamResolverService = {
    * Upgrades a track to full length if it is currently an iTunes preview or short clip.
    */
   async resolveTrack(track: Track, signal?: AbortSignal): Promise<Track> {
+    if (track.id.startsWith('musicdel-')) {
+      return await MusicDelService.resolveTrack(track, signal);
+    }
+
     if (track.isYouTube && track.youtubeId) {
       return { ...track, isFullLength: true };
     }

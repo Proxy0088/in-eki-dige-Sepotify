@@ -20,6 +20,7 @@ import { AppLanguage, AppTheme } from './types/music';
 import { DeviceAudioScanner } from './services/deviceAudioScanner';
 import { IndexedDbAudioService } from './services/indexedDbAudio';
 import { StreamResolverService } from './services/streamResolverService';
+import { MusicDelService } from './services/musicDelService';
 
 export default function App() {
   const [screenState, setScreenState] = useState<ScreenState>('home');
@@ -154,6 +155,15 @@ export default function App() {
         playableTrack = await StreamResolverService.resolveTrack(playableTrack);
       } catch (err) {
         console.warn('Full stream resolution error:', err);
+      }
+    }
+
+    // Resolve real 320kbps MP3 stream if track is from MusicDel
+    if (!playableTrack.isDownloaded && playableTrack.id.startsWith('musicdel-') && !playableTrack.url.endsWith('.mp3')) {
+      try {
+        playableTrack = await MusicDelService.resolveTrack(playableTrack);
+      } catch (err) {
+        console.warn('MusicDel stream resolution error during play:', err);
       }
     }
 

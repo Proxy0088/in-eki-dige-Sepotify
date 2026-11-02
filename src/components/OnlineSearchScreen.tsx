@@ -6,6 +6,7 @@ import { OfficialMusicService } from '../services/officialMusicService';
 import { Track } from '../types/music';
 import { MusicRow } from './MusicRow';
 import { YouTubeMusicService } from '../services/youtubeMusicService';
+import { MusicDelService } from '../services/musicDelService';
 
 interface OnlineSearchScreenProps {
   allTracks: Track[];
@@ -70,16 +71,23 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
     const timer = setTimeout(async () => {
       try {
         if (isNationalNet) {
-          const results = await IranMusicService.searchTracks(trimmed, controller.signal, 10);
-          setOnlineResults(results);
+          // Direct search on musicdel.ir (National Net primary engine)
+          const results = await MusicDelService.searchTracks(trimmed, controller.signal, 15);
+          if (results.length > 0) {
+            setOnlineResults(results);
+          } else {
+            const fallback = await IranMusicService.searchTracks(trimmed, controller.signal, 10);
+            setOnlineResults(fallback);
+          }
         } else {
-          const [officialRes, ytRes] = await Promise.allSettled([
-            OfficialMusicService.searchOriginalTracks(trimmed, controller.signal, 10),
-            YouTubeMusicService.searchTracks(trimmed, controller.signal, 8),
+          // Global mode: musicdel.ir (for real 320kbps streams) + official catalog
+          const [musicDelRes, officialRes] = await Promise.allSettled([
+            MusicDelService.searchTracks(trimmed, controller.signal, 10),
+            OfficialMusicService.searchOriginalTracks(trimmed, controller.signal, 6),
           ]);
+          const musicDelTracks = musicDelRes.status === 'fulfilled' ? musicDelRes.value : [];
           const official = officialRes.status === 'fulfilled' ? officialRes.value : [];
-          const ytTracks = ytRes.status === 'fulfilled' ? ytRes.value : [];
-          const combined = [...official, ...ytTracks];
+          const combined = [...musicDelTracks, ...official];
           const seen = new Set<string>();
           const deduped: Track[] = [];
           for (const item of combined) {
@@ -166,7 +174,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
               searchMode === 'local'
                 ? (language === 'fa' ? 'جست‌وجو در دانلودها و پوشه‌ها...' : 'Search downloads & folders...')
                 : isNationalNet
-                ? (language === 'fa' ? 'جست‌وجو در سایت‌های ایرانی (نت ملی)...' : 'Search Iranian music sites (Intranet)...')
+                ? (language === 'fa' ? 'جست‌وجو در موزیکدل musicdel.ir (نت ملی)...' : 'Search on musicdel.ir (National Net)...')
                 : (language === 'fa' ? 'جست‌وجوی آنلاین نام آهنگ یا خواننده...' : 'Search online tracks (YouTube Music)...')
             }
             className="w-full bg-transparent text-sm text-[#e5e7eb] placeholder-[#7d828c] outline-none font-medium pr-10"
