@@ -91,7 +91,9 @@ export class AudiusService {
         const data = await response.json();
         const items: AudiusApiTrack[] = Array.isArray(data?.data) ? data.data : [];
 
-        return items.map((item) => this.mapApiTrackToTrack(item));
+        return items
+          .filter((item) => (item.duration || 180) <= 900 && (item.duration || 180) >= 45)
+          .map((item) => this.mapApiTrackToTrack(item));
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') {
           throw err;
@@ -105,6 +107,39 @@ export class AudiusService {
     return [];
   }
 
+  // Parse and sanitize raw title to extract official artist and song name
+  public static parseArtistAndTitle(
+    rawTitle: string,
+    defaultArtist: string
+  ): { artist: string; title: string } {
+    let cleaned = (rawTitle || '')
+      .replace(/\[.*?\]/g, '')
+      .replace(/\(.*?(?:official|video|audio|320|128|lyrics|clip|demo|remix|hd|music).*?\)/gi, '')
+      .trim();
+
+    const separators = [' - ', ' – ', ' — ', ' _ ', ' : '];
+    for (const sep of separators) {
+      if (cleaned.includes(sep)) {
+        const parts = cleaned.split(sep);
+        if (parts.length >= 2) {
+          const potentialArtist = parts[0].trim();
+          const potentialTitle = parts.slice(1).join(sep).trim();
+          if (potentialArtist.length >= 2 && potentialTitle.length >= 2) {
+            return {
+              artist: potentialArtist,
+              title: potentialTitle,
+            };
+          }
+        }
+      }
+    }
+
+    return {
+      artist: defaultArtist,
+      title: cleaned || rawTitle || 'Untitled Track',
+    };
+  }
+
   // Map API response to application Track model
   private static mapApiTrackToTrack(item: AudiusApiTrack): Track {
     const artwork = item.artwork;
@@ -114,7 +149,9 @@ export class AudiusService {
       artwork?.['1000x1000'] ||
       undefined;
 
-    const artistName = (item.user?.name || item.user?.handle || 'Audius Artist').trim();
+    const rawArtistName = (item.user?.name || item.user?.handle || 'هنرمند').trim();
+    const { artist, title } = this.parseArtistAndTitle(item.title, rawArtistName);
+
     const isStreamable = item.is_streamable !== false && item.access?.stream !== false;
     const isDownloadable = Boolean(item.is_downloadable && item.access?.download !== false);
 
@@ -124,14 +161,15 @@ export class AudiusService {
     return {
       id: `audius-${item.id}`,
       audiusId: item.id,
-      title: item.title?.trim() || 'Untitled Track',
-      artist: artistName,
-      album: item.genre || 'Audius Decentralized Music',
+      title,
+      artist,
+      album: item.genre || 'آهنگ کامل (اورجینال)',
       duration: item.duration || 180,
       url: streamUrl,
       mood: 'Feels good',
       coverUrl,
       isAudius: true,
+      isFullLength: true,
       isStreamable,
       isDownloadable,
       downloadUrl,

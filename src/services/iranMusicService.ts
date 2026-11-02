@@ -12,6 +12,7 @@ const VERIFIED_IRAN_CATALOG: Track[] = [
     mood: 'Feels good',
     coverUrl: 'https://archive.org/services/img/ShadmehrAghili-BiToHargez_12',
     isNationalNet: true,
+    isFullLength: true,
     isStreamable: true,
     isDownloadable: true,
     downloadUrl: 'https://archive.org/download/ShadmehrAghili-BiToHargez_12/ShadmehrAghili-BiToHargez.mp3',
@@ -27,6 +28,7 @@ const VERIFIED_IRAN_CATALOG: Track[] = [
     mood: 'Chill',
     coverUrl: 'https://archive.org/services/img/MohsenYeganeh-KheyliDelamAzatPore',
     isNationalNet: true,
+    isFullLength: true,
     isStreamable: true,
     isDownloadable: true,
     downloadUrl: 'https://archive.org/download/MohsenYeganeh-KheyliDelamAzatPore/MohsenYeganeh-KheyliDelamAzatPore.mp3',
@@ -42,6 +44,7 @@ const VERIFIED_IRAN_CATALOG: Track[] = [
     mood: 'Focus',
     coverUrl: 'https://archive.org/services/img/MohsenYeganeh-GhorshayeKhabAvar',
     isNationalNet: true,
+    isFullLength: true,
     isStreamable: true,
     isDownloadable: true,
     downloadUrl: 'https://archive.org/download/MohsenYeganeh-GhorshayeKhabAvar/MohsenYeganeh-GhorshayeKhabAvar.mp3',
@@ -57,6 +60,7 @@ const VERIFIED_IRAN_CATALOG: Track[] = [
     mood: 'Chill',
     coverUrl: 'https://archive.org/services/img/Shadmehr_Aghili_-_Pare_Parvaz',
     isNationalNet: true,
+    isFullLength: true,
     isStreamable: true,
     isDownloadable: true,
     downloadUrl: 'https://archive.org/download/Shadmehr_Aghili_-_Pare_Parvaz/01_Pare_Parvaz.mp3',
@@ -72,6 +76,7 @@ const VERIFIED_IRAN_CATALOG: Track[] = [
     mood: 'Focus',
     coverUrl: 'https://archive.org/services/img/ShadmehrAghili-BiToHargez_12',
     isNationalNet: true,
+    isFullLength: true,
     isStreamable: true,
     isDownloadable: true,
     downloadUrl: 'https://archive.org/download/ShadmehrAghili-BiToHargez_12/ShadmehrAghili-BiToHargez.mp3',
@@ -145,6 +150,7 @@ export const IranMusicService = {
                   mood: 'Feels good',
                   coverUrl: `https://archive.org/services/img/${doc.identifier}`,
                   isNationalNet: true,
+                  isFullLength: true,
                   isStreamable: true,
                   isDownloadable: true,
                   downloadUrl: streamUrl,
@@ -159,8 +165,21 @@ export const IranMusicService = {
           }
         }
 
-        if (dynamicTracks.length > 0) {
-          return dynamicTracks;
+        // Combine verified matches with dynamic tracks for complete full-length list
+        const verifiedMatches = VERIFIED_IRAN_CATALOG.filter((t) => {
+          const titleNorm = normalizeString(t.title);
+          const artistNorm = normalizeString(t.artist);
+          return (
+            titleNorm.includes(q) ||
+            artistNorm.includes(q) ||
+            q.includes(titleNorm) ||
+            q.includes(artistNorm)
+          );
+        });
+
+        const combined = [...verifiedMatches, ...dynamicTracks];
+        if (combined.length > 0) {
+          return combined.slice(0, limit);
         }
       }
     } catch {

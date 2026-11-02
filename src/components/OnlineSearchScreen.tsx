@@ -79,7 +79,17 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
           ]);
           const official = officialRes.status === 'fulfilled' ? officialRes.value : [];
           const audius = audiusRes.status === 'fulfilled' ? audiusRes.value : [];
-          setOnlineResults([...official, ...audius]);
+          const combined = [...official, ...audius];
+          const seen = new Set<string>();
+          const deduped: Track[] = [];
+          for (const item of combined) {
+            const key = `${item.title.toLowerCase().trim()}:::${item.artist.toLowerCase().trim()}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              deduped.push(item);
+            }
+          }
+          setOnlineResults(deduped);
         }
       } catch (err: unknown) {
         if ((err as Error)?.name !== 'AbortError') {

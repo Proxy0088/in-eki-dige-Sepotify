@@ -19,6 +19,7 @@ import { SettingsService, AppSettings } from './services/settingsService';
 import { AppLanguage, AppTheme } from './types/music';
 import { DeviceAudioScanner } from './services/deviceAudioScanner';
 import { IndexedDbAudioService } from './services/indexedDbAudio';
+import { StreamResolverService } from './services/streamResolverService';
 
 export default function App() {
   const [screenState, setScreenState] = useState<ScreenState>('home');
@@ -145,6 +146,15 @@ export default function App() {
       }
     } catch (e) {
       console.warn('Offline blob check error:', e);
+    }
+
+    // Resolve full stream if track is an iTunes preview (30s) or unverified stream
+    if (!playableTrack.isDownloaded && (playableTrack.id.startsWith('itunes-') || playableTrack.url.includes('apple.com') || playableTrack.duration <= 35)) {
+      try {
+        playableTrack = await StreamResolverService.resolveTrack(playableTrack);
+      } catch (err) {
+        console.warn('Full stream resolution error:', err);
+      }
     }
 
     if (playableTrack.isAudius && playableTrack.isStreamable === false && !playableTrack.isDownloaded) {

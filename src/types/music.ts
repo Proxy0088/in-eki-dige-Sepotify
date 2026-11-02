@@ -31,6 +31,7 @@ export interface Track {
   audiusId?: string;
   isAudius?: boolean;
   isNationalNet?: boolean;
+  isFullLength?: boolean;
   isStreamable?: boolean;
   isDownloadable?: boolean;
   downloadUrl?: string;

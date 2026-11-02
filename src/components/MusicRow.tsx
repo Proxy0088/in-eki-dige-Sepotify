@@ -108,7 +108,7 @@ export const MusicRow: React.FC<MusicRowProps> = ({
         className="flex items-center gap-2.5 shrink-0 pl-1"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-[11px] font-mono text-[#6c7078] hidden sm:inline">
+        <span className="text-[11px] font-mono text-[#8a8f99] shrink-0 font-medium">
           {formatDuration(track.duration)}
         </span>
 

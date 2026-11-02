@@ -1,4 +1,5 @@
 import { Track, MoodType } from '../types/music';
+import { StreamResolverService } from './streamResolverService';
 
 export interface ITunesResult {
   trackId: number;
@@ -14,12 +15,12 @@ export interface ITunesResult {
 export const OfficialMusicService = {
   /**
    * Search official, original songs and artists with 100% accuracy via Apple iTunes catalog.
-   * Completely open, high-speed, zero API key, no CORS restriction.
+   * Dynamically resolves full-length audio streams (3-5 minutes) to avoid 30-second previews.
    */
   async searchOriginalTracks(
     query: string,
     signal?: AbortSignal,
-    limit: number = 15
+    limit: number = 10
   ): Promise<Track[]> {
     const trimmed = query.trim();
     if (!trimmed) return [];
@@ -35,7 +36,8 @@ export const OfficialMusicService = {
       const data = await res.json();
       const results: ITunesResult[] = data.results || [];
 
-      return results.map((item) => {
+      // Map base tracks
+      const rawTracks: Track[] = results.map((item) => {
         // High-res cover art (replace 100x100 with 600x600 for crisp visual quality)
         const cover = item.artworkUrl100
           ? item.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg')
@@ -44,11 +46,24 @@ export const OfficialMusicService = {
         // Map genre to mood
         let mood: MoodType = 'Feels good';
         const genre = (item.primaryGenreName || '').toLowerCase();
-        if (genre.includes('rock') || genre.includes('electronic') || genre.includes('hip-hop') || genre.includes('rap')) {
+        if (
+          genre.includes('rock') ||
+          genre.includes('electronic') ||
+          genre.includes('hip-hop') ||
+          genre.includes('rap')
+        ) {
           mood = 'Gaming';
-        } else if (genre.includes('classical') || genre.includes('instrumental') || genre.includes('ambient')) {
+        } else if (
+          genre.includes('classical') ||
+          genre.includes('instrumental') ||
+          genre.includes('ambient')
+        ) {
           mood = 'Focus';
-        } else if (genre.includes('acoustic') || genre.includes('jazz') || genre.includes('blues')) {
+        } else if (
+          genre.includes('acoustic') ||
+          genre.includes('jazz') ||
+          genre.includes('blues')
+        ) {
           mood = 'Chill';
         }
 
@@ -63,11 +78,24 @@ export const OfficialMusicService = {
           url: item.previewUrl || '',
           mood,
           coverUrl: cover,
+          isFullLength: false,
           isStreamable: Boolean(item.previewUrl),
           isDownloadable: Boolean(item.previewUrl),
           downloadUrl: item.previewUrl,
-          collection: 'Official Music',
+          collection: 'آهنگ اورجینال',
         };
+      });
+
+      // Concurrently pre-resolve full streams for the top 4 tracks
+      const topResolved = await Promise.allSettled(
+        rawTracks.slice(0, 4).map((t) => StreamResolverService.resolveTrack(t, signal))
+      );
+
+      return rawTracks.map((t, idx) => {
+        if (idx < 4 && topResolved[idx]?.status === 'fulfilled') {
+          return (topResolved[idx] as PromiseFulfilledResult<Track>).value;
+        }
+        return t;
       });
     } catch (err: unknown) {
       if ((err as Error)?.name !== 'AbortError') {
@@ -77,3 +105,4 @@ export const OfficialMusicService = {
     }
   },
 };
+
