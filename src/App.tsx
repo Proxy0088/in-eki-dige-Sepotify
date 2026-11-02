@@ -13,6 +13,9 @@ import { DeviceLibrarySearchScreen } from './components/DeviceLibrarySearchScree
 import { WhenPlayingWidget } from './components/WhenPlayingWidget';
 import { FullScreenPlayer } from './components/FullScreenPlayer';
 import { SocialAccountModal } from './components/SocialAccountModal';
+import { SettingsModal } from './components/SettingsModal';
+import { SettingsService, AppSettings } from './services/settingsService';
+import { AppLanguage, AppTheme } from './types/music';
 import { DeviceAudioScanner } from './services/deviceAudioScanner';
 import { IndexedDbAudioService } from './services/indexedDbAudio';
 
@@ -28,6 +31,27 @@ export default function App() {
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
   const [recentTrackIds, setRecentTrackIds] = useState<string[]>([]);
 
+  // App Settings state (National Net, Language, Light Theme)
+  const [settings, setSettings] = useState<AppSettings>(() => SettingsService.getSettings());
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    SettingsService.saveSettings(settings);
+    SettingsService.applyTheme(settings.theme);
+    SettingsService.applyLanguage(settings.language);
+  }, [settings]);
+
+  const handleToggleNationalNet = useCallback((enabled: boolean) => {
+    setSettings((prev) => ({ ...prev, isNationalNet: enabled }));
+  }, []);
+
+  const handleLanguageChange = useCallback((language: AppLanguage) => {
+    setSettings((prev) => ({ ...prev, language }));
+  }, []);
+
+  const handleThemeChange = useCallback((theme: AppTheme) => {
+    setSettings((prev) => ({ ...prev, theme }));
+  }, []);
   const previousScreenRef = useRef<ScreenState>('home');
 
   // Audio Player state
@@ -284,10 +308,10 @@ export default function App() {
 
   // Top Capsule Title
   const capsuleTitle = useMemo(() => {
-    if (screenState === 'home') return 'Home';
-    if (screenState === 'online_search') return 'Search';
-    return 'Library';
-  }, [screenState]);
+    if (screenState === 'home') return settings.language === 'fa' ? 'خانه' : 'Home';
+    if (screenState === 'online_search') return settings.language === 'fa' ? 'جست‌وجو' : 'Search';
+    return settings.language === 'fa' ? 'کتابخانه' : 'Library';
+  }, [screenState, settings.language]);
 
   // Real local tracks from phone memory or imported files
   const deviceTracks = useMemo(() => {
@@ -344,9 +368,9 @@ export default function App() {
   }, [recentTrackIds, tracks]);
 
   return (
-    <div className="h-[100dvh] min-h-[100dvh] sm:min-h-screen w-full bg-[#141414] flex items-center justify-center sm:py-6 select-none font-sans overflow-hidden">
+    <div className="h-[100dvh] min-h-[100dvh] sm:min-h-screen w-full bg-[var(--bg-outer)] flex items-center justify-center sm:py-6 select-none font-sans overflow-hidden transition-colors duration-300">
       {/* 412 x 917 Android Compact - 1 root container matching Figma exact composition */}
-      <div className="w-full sm:max-w-[412px] h-[100dvh] sm:h-[917px] max-h-[100dvh] sm:max-h-[917px] bg-[#212121] sm:rounded-[44px] sm:border sm:border-white/5 sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] relative overflow-hidden">
+      <div className="w-full sm:max-w-[412px] h-[100dvh] sm:h-[917px] max-h-[100dvh] sm:max-h-[917px] bg-[var(--bg-app)] sm:rounded-[44px] sm:border sm:border-white/5 sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] relative overflow-hidden transition-colors duration-300">
         {/* Dynamic Screen Content strictly aligned with the 4 screen states - takes full screen from top 0 to bottom */}
         <div className="w-full h-full flex flex-col overflow-hidden relative">
           {screenState === 'home' && (
@@ -358,6 +382,8 @@ export default function App() {
               onPlayTrack={(t) => handlePlayTrack(t, tracks)}
               onSelectMood={handleSelectMood}
               onOpenDeviceLibrary={() => setScreenState('device_library_search')}
+              isNationalNet={settings.isNationalNet}
+              language={settings.language}
             />
           )}
 
@@ -386,6 +412,8 @@ export default function App() {
               likedIds={likedIds}
               downloadedIds={downloadedIds}
               downloadingIds={downloadingIds}
+              isNationalNet={settings.isNationalNet}
+              language={settings.language}
             />
           )}
 
@@ -471,16 +499,30 @@ export default function App() {
             activeTab={activeTab}
             onTabChange={handleTabChange}
             isPlaying={isPlaying}
+            language={settings.language}
           />
         )}
 
-        {/* Modal for Account & Listening with Friends ("گوش دادن با رفیق‌ها") */}
+                {/* Modal for Account & Listening with Friends ("گوش دادن با رفیق‌ها") */}
         <SocialAccountModal
           isOpen={showAccountModal}
           onClose={() => setShowAccountModal(false)}
+          onOpenSettings={() => setShowSettingsModal(true)}
           initialTab={accountModalType}
           likedCount={likedIds.size}
           downloadedCount={downloadedIds.size}
+        />
+
+        {/* Modal for Settings ("تنظیمات برنامه") */}
+        <SettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          isNationalNet={settings.isNationalNet}
+          onToggleNationalNet={handleToggleNationalNet}
+          language={settings.language}
+          onLanguageChange={handleLanguageChange}
+          theme={settings.theme}
+          onThemeChange={handleThemeChange}
         />
       </div>
     </div>

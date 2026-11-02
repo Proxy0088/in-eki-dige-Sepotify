@@ -14,11 +14,13 @@ import {
   Smartphone,
   ExternalLink,
   Share2,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 
 interface SocialAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenSettings?: () => void;
   initialTab?: 'profile' | 'group' | 'mobile';
   likedCount: number;
   downloadedCount: number;
@@ -27,6 +29,7 @@ interface SocialAccountModalProps {
 export const SocialAccountModal: React.FC<SocialAccountModalProps> = ({
   isOpen,
   onClose,
+  onOpenSettings,
   initialTab = 'profile',
   likedCount,
   downloadedCount,
@@ -108,6 +111,20 @@ export const SocialAccountModal: React.FC<SocialAccountModalProps> = ({
       >
         {/* Subtle iOS top specular liquid reflection edge */}
         <div className="absolute top-0 inset-x-8 h-[1px] bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
+
+                {/* Settings Button: iOS Liquid Glass Pill at top-left corner */}
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onOpenSettings?.();
+          }}
+          className="absolute top-5 left-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 flex items-center justify-center text-white/80 hover:text-white transition-all cursor-pointer z-10 active:scale-95 shadow-sm"
+          aria-label="Settings"
+          title="تنظیمات / Settings"
+        >
+          <SettingsIcon className="w-4 h-4 stroke-[2]" />
+        </button>
 
         {/* Close Button: iOS Liquid Glass Pill */}
         <button

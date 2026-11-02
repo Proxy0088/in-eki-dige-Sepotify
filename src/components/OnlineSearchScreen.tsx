@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Globe, FolderDown } from 'lucide-react';
+import { Globe, FolderDown, ShieldCheck } from 'lucide-react';
+import { AppLanguage } from '../types/music';
+import { IranMusicService } from '../services/iranMusicService';
 import { Track } from '../types/music';
 import { MusicRow } from './MusicRow';
 import { AudiusService } from '../services/audius';
@@ -14,6 +16,8 @@ interface OnlineSearchScreenProps {
   likedIds: Set<string>;
   downloadedIds: Set<string>;
   downloadingIds?: Set<string>;
+  isNationalNet?: boolean;
+  language?: AppLanguage;
 }
 
 export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
@@ -26,6 +30,8 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
   likedIds,
   downloadedIds,
   downloadingIds = new Set(),
+  isNationalNet = false,
+  language = 'fa',
 }) => {
   const [searchMode, setSearchMode] = useState<'online' | 'local'>('online');
   const [query, setQuery] = useState('');
@@ -62,7 +68,9 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
 
     const timer = setTimeout(async () => {
       try {
-        const results = await AudiusService.searchTracks(trimmed, controller.signal, 10);
+        const results = isNationalNet
+          ? await IranMusicService.searchTracks(trimmed, controller.signal, 10)
+          : await AudiusService.searchTracks(trimmed, controller.signal, 10);
         setOnlineResults(results);
       } catch (err: unknown) {
         if ((err as Error)?.name !== 'AbortError') {
@@ -136,9 +144,11 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
-              searchMode === 'online'
-                ? 'Search for song'
-                : 'Search in downloads & folders'
+              searchMode === 'local'
+                ? (language === 'fa' ? 'جست‌وجو در دانلودها و پوشه‌ها...' : 'Search downloads & folders...')
+                : isNationalNet
+                ? (language === 'fa' ? 'جست‌وجو در سایت‌های ایرانی (نت ملی)...' : 'Search Iranian music sites (Intranet)...')
+                : (language === 'fa' ? 'جست‌وجوی آنلاین نام آهنگ یا خواننده...' : 'Search online tracks (Audius)...')
             }
             className="w-full bg-transparent text-sm text-[#e5e7eb] placeholder-[#7d828c] outline-none font-medium pr-10"
           />
@@ -153,10 +163,12 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
             }
             aria-label="Toggle Search Mode"
           >
-            {searchMode === 'online' ? (
-              <Globe className="w-5 h-5 stroke-[1.8]" />
-            ) : (
+            {searchMode === 'local' ? (
               <FolderDown className="w-5 h-5 stroke-[1.8] text-white" />
+            ) : isNationalNet ? (
+              <ShieldCheck className="w-5 h-5 stroke-[2] text-emerald-400" />
+            ) : (
+              <Globe className="w-5 h-5 stroke-[1.8]" />
             )}
           </button>
         </div>

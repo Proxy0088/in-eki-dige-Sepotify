@@ -1,6 +1,6 @@
 import React from 'react';
-import { Play, Pause, Music } from 'lucide-react';
-import { Track, MoodType } from '../types/music';
+import { Play, Pause, Music, ShieldCheck } from 'lucide-react';
+import { Track, MoodType, AppLanguage } from '../types/music';
 import { FigmaLibraryIcon } from './FigmaLibraryIcon';
 
 interface HomeScreenProps {
@@ -11,6 +11,8 @@ interface HomeScreenProps {
   onPlayTrack: (track: Track) => void;
   onSelectMood: (mood: MoodType) => void;
   onOpenDeviceLibrary?: () => void;
+  isNationalNet?: boolean;
+  language?: AppLanguage;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -21,6 +23,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onPlayTrack,
   onSelectMood,
   onOpenDeviceLibrary,
+  isNationalNet = false,
+  language = 'fa',
 }) => {
   // Exactly 4 recent tiles matching Figma
   const tiles = recentTracks.slice(0, 4);
@@ -32,6 +36,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <h1 className="font-audex text-[40px] leading-tight text-[#999999] select-none lowercase">
           recents
         </h1>
+
+        {/* National Intranet Shield indicator on HOME screen */}
+        {isNationalNet && (
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 text-xs font-semibold backdrop-blur-xs animate-in fade-in select-none shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+            title={language === 'fa' ? 'سپر اینترنت ملی فعال است (بدون نیاز به فیلترشکن)' : 'National Net Shield Active (No VPN needed)'}
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-400 stroke-[2.2] animate-pulse" />
+            <span className="text-[11px] font-medium leading-none">
+              {language === 'fa' ? 'سپر نت ملی' : 'Shield Active'}
+            </span>
+          </div>
+        )}
+
 
         {/* Node 88:39 "Library" Component: width: 24, height: 24, x: 340, y: 140 */}
         <button

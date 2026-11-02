@@ -83,13 +83,20 @@ export const MusicRow: React.FC<MusicRowProps> = ({
 
         {/* Track Title and Artist */}
         <div className="flex flex-col min-w-0 pr-2">
-          <span
-            className={`text-sm font-semibold truncate tracking-tight ${
-              isCurrent ? 'text-white' : 'text-[#dedfe4]'
-            }`}
-          >
-            {track.title}
-          </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span
+              className={`text-sm font-semibold truncate tracking-tight ${
+                isCurrent ? 'text-white' : 'text-[#dedfe4]'
+              }`}
+            >
+              {track.title}
+            </span>
+            {track.isNationalNet && (
+              <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded-full shrink-0">
+                نت ملی
+              </span>
+            )}
+          </div>
           <span className="text-xs text-[#7f838c] truncate font-medium">
             {track.artist}
           </span>

@@ -1,17 +1,19 @@
 import React from 'react';
 import { Search, Home as HomeIcon, Library as LibraryIcon } from 'lucide-react';
-import { NavTab } from '../types/music';
+import { NavTab, AppLanguage } from '../types/music';
 
 interface BottomNavProps {
   activeTab: NavTab;
   onTabChange: (tab: NavTab) => void;
   isPlaying?: boolean;
+  language?: AppLanguage;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   activeTab,
   onTabChange,
   isPlaying,
+  language = 'fa',
 }) => {
   return (
     /* Figma Node 12:10 "bottem navbar": pinned to bottom for mobile responsiveness */
@@ -31,7 +33,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           }`}
         />
         <span className="font-roboto text-[12px] font-normal leading-none tracking-tight">
-          Search
+          {language === 'fa' ? 'جست‌وجو' : 'Search'}
         </span>
       </button>
 
@@ -55,7 +57,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           )}
         </div>
         <span className="font-roboto text-[12px] font-normal leading-none tracking-tight">
-          Home
+          {language === 'fa' ? 'خانه' : 'Home'}
         </span>
       </button>
 
@@ -74,7 +76,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           }`}
         />
         <span className="font-roboto text-[12px] font-normal leading-none tracking-tight">
-          Library
+          {language === 'fa' ? 'کتابخانه' : 'Library'}
         </span>
       </button>
     </div>

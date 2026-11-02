@@ -4,6 +4,15 @@ export type ScreenState = 'home' | 'online_search' | 'library_main' | 'library_s
 
 export type MoodType = 'Feels good' | 'Gaming' | 'Chill' | 'Focus';
 
+export type AppLanguage = 'fa' | 'en';
+export type AppTheme = 'dark' | 'light';
+
+export interface AppSettings {
+  isNationalNet: boolean;
+  language: AppLanguage;
+  theme: AppTheme;
+}
+
 export interface Track {
   id: string;
   title: string;
@@ -21,6 +30,7 @@ export interface Track {
   audioSynthFrequency?: number; // fallback synth tone
   audiusId?: string;
   isAudius?: boolean;
+  isNationalNet?: boolean;
   isStreamable?: boolean;
   isDownloadable?: boolean;
   downloadUrl?: string;

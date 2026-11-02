@@ -1,67 +1,146 @@
 @import "tailwindcss";
 
+:root {
+  --bg-outer: #141414;
+  --bg-app: #212121;
+  --bg-card: #212121;
+  --text-main: #ffffff;
+  --text-dim: #999999;
+  --border-color: #292929;
+}
+
+html.light {
+  --bg-outer: #cbd5e1;
+  --bg-app: #e2e8f0;
+  --bg-card: #e2e8f0;
+  --text-main: #0f172a;
+  --text-dim: #475569;
+  --border-color: #cbd5e1;
+}
+
 @layer base {
   body {
-    background-color: #212121;
-    color: #ffffff;
-    font-family: 'Roboto', sans-serif;
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    font-family: 'Roboto', 'Vazirmatn', sans-serif;
     user-select: none;
     -webkit-user-select: none;
     margin: 0;
     box-sizing: border-box;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
 .font-audex {
-  font-family: 'Audex', 'Chakra Petch', 'Orbitron', sans-serif;
+  font-family: 'Audex', 'Chakra Petch', 'Orbitron', 'Vazirmatn', sans-serif;
 }
 
 .font-roboto {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Roboto', 'Vazirmatn', sans-serif;
 }
 
 /* Exact Figma Neumorphic Shadows from Android Compact - 1 spec */
 .shadow-figma-top-navbar {
   background-color: #212121;
   box-shadow: -17px -17px 34px 0px #2B2B2B, 17px 17px 34px 0px #171717;
+  transition: all 0.3s ease;
+}
+
+html.light .shadow-figma-top-navbar {
+  background-color: #e2e8f0 !important;
+  box-shadow: -10px -10px 20px #ffffff, 10px 10px 20px #cbd5e1 !important;
 }
 
 .shadow-figma-card {
   background-color: #212121;
   box-shadow: -17px -17px 34px 0px #2B2B2B, 17px 17px 34px 0px #171717;
+  transition: all 0.3s ease;
+}
+
+html.light .shadow-figma-card {
+  background-color: #e2e8f0 !important;
+  box-shadow: -10px -10px 22px #ffffff, 10px 10px 22px #cbd5e1 !important;
 }
 
 .shadow-figma-button {
   background-color: #212121;
   box-shadow: -13px -13px 10px 0px #262626, 13px 13px 10px 0px #1C1C1C;
+  transition: all 0.3s ease;
+}
+
+html.light .shadow-figma-button {
+  background-color: #e2e8f0 !important;
+  box-shadow: -6px -6px 14px #ffffff, 6px 6px 14px #cbd5e1 !important;
 }
 
 .shadow-figma-button:active {
   box-shadow: inset -4px -4px 8px #262626, inset 4px 4px 8px #1C1C1C;
 }
 
+html.light .shadow-figma-button:active {
+  box-shadow: inset -3px -3px 6px #ffffff, inset 3px 3px 6px #cbd5e1 !important;
+}
+
 .shadow-figma-bottom-navbar {
   background-color: #212121;
   box-shadow: -23px -23px 46px 0px #2A2A2A, 23px 23px 46px 0px #181818;
+  transition: all 0.3s ease;
+}
+
+html.light .shadow-figma-bottom-navbar {
+  background-color: #e2e8f0 !important;
+  box-shadow: -14px -14px 28px #ffffff, 14px 14px 28px #cbd5e1 !important;
 }
 
 .shadow-figma-playing-info {
   background-color: #212121;
   box-shadow: inset 0px -29px 10.3px 0px rgba(0, 0, 0, 0.25), inset 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+  transition: all 0.3s ease;
+}
+
+html.light .shadow-figma-playing-info {
+  background-color: #e2e8f0 !important;
+  box-shadow: inset 0px -20px 10px 0px rgba(0, 0, 0, 0.07), inset 0px 4px 4px 0px rgba(0, 0, 0, 0.05) !important;
 }
 
 .shadow-figma-ellipse {
   box-shadow: 0px 10px 24px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
 }
 
+html.light .shadow-figma-ellipse {
+  box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.15), inset 0 2px 4px rgba(255, 255, 255, 0.8) !important;
+}
+
 .neumorph-input {
   background: #1a1b1e;
   box-shadow: inset 4px 4px 10px rgba(0, 0, 0, 0.8), inset -2px -2px 6px rgba(255, 255, 255, 0.02);
+  transition: all 0.3s ease;
+}
+
+html.light .neumorph-input {
+  background: #dbe4ee !important;
+  box-shadow: inset 3px 3px 6px #cbd5e1, inset -3px -3px 6px #ffffff !important;
+  color: #0f172a !important;
 }
 
 .neumorph-row-outer {
   background-color: #212121;
   box-shadow: -8px -8px 20px 0px #2B2B2B, 8px 8px 20px 0px #171717;
+  transition: all 0.3s ease;
+}
+
+html.light .neumorph-row-outer {
+  background-color: #e2e8f0 !important;
+  box-shadow: -6px -6px 14px #ffffff, 6px 6px 14px #cbd5e1 !important;
+}
+
+/* Direction-aware typography */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="ltr"] {
+  text-align: left;
 }
 
 /* Spinning vinyl animation */
