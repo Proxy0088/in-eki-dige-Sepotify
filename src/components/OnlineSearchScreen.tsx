@@ -5,7 +5,7 @@ import { IranMusicService } from '../services/iranMusicService';
 import { OfficialMusicService } from '../services/officialMusicService';
 import { Track } from '../types/music';
 import { MusicRow } from './MusicRow';
-import { AudiusService } from '../services/audius';
+import { YouTubeMusicService } from '../services/youtubeMusicService';
 
 interface OnlineSearchScreenProps {
   allTracks: Track[];
@@ -42,7 +42,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // 350ms debounced search for Audius decentralized music
+  // 350ms debounced search for online original music
   useEffect(() => {
     if (searchMode !== 'online') {
       setIsSearching(false);
@@ -73,13 +73,13 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
           const results = await IranMusicService.searchTracks(trimmed, controller.signal, 10);
           setOnlineResults(results);
         } else {
-          const [officialRes, audiusRes] = await Promise.allSettled([
+          const [officialRes, ytRes] = await Promise.allSettled([
             OfficialMusicService.searchOriginalTracks(trimmed, controller.signal, 10),
-            AudiusService.searchTracks(trimmed, controller.signal, 5),
+            YouTubeMusicService.searchTracks(trimmed, controller.signal, 8),
           ]);
           const official = officialRes.status === 'fulfilled' ? officialRes.value : [];
-          const audius = audiusRes.status === 'fulfilled' ? audiusRes.value : [];
-          const combined = [...official, ...audius];
+          const ytTracks = ytRes.status === 'fulfilled' ? ytRes.value : [];
+          const combined = [...official, ...ytTracks];
           const seen = new Set<string>();
           const deduped: Track[] = [];
           for (const item of combined) {
@@ -93,8 +93,8 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
         }
       } catch (err: unknown) {
         if ((err as Error)?.name !== 'AbortError') {
-          console.warn('Audius search error:', err);
-          setSearchError('خطا در برقراری ارتباط با نودهای غیرمتمرکز');
+          console.warn('YouTube search error:', err);
+          setSearchError('خطا در برقراری ارتباط با سرور آنلاین');
         }
       } finally {
         setIsSearching(false);
@@ -167,7 +167,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
                 ? (language === 'fa' ? 'جست‌وجو در دانلودها و پوشه‌ها...' : 'Search downloads & folders...')
                 : isNationalNet
                 ? (language === 'fa' ? 'جست‌وجو در سایت‌های ایرانی (نت ملی)...' : 'Search Iranian music sites (Intranet)...')
-                : (language === 'fa' ? 'جست‌وجوی آنلاین نام آهنگ یا خواننده...' : 'Search online tracks (Audius)...')
+                : (language === 'fa' ? 'جست‌وجوی آنلاین نام آهنگ یا خواننده...' : 'Search online tracks (YouTube Music)...')
             }
             className="w-full bg-transparent text-sm text-[#e5e7eb] placeholder-[#7d828c] outline-none font-medium pr-10"
           />
@@ -177,7 +177,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
             className="absolute right-4 flex items-center justify-center p-1 text-[#9aa0a6] hover:text-white transition-colors cursor-pointer active:scale-90"
             title={
               searchMode === 'online'
-                ? 'حالت آنلاین Audius (کلیک برای سوئیچ به پوشه‌ها و آهنگ‌های دانلودی)'
+                ? 'حالت آنلاین YouTube Music (کلیک برای سوئیچ به پوشه‌ها و آهنگ‌های دانلودی)'
                 : 'حالت پوشه‌ها و دانلودها (کلیک برای سوئیچ به جستجوی آنلاین)'
             }
             aria-label="Toggle Search Mode"
@@ -197,7 +197,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
       <div className="flex flex-col gap-4">
         {isSearching && displayRows.length === 0 ? (
           <div className="py-12 text-center text-[#7e828d] text-sm animate-pulse">
-            در حال جستجو در Audius...
+            در حال جستجو در آرشیو آنلاین...
           </div>
         ) : displayRows.length > 0 ? (
           displayRows.map((track) => (

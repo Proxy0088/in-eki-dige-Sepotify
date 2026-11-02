@@ -157,8 +157,8 @@ export default function App() {
       }
     }
 
-    if (playableTrack.isAudius && playableTrack.isStreamable === false && !playableTrack.isDownloaded) {
-      alert('پخش این قطعه توسط هنرمند در شبکه غیرمتمرکز محدود شده است.');
+    if (playableTrack.isStreamable === false && !playableTrack.isDownloaded) {
+      alert('پخش آنلاین این قطعه در دسترس نیست.');
       return;
     }
 
@@ -242,8 +242,8 @@ export default function App() {
       return;
     }
 
-    if (track.isAudius || track.audiusId) {
-      if (track.isDownloadable === false) {
+    if (track.isDownloadable !== false && (track.downloadUrl || track.url.includes('.mp3'))) {
+      if (!track.isDownloadable && !track.downloadUrl) {
         alert('این قطعه توسط هنرمند اجازه دانلود داده نشده است.');
         return;
       }

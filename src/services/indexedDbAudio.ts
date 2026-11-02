@@ -103,8 +103,8 @@ export class IndexedDbAudioService {
     }
   }
 
-  // Download real Audius audio file and store in IndexedDB
-  public static async downloadAndSaveAudiusTrack(
+  // Download real audio file and store in IndexedDB
+  public static async downloadAndSaveTrack(
     track: Track
   ): Promise<{ success: boolean; error?: string; localUrl?: string }> {
     // 1. Strict permission check
@@ -148,6 +148,10 @@ export class IndexedDbAudioService {
         error: (err as Error)?.message || 'خطایی در هنگام دانلود و ذخیره رخ داد.',
       };
     }
+  }
+
+  public static downloadAndSaveAudiusTrack(track: Track) {
+    return this.downloadAndSaveTrack(track);
   }
 
   // Delete audio from IndexedDB

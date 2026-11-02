@@ -28,6 +28,8 @@ export interface Track {
   collection?: string;
   dateAdded?: number; // timestamp in seconds
   audioSynthFrequency?: number; // fallback synth tone
+  youtubeId?: string;
+  isYouTube?: boolean;
   audiusId?: string;
   isAudius?: boolean;
   isNationalNet?: boolean;

@@ -1,10 +1,11 @@
 import { Track } from '../types/music';
-import { AudiusService } from './audius';
+import { YouTubeMusicService } from './youtubeMusicService';
 
 interface ResolvedStream {
   url: string;
+  youtubeId?: string;
   duration?: number;
-  source: 'audius' | 'archive' | 'preview';
+  source: 'youtube' | 'archive' | 'preview';
 }
 
 const resolvedCache = new Map<string, ResolvedStream>();
@@ -16,7 +17,7 @@ function getCacheKey(artist: string, title: string): string {
 export const StreamResolverService = {
   /**
    * Resolves a 100% full-length audio stream (3-5 minutes) for a given song and artist.
-   * Eliminates 30-second preview limitations by fetching full streams from Audius and Archive.org.
+   * Eliminates 30-second preview limitations by fetching full streams from YouTube Music and Archive.org.
    */
   async resolveFullStream(
     artist: string,
@@ -30,51 +31,21 @@ export const StreamResolverService = {
       return cached;
     }
 
-    // 1. First priority: Audius decentralized streaming (Full songs, high-fidelity)
+    // 1. First priority: YouTube Music resolution (Exact official stream, full length)
     try {
-      const q = `${artist} ${title}`.trim();
-      const audiusNode = AudiusService.getActiveNode();
-      const endpoint = `${audiusNode}/tracks/search?query=${encodeURIComponent(
-        q
-      )}&limit=6&app_name=MyApp`;
-
-      const res = await fetch(endpoint, {
-        signal,
-        headers: { Accept: 'application/json' },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const items: Array<{
-          id: string;
-          title: string;
-          duration: number;
-          is_streamable?: boolean;
-          access?: { stream?: boolean };
-        }> = Array.isArray(data?.data) ? data.data : [];
-
-        // Match tracks with realistic song duration (between 60s and 700s)
-        const match = items.find(
-          (t) =>
-            t.duration >= 60 &&
-            t.duration <= 700 &&
-            t.is_streamable !== false &&
-            t.access?.stream !== false
-        );
-
-        if (match) {
-          const resolved: ResolvedStream = {
-            url: AudiusService.getStreamUrl(match.id),
-            duration: match.duration,
-            source: 'audius',
-          };
-          resolvedCache.set(key, resolved);
-          return resolved;
-        }
+      const vid = await YouTubeMusicService.resolveVideoId(artist, title, signal);
+      if (vid) {
+        const resolved: ResolvedStream = {
+          url: `https://www.youtube.com/watch?v=${vid}`,
+          youtubeId: vid,
+          source: 'youtube',
+        };
+        resolvedCache.set(key, resolved);
+        return resolved;
       }
     } catch (e: unknown) {
       if ((e as Error)?.name === 'AbortError') throw e;
-      console.warn('Audius full stream resolution error:', e);
+      console.warn('YouTube full stream resolution error:', e);
     }
 
     // 2. Second priority: Open audio archives (Full MP3 direct streams, 3-5 minutes)
@@ -139,7 +110,10 @@ export const StreamResolverService = {
    * Upgrades a track to full length if it is currently an iTunes preview or short clip.
    */
   async resolveTrack(track: Track, signal?: AbortSignal): Promise<Track> {
-    // If it's already an Audius stream or local blob or verified Iranian stream, it's already full length
+    if (track.isYouTube && track.youtubeId) {
+      return { ...track, isFullLength: true };
+    }
+
     const isShortPreview =
       track.id.startsWith('itunes-') ||
       track.url.includes('apple.com') ||
@@ -160,10 +134,12 @@ export const StreamResolverService = {
     return {
       ...track,
       url: resolved.url || track.url,
+      youtubeId: resolved.youtubeId || track.youtubeId,
+      isYouTube: resolved.source === 'youtube' || Boolean(resolved.youtubeId),
       duration: resolved.duration || track.duration,
       isFullLength: resolved.source !== 'preview',
-      isStreamable: Boolean(resolved.url || track.url),
-      downloadUrl: resolved.url || track.downloadUrl,
+      isStreamable: true,
+      downloadUrl: resolved.source === 'archive' ? resolved.url : track.downloadUrl,
     };
   },
 };

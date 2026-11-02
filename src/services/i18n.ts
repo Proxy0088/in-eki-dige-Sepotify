@@ -14,7 +14,7 @@ export const translations = {
     libraryMain: 'کتابخانه‌ها',
     nationalNetShield: 'سپر نت ملی',
     nationalNetActiveBadge: 'سپر اینترنت ملی فعال است (پخش بدون فیلترشکن)',
-    nationalNetDisabledBadge: 'اینترنت بین‌الملل (Audius)',
+    nationalNetDisabledBadge: 'اینترنت بین‌الملل (YouTube Music)',
 
     // Search screen
     searchPlaceholderOnline: 'جست‌وجوی آنلاین نام آهنگ یا خواننده...',
@@ -22,7 +22,7 @@ export const translations = {
     searchPlaceholderIran: 'جست‌وجو در سایت‌های ایرانی (بدون فیلترشکن)...',
     searching: 'در حال جست‌وجو...',
     noResults: 'هیچ آهنگی یافت نشد',
-    audiusSource: 'منبع: شبکه غیرمتمرکز Audius',
+    audiusSource: 'منبع: YouTube Music Original',
     iranSource: 'منبع: سرورهای داخلی ایران (نت ملی)',
     downloadedFolder: 'پوشه دانلودها و فایل‌های محلی',
 
@@ -71,7 +71,7 @@ export const translations = {
     libraryMain: 'Libraries',
     nationalNetShield: 'National Shield',
     nationalNetActiveBadge: 'National Net Shield Active (No VPN required)',
-    nationalNetDisabledBadge: 'Global Network (Audius)',
+    nationalNetDisabledBadge: 'Global Network (YouTube Music)',
 
     // Search screen
     searchPlaceholderOnline: 'Search online track or artist...',
@@ -79,7 +79,7 @@ export const translations = {
     searchPlaceholderIran: 'Search Iranian music sites (No VPN)...',
     searching: 'Searching...',
     noResults: 'No tracks found',
-    audiusSource: 'Source: Audius Decentralized Network',
+    audiusSource: 'Source: YouTube Music Original',
     iranSource: 'Source: Iranian National Servers',
     downloadedFolder: 'Downloads & Local Audio',
 

@@ -24,6 +24,13 @@ class AudioService {
   private synthInterval: number | null = null;
   private isUsingSynth: boolean = false;
 
+  // YouTube Audio Background Engine (LastWave style)
+  private ytPlayer: any = null;
+  private isYtReady: boolean = false;
+  private isPlayingYt: boolean = false;
+  private ytInterval: any = null;
+  private pendingYtTrack: Track | null = null;
+
   constructor() {
     if (typeof window !== 'undefined') {
       this.audio = new Audio();
@@ -89,6 +96,103 @@ class AudioService {
       });
 
       this.setupMediaSessionHandlers();
+      this.initYouTubePlayer();
+    }
+  }
+
+  private initYouTubePlayer() {
+    if (typeof window === 'undefined') return;
+
+    const setupPlayer = () => {
+      const w = window as any;
+      if (!w.YT || !w.YT.Player) return false;
+      const el = document.getElementById('yt-hidden-audio-player');
+      if (!el) return false;
+
+      try {
+        this.ytPlayer = new w.YT.Player('yt-hidden-audio-player', {
+          height: '1',
+          width: '1',
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            disablekb: 1,
+            fs: 0,
+            playsinline: 1,
+            rel: 0,
+          },
+          events: {
+            onReady: () => {
+              this.isYtReady = true;
+              if (this.pendingYtTrack) {
+                const t = this.pendingYtTrack;
+                this.pendingYtTrack = null;
+                this.playTrack(t);
+              }
+            },
+            onStateChange: (event: any) => {
+              const state = event.data;
+              const w = window as any;
+              const YTState = w.YT?.PlayerState;
+              if (!YTState) return;
+
+              if (state === YTState.PLAYING) {
+                this.isPlaying = true;
+                this.isPlayingYt = true;
+                this.startYtProgressTimer();
+                this.updateMediaSessionPlaybackState('playing');
+                this.notify();
+              } else if (state === YTState.PAUSED) {
+                this.isPlaying = false;
+                this.stopYtProgressTimer();
+                this.updateMediaSessionPlaybackState('paused');
+                this.notify();
+              } else if (state === YTState.ENDED) {
+                this.stopYtProgressTimer();
+                this.handleTrackEnded();
+              }
+            },
+            onError: (err: any) => {
+              console.warn('YouTube Player playback warning:', err);
+            },
+          },
+        });
+        return true;
+      } catch (e) {
+        console.warn('Could not initialize YT player yet:', e);
+        return false;
+      }
+    };
+
+    if (!setupPlayer()) {
+      const orig = (window as any).onYouTubeIframeAPIReady;
+      (window as any).onYouTubeIframeAPIReady = () => {
+        if (typeof orig === 'function') orig();
+        setupPlayer();
+      };
+      // Retry in 1s if script loads asynchronously
+      setTimeout(setupPlayer, 1200);
+    }
+  }
+
+  private startYtProgressTimer() {
+    this.stopYtProgressTimer();
+    this.ytInterval = setInterval(() => {
+      if (this.ytPlayer && typeof this.ytPlayer.getCurrentTime === 'function') {
+        const cur = this.ytPlayer.getCurrentTime() || 0;
+        const dur = this.ytPlayer.getDuration() || 0;
+        this.currentTime = cur;
+        if (dur > 0) this.duration = dur;
+        this.updateMediaSessionPositionState();
+        this.notify();
+      }
+    }, 250);
+  }
+
+  private stopYtProgressTimer() {
+    if (this.ytInterval) {
+      clearInterval(this.ytInterval);
+      this.ytInterval = null;
     }
   }
 

@@ -23,6 +23,10 @@
   </head>
   <body class="bg-[#17181a] text-white antialiased select-none overflow-x-hidden">
     <div id="root"></div>
+    <div id="yt-player-container" style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none;opacity:0;z-index:-1;">
+      <div id="yt-hidden-audio-player"></div>
+    </div>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -4,6 +4,8 @@ import { Track, NavTab } from '../types/music';
 import { audioService, PlaybackCycleMode } from '../services/audioPlayer';
 import { AskListLibraryModal } from './AskListLibraryModal';
 import { NextMusicPreview } from './NextMusicPreview';
+import { LyricsService, SongLyrics } from '../services/lyricsService';
+import { Mic2 } from 'lucide-react';
 
 interface FullScreenPlayerProps {
   currentTrack: Track | null;
@@ -41,6 +43,10 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   const [isMuted, setIsMuted] = useState<boolean>(() => audioService.getIsMuted());
   const [showLibraryModal, setShowLibraryModal] = useState<boolean>(false);
   const [coverError, setCoverError] = useState<boolean>(false);
+  const [showLyrics, setShowLyrics] = useState<boolean>(false);
+  const [lyrics, setLyrics] = useState<SongLyrics | null>(null);
+  const [loadingLyrics, setLoadingLyrics] = useState<boolean>(false);
+  const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Dragging / Scrubbing State for fluid seeking
   const [scrubRatio, setScrubRatio] = useState<number | null>(null);
@@ -65,6 +71,36 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   useEffect(() => {
     setCoverError(false);
   }, [currentTrack?.coverUrl]);
+
+  // Fetch millisecond-synced lyrics from LRCLIB
+  useEffect(() => {
+    if (!currentTrack) {
+      setLyrics(null);
+      return;
+    }
+    setLoadingLyrics(true);
+    let cancelled = false;
+    LyricsService.getLyrics(currentTrack.artist, currentTrack.title, duration).then((res) => {
+      if (!cancelled) {
+        setLyrics(res);
+        setLoadingLyrics(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack?.title, currentTrack?.artist]);
+
+  // Compute active synced lyric line
+  const activeLineIndex = useMemo(() => {
+    if (!lyrics?.lines?.length) return -1;
+    for (let i = lyrics.lines.length - 1; i >= 0; i--) {
+      if (currentTime >= lyrics.lines[i].time) {
+        return i;
+      }
+    }
+    return 0;
+  }, [currentTime, lyrics]);
 
   const isLiked = currentTrack ? likedIds.has(currentTrack.id) : false;
 
