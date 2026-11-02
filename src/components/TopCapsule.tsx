@@ -14,19 +14,16 @@ export const TopCapsule: React.FC<TopCapsuleProps> = ({
   return (
     <nav
       aria-label="Top Navigation"
-      className="absolute right-5 sm:right-[27px] top-[max(calc(env(safe-area-inset-top,0px)+16px),24px)] sm:top-[45px] w-[236px] h-[48px] rounded-[36px] bg-[#212121]/90 backdrop-blur-md shrink-0 select-none z-30 pointer-events-auto"
-      style={{
-        boxShadow: '-17px -17px 34px 0px #2B2B2B, 17px 17px 34px 0px #171717',
-      }}
+      className="absolute right-5 sm:right-[27px] top-[max(calc(env(safe-area-inset-top,0px)+16px),24px)] sm:top-[45px] w-[236px] h-[48px] rounded-[36px] bg-[#212121]/90 backdrop-blur-md shrink-0 select-none z-30 pointer-events-auto shadow-figma-top-navbar"
     >
-      {/* Home (28:57): x: 31, y: 12, w: 55, h: 24 - Audex 400 20px, #999999 */}
+      {/* Home (28:57): x: 31, y: 12, w: 55, h: 24 - Audex 400 20px */}
       <span
         className="absolute left-[31px] top-[12px] h-[24px] flex items-center font-audex text-[20px] font-normal tracking-tight text-[#999999] leading-none select-none pointer-events-none"
       >
         {title || 'Home'}
       </span>
 
-      {/* People alt (28:59): x: 126, y: 12, w: 24, h: 24, color: #999999 */}
+      {/* People alt (28:59): x: 126, y: 12, w: 24, h: 24 */}
       <button
         type="button"
         onClick={onGroupClick}
@@ -52,7 +49,7 @@ export const TopCapsule: React.FC<TopCapsuleProps> = ({
         </svg>
       </button>
 
-      {/* Account circle (28:78): x: 181, y: 12, w: 24, h: 24, color: #999999 */}
+      {/* Account circle (28:78): x: 181, y: 12, w: 24, h: 24 */}
       <button
         type="button"
         onClick={onProfileClick}
@@ -77,6 +74,3 @@ export const TopCapsule: React.FC<TopCapsuleProps> = ({
     </nav>
   );
 };
-
-
-

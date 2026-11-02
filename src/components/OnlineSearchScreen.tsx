@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Globe, FolderDown, ShieldCheck } from 'lucide-react';
 import { AppLanguage } from '../types/music';
 import { IranMusicService } from '../services/iranMusicService';
+import { OfficialMusicService } from '../services/officialMusicService';
 import { Track } from '../types/music';
 import { MusicRow } from './MusicRow';
 import { AudiusService } from '../services/audius';
@@ -68,10 +69,18 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
 
     const timer = setTimeout(async () => {
       try {
-        const results = isNationalNet
-          ? await IranMusicService.searchTracks(trimmed, controller.signal, 10)
-          : await AudiusService.searchTracks(trimmed, controller.signal, 10);
-        setOnlineResults(results);
+        if (isNationalNet) {
+          const results = await IranMusicService.searchTracks(trimmed, controller.signal, 10);
+          setOnlineResults(results);
+        } else {
+          const [officialRes, audiusRes] = await Promise.allSettled([
+            OfficialMusicService.searchOriginalTracks(trimmed, controller.signal, 10),
+            AudiusService.searchTracks(trimmed, controller.signal, 5),
+          ]);
+          const official = officialRes.status === 'fulfilled' ? officialRes.value : [];
+          const audius = audiusRes.status === 'fulfilled' ? audiusRes.value : [];
+          setOnlineResults([...official, ...audius]);
+        }
       } catch (err: unknown) {
         if ((err as Error)?.name !== 'AbortError') {
           console.warn('Audius search error:', err);

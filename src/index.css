@@ -46,20 +46,10 @@ html.light {
   transition: all 0.3s ease;
 }
 
-html.light .shadow-figma-top-navbar {
-  background-color: #e2e8f0 !important;
-  box-shadow: -10px -10px 20px #ffffff, 10px 10px 20px #cbd5e1 !important;
-}
-
 .shadow-figma-card {
   background-color: #212121;
   box-shadow: -17px -17px 34px 0px #2B2B2B, 17px 17px 34px 0px #171717;
   transition: all 0.3s ease;
-}
-
-html.light .shadow-figma-card {
-  background-color: #e2e8f0 !important;
-  box-shadow: -10px -10px 22px #ffffff, 10px 10px 22px #cbd5e1 !important;
 }
 
 .shadow-figma-button {
@@ -68,17 +58,8 @@ html.light .shadow-figma-card {
   transition: all 0.3s ease;
 }
 
-html.light .shadow-figma-button {
-  background-color: #e2e8f0 !important;
-  box-shadow: -6px -6px 14px #ffffff, 6px 6px 14px #cbd5e1 !important;
-}
-
 .shadow-figma-button:active {
   box-shadow: inset -4px -4px 8px #262626, inset 4px 4px 8px #1C1C1C;
-}
-
-html.light .shadow-figma-button:active {
-  box-shadow: inset -3px -3px 6px #ffffff, inset 3px 3px 6px #cbd5e1 !important;
 }
 
 .shadow-figma-bottom-navbar {
@@ -87,28 +68,14 @@ html.light .shadow-figma-button:active {
   transition: all 0.3s ease;
 }
 
-html.light .shadow-figma-bottom-navbar {
-  background-color: #e2e8f0 !important;
-  box-shadow: -14px -14px 28px #ffffff, 14px 14px 28px #cbd5e1 !important;
-}
-
 .shadow-figma-playing-info {
   background-color: #212121;
   box-shadow: inset 0px -29px 10.3px 0px rgba(0, 0, 0, 0.25), inset 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
   transition: all 0.3s ease;
 }
 
-html.light .shadow-figma-playing-info {
-  background-color: #e2e8f0 !important;
-  box-shadow: inset 0px -20px 10px 0px rgba(0, 0, 0, 0.07), inset 0px 4px 4px 0px rgba(0, 0, 0, 0.05) !important;
-}
-
 .shadow-figma-ellipse {
   box-shadow: 0px 10px 24px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
-}
-
-html.light .shadow-figma-ellipse {
-  box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.15), inset 0 2px 4px rgba(255, 255, 255, 0.8) !important;
 }
 
 .neumorph-input {
@@ -117,21 +84,126 @@ html.light .shadow-figma-ellipse {
   transition: all 0.3s ease;
 }
 
-html.light .neumorph-input {
-  background: #dbe4ee !important;
-  box-shadow: inset 3px 3px 6px #cbd5e1, inset -3px -3px 6px #ffffff !important;
-  color: #0f172a !important;
-}
-
 .neumorph-row-outer {
   background-color: #212121;
   box-shadow: -8px -8px 20px 0px #2B2B2B, 8px 8px 20px 0px #171717;
   transition: all 0.3s ease;
 }
 
+/* =========================================================
+   COMPREHENSIVE NEUMORPHIC LIGHT THEME (ALL SCREENS & TEXTS)
+   ========================================================= */
+html.light {
+  color-scheme: light;
+}
+
+html.light,
+html.light body {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Background surfaces on ALL screens */
+html.light [class*="bg-[#141414]"],
+html.light [class*="bg-[var(--bg-outer)]"] {
+  background-color: #cbd5e1 !important;
+}
+
+html.light [class*="bg-[#212121]"],
+html.light [class*="bg-[var(--bg-app)]"] {
+  background-color: #e2e8f0 !important;
+}
+
+html.light [class*="bg-black"],
+html.light [class*="bg-[#181818]"],
+html.light [class*="bg-[#1b1b1b]"],
+html.light [class*="bg-[#1a1b1e]"],
+html.light [class*="bg-[#1f2024]"] {
+  background-color: #edf2f7 !important;
+}
+
+/* All text colors transition to dark */
+html.light .text-white,
+html.light [class*="text-white"],
+html.light [class*="text-[#dedfe4]"],
+html.light [class*="text-[#e5e7eb]"] {
+  color: #0f172a !important;
+}
+
+html.light [class*="text-[#999999]"],
+html.light [class*="text-[#7f838c]"],
+html.light [class*="text-[#9aa0a6]"],
+html.light [class*="text-[#7d828c]"],
+html.light [class*="text-white/60"],
+html.light [class*="text-white/70"],
+html.light [class*="text-white/80"] {
+  color: #334155 !important;
+}
+
+/* Top Capsule, Bottom Nav & Card Shadows in Light Mode */
+html.light nav,
+html.light .shadow-figma-top-navbar {
+  background-color: rgba(226, 232, 240, 0.95) !important;
+  box-shadow: -10px -10px 20px #ffffff, 10px 10px 20px #cbd5e1 !important;
+}
+
+html.light .shadow-figma-bottom-navbar {
+  background-color: #e2e8f0 !important;
+  box-shadow: -14px -14px 28px #ffffff, 14px 14px 28px #cbd5e1 !important;
+}
+
+html.light .shadow-figma-card {
+  background-color: #e2e8f0 !important;
+  box-shadow: -10px -10px 22px #ffffff, 10px 10px 22px #cbd5e1 !important;
+}
+
+html.light .shadow-figma-button {
+  background-color: #e2e8f0 !important;
+  box-shadow: -6px -6px 14px #ffffff, 6px 6px 14px #cbd5e1 !important;
+}
+
+html.light .shadow-figma-button:active {
+  box-shadow: inset -3px -3px 6px #ffffff, inset 3px 3px 6px #cbd5e1 !important;
+}
+
+html.light .shadow-figma-playing-info {
+  background-color: #e2e8f0 !important;
+  box-shadow: inset 0px -20px 10px 0px rgba(0, 0, 0, 0.07), inset 0px 4px 4px 0px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .shadow-figma-ellipse {
+  box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.15), inset 0 2px 4px rgba(255, 255, 255, 0.8) !important;
+}
+
 html.light .neumorph-row-outer {
   background-color: #e2e8f0 !important;
   box-shadow: -6px -6px 14px #ffffff, 6px 6px 14px #cbd5e1 !important;
+}
+
+html.light .neumorph-input {
+  background: #dbe4ee !important;
+  box-shadow: inset 3px 3px 6px #cbd5e1, inset -3px -3px 6px #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light .neumorph-input input {
+  color: #0f172a !important;
+}
+
+html.light .neumorph-input input::placeholder {
+  color: #64748b !important;
+}
+
+/* Borders in Light Mode */
+html.light [class*="border-[#999999]"],
+html.light [class*="border-[#444850]"],
+html.light [class*="border-white/5"],
+html.light [class*="border-white/10"],
+html.light [class*="border-white/15"],
+html.light [class*="border-white/20"],
+html.light [class*="border-white/25"],
+html.light [class*="border-white/30"] {
+  border-color: #cbd5e1 !important;
 }
 
 /* Direction-aware typography */

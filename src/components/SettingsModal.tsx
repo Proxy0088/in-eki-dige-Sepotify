@@ -183,95 +183,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* OPTION 2: زبان برنامه (App Language Dropdown List) */}
-          <div className="p-3.5 rounded-[24px] bg-white/5 border border-white/10 relative">
+          {/* OPTION 2: زبان برنامه (حالت غیرفعال و فقط نمایشی) */}
+          <div className="p-3.5 rounded-[24px] bg-white/5 border border-white/10 relative opacity-75">
             <div className="flex items-center justify-between gap-3 mb-2">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-white/10 text-white/70 border border-white/10 flex items-center justify-center shrink-0">
                   <Languages className="w-5 h-5 text-white/80 stroke-[1.8]" />
                 </div>
                 <div>
-                  <span className="text-[13px] font-semibold text-white">
-                    {t('languageOption')}
-                  </span>
-                  <p className="text-[10px] text-white/60 leading-tight">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-semibold text-white">
+                      {t('languageOption')}
+                    </span>
+                    <span className="text-[9px] font-bold text-white/50 bg-white/10 px-1.5 py-0.5 rounded-full">
+                      غیرفعال / Disabled
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-white/50 leading-tight mt-0.5">
                     {t('languageOptionDesc')}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Dropdown Selector Button */}
+            {/* Static Non-functional selector button */}
             <div className="relative mt-2">
-              <button
-                type="button"
-                onClick={() => setIsLangDropdownOpen((prev) => !prev)}
-                className="w-full py-2 px-3 rounded-2xl bg-black/30 hover:bg-black/40 border border-white/15 flex items-center justify-between text-xs text-white font-medium transition-all cursor-pointer active:scale-[0.99] shadow-inner"
+              <div
+                className="w-full py-2 px-3 rounded-2xl bg-black/25 border border-white/10 flex items-center justify-between text-xs text-white/60 font-medium cursor-default select-none shadow-inner"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-sm">
-                    {language === 'fa' ? '🇮🇷' : '🇬🇧'}
-                  </span>
-                  <span>{language === 'fa' ? t('langFa') : t('langEn')}</span>
+                  <span className="text-sm">🇬🇧</span>
+                  <span>English (پیش‌فرض سیستم)</span>
                 </div>
-                <ChevronDown
-                  className={`w-4 h-4 text-white/70 transition-transform duration-200 ${
-                    isLangDropdownOpen ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {/* Dropdown Options Popup */}
-              {isLangDropdownOpen && (
-                <div
-                  className="absolute top-full mt-1.5 inset-x-0 rounded-2xl bg-[#1f2024]/95 border border-white/20 p-1.5 z-30 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
-                  style={{
-                    boxShadow: '0 15px 30px -5px rgba(0, 0, 0, 0.8)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onLanguageChange('fa');
-                      setIsLangDropdownOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
-                      language === 'fa'
-                        ? 'bg-white/20 text-white font-semibold'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🇮🇷</span>
-                      <span>فارسی (Persian)</span>
-                    </div>
-                    {language === 'fa' && (
-                      <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onLanguageChange('en');
-                      setIsLangDropdownOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition-colors mt-0.5 ${
-                      language === 'en'
-                        ? 'bg-white/20 text-white font-semibold'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🇬🇧</span>
-                      <span>English (انگلیسی)</span>
-                    </div>
-                    {language === 'en' && (
-                      <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
-                    )}
-                  </button>
-                </div>
-              )}
+                <ChevronDown className="w-4 h-4 text-white/40" />
+              </div>
             </div>
           </div>
 
