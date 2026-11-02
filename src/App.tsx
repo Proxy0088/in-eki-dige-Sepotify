@@ -14,6 +14,7 @@ import { WhenPlayingWidget } from './components/WhenPlayingWidget';
 import { FullScreenPlayer } from './components/FullScreenPlayer';
 import { SocialAccountModal } from './components/SocialAccountModal';
 import { SettingsModal } from './components/SettingsModal';
+import { SettingScreen } from './components/SettingScreen';
 import { SettingsService, AppSettings } from './services/settingsService';
 import { AppLanguage, AppTheme } from './types/music';
 import { DeviceAudioScanner } from './services/deviceAudioScanner';
@@ -308,6 +309,7 @@ export default function App() {
 
   // Top Capsule Title
   const capsuleTitle = useMemo(() => {
+    if (screenState === 'setting') return 'Setting';
     if (screenState === 'home') return settings.language === 'fa' ? 'خانه' : 'Home';
     if (screenState === 'online_search') return settings.language === 'fa' ? 'جست‌وجو' : 'Search';
     return settings.language === 'fa' ? 'کتابخانه' : 'Library';
@@ -373,7 +375,16 @@ export default function App() {
       <div className="w-full sm:max-w-[412px] h-[100dvh] sm:h-[917px] max-h-[100dvh] sm:max-h-[917px] bg-[var(--bg-app)] sm:rounded-[44px] sm:border sm:border-white/5 sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] relative overflow-hidden transition-colors duration-300">
         {/* Dynamic Screen Content strictly aligned with the 4 screen states - takes full screen from top 0 to bottom */}
         <div className="w-full h-full flex flex-col overflow-hidden relative">
-          {screenState === 'home' && (
+                    {screenState === 'setting' && (
+            <SettingScreen
+              isNationalNet={settings.isNationalNet}
+              onToggleNationalNet={handleToggleNationalNet}
+              theme={settings.theme}
+              onThemeChange={handleThemeChange}
+            />
+          )}
+
+{screenState === 'home' && (
             <HomeScreen
               recentTracks={recentTracks.length > 0 ? recentTracks : INITIAL_TRACKS}
               currentTrack={currentTrack}
@@ -507,7 +518,7 @@ export default function App() {
         <SocialAccountModal
           isOpen={showAccountModal}
           onClose={() => setShowAccountModal(false)}
-          onOpenSettings={() => setShowSettingsModal(true)}
+          onOpenSettings={() => setScreenState('setting')}
           initialTab={accountModalType}
           likedCount={likedIds.size}
           downloadedCount={downloadedIds.size}

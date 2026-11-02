@@ -62,6 +62,40 @@ html.light {
   box-shadow: inset -4px -4px 8px #262626, inset 4px 4px 8px #1C1C1C;
 }
 
+/* Figma Node 133:108 Setting Shadows */
+.shadow-setting-list {
+  background-color: #212121;
+  box-shadow: -15px -15px 100px 0px rgba(60, 60, 60, 0.27), 15px 15px 30px 0px #191919;
+  transition: all 0.3s ease;
+}
+
+html.light .shadow-setting-list {
+  background-color: #e2e8f0 !important;
+  box-shadow: -12px -12px 30px 0px #ffffff, 12px 12px 30px 0px #cbd5e1 !important;
+}
+
+.shadow-setting-card {
+  background-color: #212121;
+  box-shadow: 0px 0px 5px 0px #3C3C3C, 5px 5px 7px 0px #191919;
+  transition: all 0.3s ease;
+}
+
+html.light .shadow-setting-card {
+  background-color: #e2e8f0 !important;
+  box-shadow: -4px -4px 10px 0px #ffffff, 4px 4px 10px 0px #cbd5e1 !important;
+}
+
+.shadow-setting-dropdown {
+  background-color: #212121;
+  box-shadow: 0px 0px 30px 0px rgba(60, 60, 60, 0.76), 15px 15px 30px 0px #191919;
+  transition: all 0.3s ease;
+}
+
+html.light .shadow-setting-dropdown {
+  background-color: #e2e8f0 !important;
+  box-shadow: -4px -4px 12px 0px #ffffff, 4px 4px 12px 0px #cbd5e1 !important;
+}
+
 .shadow-figma-bottom-navbar {
   background-color: #212121;
   box-shadow: -23px -23px 46px 0px #2A2A2A, 23px 23px 46px 0px #181818;

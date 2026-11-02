@@ -1,6 +1,6 @@
 export type NavTab = 'home' | 'search' | 'library';
 
-export type ScreenState = 'home' | 'online_search' | 'library_main' | 'library_search' | 'device_library_search' | 'player';
+export type ScreenState = 'home' | 'online_search' | 'library_main' | 'library_search' | 'device_library_search' | 'player' | 'setting';
 
 export type MoodType = 'Feels good' | 'Gaming' | 'Chill' | 'Focus';
 
