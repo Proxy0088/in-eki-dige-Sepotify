@@ -1,18 +1,21 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Globe, FolderDown, ShieldCheck } from 'lucide-react';
-import { AppLanguage } from '../types/music';
+import { AppLanguage, Track } from '../types/music';
 import { IranMusicService } from '../services/iranMusicService';
 import { OfficialMusicService } from '../services/officialMusicService';
-import { Track } from '../types/music';
-import { MusicRow } from './MusicRow';
-import { YouTubeMusicService } from '../services/youtubeMusicService';
 import { MusicDelService } from '../services/musicDelService';
+import { YouTubeMusicProvider } from '../services/youtubeMusicProvider';
+import { TrackMatcher } from '../services/trackMatcher';
+import { TrackMatchCache } from '../services/trackMatchCache';
+import { apiUrl } from '../services/apiConfig';
+import { MusicRow } from './MusicRow';
+import { ManualMatchModal } from './ManualMatchModal';
 
 interface OnlineSearchScreenProps {
   allTracks: Track[];
   currentTrack: Track | null;
   isPlaying: boolean;
-  onPlayTrack: (track: Track) => void;
+  onPlayTrack: (track: Track, queue?: Track[]) => void;
   onToggleLike: (track: Track) => void;
   onToggleDownload: (track: Track) => void;
   likedIds: Set<string>;
@@ -33,13 +36,14 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
   downloadedIds,
   downloadingIds = new Set(),
   isNationalNet = false,
-  language = 'fa',
+  language = 'en',
 }) => {
   const [searchMode, setSearchMode] = useState<'online' | 'local'>('online');
   const [query, setQuery] = useState('');
   const [onlineResults, setOnlineResults] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [matchingTrack, setMatchingTrack] = useState<Track | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -71,7 +75,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
     const timer = setTimeout(async () => {
       try {
         if (isNationalNet) {
-          // Direct search on musicdel.ir (National Net primary engine)
+          // National Net mode: Direct search on musicdel.ir
           const results = await MusicDelService.searchTracks(trimmed, controller.signal, 15);
           if (results.length > 0) {
             setOnlineResults(results);
@@ -80,29 +84,73 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
             setOnlineResults(fallback);
           }
         } else {
-          // Global mode: musicdel.ir (for real 320kbps streams) + official catalog
-          const [musicDelRes, officialRes] = await Promise.allSettled([
-            MusicDelService.searchTracks(trimmed, controller.signal, 10),
-            OfficialMusicService.searchOriginalTracks(trimmed, controller.signal, 6),
-          ]);
-          const musicDelTracks = musicDelRes.status === 'fulfilled' ? musicDelRes.value : [];
-          const official = officialRes.status === 'fulfilled' ? officialRes.value : [];
-          const combined = [...musicDelTracks, ...official];
-          const seen = new Set<string>();
-          const deduped: Track[] = [];
-          for (const item of combined) {
-            const key = `${item.title.toLowerCase().trim()}:::${item.artist.toLowerCase().trim()}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              deduped.push(item);
+          // Standard Global Mode: Canonical iTunes Catalog + on-demand verified YouTube Music InnerTube streaming
+          const officialTracks = await OfficialMusicService.searchOriginalTracks(
+            trimmed,
+            controller.signal,
+            12
+          );
+
+          if (officialTracks.length > 0) {
+            // Map canonical tracks with existing high-confidence cached streams
+            const matchedTracks: Track[] = officialTracks.map((track) => {
+              const cached = TrackMatchCache.getMatch(track.artist, track.title);
+              if (cached?.videoId && (cached.score >= 65 || cached.manualOverride)) {
+                return {
+                  ...track,
+                  url: apiUrl(`/api/stream?v=${cached.videoId}`),
+                  youtubeId: cached.videoId,
+                  isYouTube: true,
+                  isFullLength: true,
+                  isStreamable: true,
+                };
+              }
+              // Authentic track - will be matched with 100% precision specifically for this artist+title on playback
+              return track;
+            });
+
+            setOnlineResults(matchedTracks);
+          } else {
+            // Fallback for rare indie or Persian tracks not in iTunes: search YouTube Music directly
+            const ytmCandidates = await YouTubeMusicProvider.searchCandidates(
+              trimmed,
+              controller.signal,
+              12
+            );
+
+            const directTracks: Track[] = [];
+            for (const cand of ytmCandidates) {
+              if (cand.isSong || (cand.duration && cand.duration > 40 && cand.duration < 900)) {
+                directTracks.push({
+                  id: `yt-${cand.videoId}`,
+                  title: cand.title,
+                  artist: cand.artist,
+                  album: cand.album || 'YouTube Music',
+                  duration: cand.duration || 210,
+                  url: apiUrl(`/api/stream?v=${cand.videoId}`),
+                  mood: 'Feels good',
+                  coverUrl: cand.thumbnailUrl,
+                  youtubeId: cand.videoId,
+                  isYouTube: true,
+                  isFullLength: true,
+                  isStreamable: true,
+                  collection: 'YouTube Music Original',
+                  dateAdded: Math.floor(Date.now() / 1000),
+                });
+              }
             }
+
+            setOnlineResults(directTracks);
           }
-          setOnlineResults(deduped);
         }
       } catch (err: unknown) {
         if ((err as Error)?.name !== 'AbortError') {
-          console.warn('YouTube search error:', err);
-          setSearchError('خطا در برقراری ارتباط با سرور آنلاین');
+          console.warn('Online search error:', err);
+          setSearchError(
+            language === 'fa'
+              ? 'خطا در برقراری ارتباط با سرور آنلاین'
+              : 'Error connecting to online music server'
+          );
         }
       } finally {
         setIsSearching(false);
@@ -113,7 +161,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, searchMode]);
+  }, [query, searchMode, isNationalNet]);
 
   // Local/Downloaded tracks catalog
   const localCatalog = useMemo(() => {
@@ -150,7 +198,6 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
       if (query.trim()) {
         return onlineResults;
       }
-      // Show default catalog suggestions if search input is empty
       return allTracks.slice(0, 5);
     } else {
       return localFiltered;
@@ -159,6 +206,24 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
 
   const toggleSearchMode = () => {
     setSearchMode((prev) => (prev === 'online' ? 'local' : 'online'));
+  };
+
+  const handleMatchSelected = (targetTrack: Track, newVideoId: string) => {
+    const streamUrl = apiUrl(`/api/stream?v=${newVideoId}`);
+    const updated: Track = {
+      ...targetTrack,
+      url: streamUrl,
+      youtubeId: newVideoId,
+      isYouTube: true,
+      isFullLength: true,
+      isStreamable: true,
+    };
+
+    setOnlineResults((prev) =>
+      prev.map((item) => (item.id === targetTrack.id ? updated : item))
+    );
+
+    onPlayTrack(updated, displayRows);
   };
 
   return (
@@ -205,7 +270,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
       <div className="flex flex-col gap-4">
         {isSearching && displayRows.length === 0 ? (
           <div className="py-12 text-center text-[#7e828d] text-sm animate-pulse">
-            در حال جستجو در آرشیو آنلاین...
+            {language === 'fa' ? 'در حال جستجو در آرشیو آنلاین...' : 'Searching online tracks...'}
           </div>
         ) : displayRows.length > 0 ? (
           displayRows.map((track) => (
@@ -214,9 +279,10 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
               track={track}
               isCurrent={currentTrack?.id === track.id}
               isPlaying={isPlaying}
-              onPlay={onPlayTrack}
+              onPlay={(t) => onPlayTrack(t, displayRows)}
               onToggleLike={onToggleLike}
               onToggleDownload={onToggleDownload}
+              onOpenManualMatch={(t) => setMatchingTrack(t)}
               isLiked={likedIds.has(track.id)}
               isDownloaded={downloadedIds.has(track.id)}
               isDownloading={downloadingIds.has(track.id)}
@@ -226,11 +292,21 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
           <div className="py-12 text-center text-[#7e828d] text-sm">
             {searchError ||
               (searchMode === 'online'
-                ? `No online tracks found for "${query}"`
-                : `هیچ قطعه‌ای در پوشه‌ها و دانلودها یافت نشد`)}
+                ? (language === 'fa' ? `هیچ آهنگی برای "${query}" یافت نشد` : `No online tracks found for "${query}"`)
+                : (language === 'fa' ? 'هیچ قطعه‌ای در پوشه‌ها و دانلودها یافت نشد' : 'No tracks found in downloads or folders'))}
           </div>
         )}
       </div>
+
+      {/* Manual Match Modal */}
+      {matchingTrack && (
+        <ManualMatchModal
+          track={matchingTrack}
+          isOpen={Boolean(matchingTrack)}
+          onClose={() => setMatchingTrack(null)}
+          onMatchSelected={handleMatchSelected}
+        />
+      )}
     </div>
   );
 };

@@ -24,7 +24,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onSelectMood,
   onOpenDeviceLibrary,
   isNationalNet = false,
-  language = 'fa',
+  language = 'en',
 }) => {
   // Exactly 4 recent tiles matching Figma
   const tiles = recentTracks.slice(0, 4);

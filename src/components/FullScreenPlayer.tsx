@@ -5,7 +5,9 @@ import { audioService, PlaybackCycleMode } from '../services/audioPlayer';
 import { AskListLibraryModal } from './AskListLibraryModal';
 import { NextMusicPreview } from './NextMusicPreview';
 import { LyricsService, SongLyrics } from '../services/lyricsService';
-import { Mic2 } from 'lucide-react';
+import { Mic2, SlidersHorizontal } from 'lucide-react';
+import { ManualMatchModal } from './ManualMatchModal';
+import { apiUrl } from '../services/apiConfig';
 
 interface FullScreenPlayerProps {
   currentTrack: Track | null;
@@ -43,6 +45,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   const [isMuted, setIsMuted] = useState<boolean>(() => audioService.getIsMuted());
   const [showLibraryModal, setShowLibraryModal] = useState<boolean>(false);
   const [coverError, setCoverError] = useState<boolean>(false);
+  const [showMatchModal, setShowMatchModal] = useState<boolean>(false);
   const [showLyrics, setShowLyrics] = useState<boolean>(false);
   const [lyrics, setLyrics] = useState<SongLyrics | null>(null);
   const [loadingLyrics, setLoadingLyrics] = useState<boolean>(false);
@@ -296,6 +299,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
               <img
                 src={currentTrack.coverUrl}
                 alt={currentTrack.title}
+                referrerPolicy="no-referrer"
                 onError={() => setCoverError(true)}
                 className="w-full h-full object-cover"
               />
@@ -482,6 +486,20 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
               </svg>
             )}
           </button>
+
+          {/* Manual Match Override Button (Meld Architecture) */}
+          <button
+            type="button"
+            onClick={() => setShowMatchModal(true)}
+            className="w-[48px] h-[48px] rounded-full bg-[#212121] border border-[#212121] flex items-center justify-center cursor-pointer active:scale-95 transition-transform text-[#E4E4E4] hover:text-emerald-400"
+            style={{
+              boxShadow: '-6px -6px 12px #2F2F2F, 6px 6px 12px #0A0A0A',
+            }}
+            aria-label="اصلاح نسخه پخش"
+            title="اصلاح نسخه پخش (تطبیق دستی یوتیوب موزیک)"
+          >
+            <SlidersHorizontal className="w-[18px] h-[18px] stroke-[2]" />
+          </button>
         </div>
 
         {/* PRIMARY PLAYBACK CAPSULE (Node 112:153 Group 1) */}
@@ -612,6 +630,27 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
       </div>
 
       {/* Save to Library Modal */}
+            {/* Manual Match Modal */}
+      {showMatchModal && currentTrack && (
+        <ManualMatchModal
+          track={currentTrack}
+          isOpen={showMatchModal}
+          onClose={() => setShowMatchModal(false)}
+          onMatchSelected={(t, newVideoId) => {
+            const newUrl = apiUrl(`/api/stream?v=${newVideoId}`);
+            const updated = {
+              ...t,
+              url: newUrl,
+              youtubeId: newVideoId,
+              isYouTube: true,
+              isFullLength: true,
+              isStreamable: true,
+            };
+            audioService.playTrack(updated);
+          }}
+        />
+      )}
+
       <AskListLibraryModal
         isOpen={showLibraryModal}
         onClose={handleCloseLibraryModal}

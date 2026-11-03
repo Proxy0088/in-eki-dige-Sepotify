@@ -86,17 +86,7 @@ export const OfficialMusicService = {
         };
       });
 
-      // Concurrently pre-resolve full streams for the top 4 tracks
-      const topResolved = await Promise.allSettled(
-        rawTracks.slice(0, 4).map((t) => StreamResolverService.resolveTrack(t, signal))
-      );
-
-      return rawTracks.map((t, idx) => {
-        if (idx < 4 && topResolved[idx]?.status === 'fulfilled') {
-          return (topResolved[idx] as PromiseFulfilledResult<Track>).value;
-        }
-        return t;
-      });
+      return rawTracks;
     } catch (err: unknown) {
       if ((err as Error)?.name !== 'AbortError') {
         console.warn('Official music search error:', err);

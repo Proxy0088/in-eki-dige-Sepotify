@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, Heart, Download, Check, Music } from 'lucide-react';
+import { Play, Pause, Heart, Download, Check, Music, SlidersHorizontal } from 'lucide-react';
 import { Track } from '../types/music';
 
 interface MusicRowProps {
@@ -9,6 +9,7 @@ interface MusicRowProps {
   onPlay: (track: Track) => void;
   onToggleLike?: (track: Track) => void;
   onToggleDownload?: (track: Track) => void;
+  onOpenManualMatch?: (track: Track) => void;
   isLiked?: boolean;
   isDownloaded?: boolean;
   isDownloading?: boolean;
@@ -21,6 +22,7 @@ export const MusicRow: React.FC<MusicRowProps> = ({
   onPlay,
   onToggleLike,
   onToggleDownload,
+  onOpenManualMatch,
   isLiked,
   isDownloaded,
   isDownloading,
@@ -52,6 +54,7 @@ export const MusicRow: React.FC<MusicRowProps> = ({
             <img
               src={track.coverUrl}
               alt={track.title}
+              referrerPolicy="no-referrer"
               onError={() => setImgError(true)}
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               loading="lazy"
@@ -103,14 +106,26 @@ export const MusicRow: React.FC<MusicRowProps> = ({
         </div>
       </div>
 
-      {/* Right controls: Duration, Like, Download */}
+      {/* Right controls: Duration, Match options, Like, Download */}
       <div
-        className="flex items-center gap-2.5 shrink-0 pl-1"
+        className="flex items-center gap-2 shrink-0 pl-1"
         onClick={(e) => e.stopPropagation()}
       >
         <span className="text-[11px] font-mono text-[#8a8f99] shrink-0 font-medium">
           {formatDuration(track.duration)}
         </span>
+
+        {onOpenManualMatch && !track.isDownloaded && (
+          <button
+            type="button"
+            onClick={() => onOpenManualMatch(track)}
+            className="p-1.5 text-[#7f838c] hover:text-emerald-400 transition-colors cursor-pointer"
+            aria-label="Manual match"
+            title="اصلاح نسخه پخش (تطبیق دستی یوتیوب موزیک)"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 stroke-[1.8]" />
+          </button>
+        )}
 
         {onToggleLike && (
           <button

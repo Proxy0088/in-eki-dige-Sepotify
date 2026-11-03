@@ -171,6 +171,7 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
               <img
                 src={currentTrack.coverUrl}
                 alt={currentTrack.title}
+                referrerPolicy="no-referrer"
                 onError={() => setCoverError(true)}
                 className="w-full h-full object-cover"
               />

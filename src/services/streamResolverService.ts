@@ -1,15 +1,20 @@
 import { Track } from '../types/music';
-import { YouTubeMusicService } from './youtubeMusicService';
+import { YouTubeMusicProvider } from './youtubeMusicProvider';
+import { TrackMatcher } from './trackMatcher';
+import { TrackMatchCache } from './trackMatchCache';
 import { MusicDelService } from './musicDelService';
+import { apiUrl } from './apiConfig';
 
-interface ResolvedStream {
+export interface ResolvedStream {
   url: string;
   youtubeId?: string;
   duration?: number;
-  source: 'youtube' | 'archive' | 'musicdel' | 'preview';
+  source: 'youtube' | 'archive' | 'musicdel' | 'preview' | 'error';
+  isPlayable: boolean;
+  error?: string;
 }
 
-const resolvedCache = new Map<string, ResolvedStream>();
+const resolvedMemoryCache = new Map<string, ResolvedStream>();
 
 function getCacheKey(artist: string, title: string): string {
   return `${artist.toLowerCase().trim()}:::${title.toLowerCase().trim()}`;
@@ -17,134 +22,158 @@ function getCacheKey(artist: string, title: string): string {
 
 export const StreamResolverService = {
   /**
-   * Resolves a 100% full-length audio stream (3-5 minutes) for a given song and artist.
-   * Eliminates 30-second preview limitations by fetching full streams from YouTube Music and Archive.org.
+   * Resolves a 100% full-length audio stream for a given song and artist using Meld-inspired matching.
    */
   async resolveFullStream(
     artist: string,
     title: string,
+    expectedDuration?: number,
     fallbackUrl?: string,
     signal?: AbortSignal
   ): Promise<ResolvedStream> {
     const key = getCacheKey(artist, title);
-    const cached = resolvedCache.get(key);
-    if (cached) {
-      return cached;
+    const inMem = resolvedMemoryCache.get(key);
+    if (inMem && inMem.isPlayable) {
+      return inMem;
     }
 
-    // 1. First priority: YouTube Music resolution (Exact official stream, full length)
-    try {
-      const vid = await YouTubeMusicService.resolveVideoId(artist, title, signal);
-      if (vid) {
-        const resolved: ResolvedStream = {
-          url: `https://www.youtube.com/watch?v=${vid}`,
-          youtubeId: vid,
-          source: 'youtube',
-        };
-        resolvedCache.set(key, resolved);
-        return resolved;
+    // 1. Check persistent match cache (including user manual overrides)
+    const cachedMatch = TrackMatchCache.getMatch(artist, title);
+    let targetVideoId = cachedMatch?.videoId;
+
+    // 2. If not cached, query YouTube Music InnerTube and run Meld track matching
+    if (!targetVideoId) {
+      try {
+        const query = `${artist} ${title}`.trim();
+        const candidates = await YouTubeMusicProvider.searchCandidates(query, signal, 10);
+        let best = TrackMatcher.findBestMatch(
+          { title, artist, duration: expectedDuration },
+          candidates,
+          65
+        );
+
+        if (!best) {
+          const altCandidates = await YouTubeMusicProvider.searchCandidates(
+            `${title} ${artist} official audio`,
+            signal,
+            8
+          );
+          best = TrackMatcher.findBestMatch(
+            { title, artist, duration: expectedDuration },
+            altCandidates,
+            65
+          );
+        }
+
+        if (best && best.candidate.videoId) {
+          targetVideoId = best.candidate.videoId;
+          TrackMatchCache.saveMatch(
+            artist,
+            title,
+            {
+              videoId: targetVideoId,
+              title: best.candidate.title,
+              artist: best.candidate.artist,
+              duration: best.candidate.duration,
+              thumbnailUrl: best.candidate.thumbnailUrl,
+            },
+            best.score,
+            false
+          );
+        }
+      } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') throw err;
+        console.warn('Track matching error for', artist, title, err);
       }
-    } catch (e: unknown) {
-      if ((e as Error)?.name === 'AbortError') throw e;
-      console.warn('YouTube full stream resolution error:', e);
     }
 
-    // 2. Second priority: Open audio archives (Full MP3 direct streams, 3-5 minutes)
-    try {
-      const q = `${artist} ${title}`.trim();
-      const archiveSearchUrl = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(
-        q + ' AND mediatype:audio'
-      )}&fl[]=identifier,title,creator&rows=4&output=json`;
+    // 3. If a YouTube videoId was matched, verify and resolve stream via stream endpoint
+    if (targetVideoId) {
+      try {
+        const streamEndpoint = apiUrl(`/api/stream?v=${encodeURIComponent(targetVideoId)}`);
+        const infoEndpoint = apiUrl(`/api/stream-info?v=${encodeURIComponent(targetVideoId)}`);
 
-      const res = await fetch(archiveSearchUrl, { signal });
-      if (res.ok) {
-        const data = await res.json();
-        const docs = data.response?.docs || [];
+        const timeoutSignal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(5000) : undefined;
+        const effectiveSignal = signal && timeoutSignal && typeof (AbortSignal as any).any === 'function'
+          ? (AbortSignal as any).any([signal, timeoutSignal])
+          : signal || timeoutSignal;
 
-        for (const doc of docs) {
-          if (!doc.identifier) continue;
-          try {
-            const metaRes = await fetch(
-              `https://archive.org/metadata/${doc.identifier}`,
-              { signal }
-            );
-            if (metaRes.ok) {
-              const meta = await metaRes.json();
-              const mp3 = meta.files?.find(
-                (f: any) =>
-                  typeof f.name === 'string' &&
-                  f.name.toLowerCase().endsWith('.mp3') &&
-                  Number(f.length || 0) >= 60
-              );
-              if (mp3) {
-                const streamUrl = `https://archive.org/download/${doc.identifier}/${encodeURIComponent(
-                  mp3.name
-                )}`;
-                const resolved: ResolvedStream = {
-                  url: streamUrl,
-                  duration: Math.round(Number(mp3.length) || 210),
-                  source: 'archive',
-                };
-                resolvedCache.set(key, resolved);
-                return resolved;
-              }
-            }
-          } catch {
-            // ignore individual doc error
+        const infoRes = await fetch(infoEndpoint, {
+          signal: effectiveSignal,
+        });
+
+        if (infoRes.ok) {
+          const info = await infoRes.json();
+          if (info.url) {
+            const resolved: ResolvedStream = {
+              url: streamEndpoint,
+              youtubeId: targetVideoId,
+              duration: info.duration || expectedDuration,
+              source: 'youtube',
+              isPlayable: true,
+            };
+            resolvedMemoryCache.set(key, resolved);
+            return resolved;
           }
         }
+      } catch (e: unknown) {
+        if ((e as Error)?.name === 'AbortError') throw e;
+        console.warn('Stream endpoint verification error:', e);
       }
-    } catch (e: unknown) {
-      if ((e as Error)?.name === 'AbortError') throw e;
-      console.warn('Archive.org stream resolution error:', e);
     }
 
-    // 3. Fallback: Return original URL (or empty) if no full stream found
-    const fallback: ResolvedStream = {
-      url: fallbackUrl || '',
-      source: 'preview',
+    // 4. Fallback to authentic iTunes preview or original recording
+    // NEVER fall back to random Archive.org podcasts/audio
+    if (fallbackUrl && (fallbackUrl.startsWith('http://') || fallbackUrl.startsWith('https://') || fallbackUrl.startsWith('blob:'))) {
+      return {
+        url: fallbackUrl,
+        source: 'preview',
+        isPlayable: true,
+      };
+    }
+
+    return {
+      url: '',
+      source: 'error',
+      isPlayable: false,
+      error: 'جریان صوتی معتبر برای این قطعه یافت نشد.',
     };
-    return fallback;
   },
 
   /**
-   * Upgrades a track to full length if it is currently an iTunes preview or short clip.
+   * Upgrades a Track by resolving its stream URL into a genuine, full-length audio stream.
    */
   async resolveTrack(track: Track, signal?: AbortSignal): Promise<Track> {
     if (track.id.startsWith('musicdel-')) {
       return await MusicDelService.resolveTrack(track, signal);
     }
 
-    if (track.isYouTube && track.youtubeId) {
-      return { ...track, isFullLength: true };
+    // If track already has an active stream endpoint or direct stream
+    if (track.url.includes('/api/stream') || track.url.includes('googlevideo.com')) {
+      return { ...track, isFullLength: true, isStreamable: true };
     }
 
-    const isShortPreview =
-      track.id.startsWith('itunes-') ||
-      track.url.includes('apple.com') ||
-      track.url.includes('previewUrl') ||
-      track.duration <= 35;
-
-    if (!isShortPreview && track.url) {
-      return { ...track, isFullLength: true };
-    }
-
+    // Resolve full stream
     const resolved = await this.resolveFullStream(
       track.artist,
       track.title,
+      track.duration,
       track.url,
       signal
     );
 
-    return {
-      ...track,
-      url: resolved.url || track.url,
-      youtubeId: resolved.youtubeId || track.youtubeId,
-      isYouTube: resolved.source === 'youtube' || Boolean(resolved.youtubeId),
-      duration: resolved.duration || track.duration,
-      isFullLength: resolved.source !== 'preview',
-      isStreamable: true,
-      downloadUrl: resolved.source === 'archive' ? resolved.url : track.downloadUrl,
-    };
+    if (resolved.isPlayable && resolved.url) {
+      return {
+        ...track,
+        url: resolved.url,
+        youtubeId: resolved.youtubeId || track.youtubeId,
+        duration: resolved.duration || track.duration,
+        isYouTube: resolved.source === 'youtube',
+        isFullLength: true,
+        isStreamable: true,
+      };
+    }
+
+    return track;
   },
 };

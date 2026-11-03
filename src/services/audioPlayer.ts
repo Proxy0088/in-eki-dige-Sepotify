@@ -88,11 +88,10 @@ class AudioService {
       });
 
       this.audio.addEventListener('error', (err) => {
-        console.warn('Audio playback error, falling back if needed:', err);
-        // Only fallback to synth if url is invalid/mock
-        if (!this.currentTrack?.url || this.currentTrack.url.startsWith('http')) {
-          this.startSynthPlayback();
-        }
+        console.warn('Audio playback error:', err);
+        this.isPlaying = false;
+        this.updateMediaSessionPlaybackState('paused');
+        this.notify();
       });
 
       this.setupMediaSessionHandlers();
@@ -340,8 +339,10 @@ class AudioService {
         await this.audio.play();
         this.isPlaying = true;
       } catch (err) {
-        console.warn('Direct audio play failed, falling back to synth if necessary:', err);
-        this.startSynthPlayback();
+        console.warn('Direct audio play failed:', err);
+        this.isPlaying = false;
+        this.updateMediaSessionPlaybackState('paused');
+        this.notify();
       }
     } else {
       this.startSynthPlayback();

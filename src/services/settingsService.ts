@@ -6,11 +6,11 @@ export interface AppSettings {
   theme: AppTheme;
 }
 
-const SETTINGS_KEY = 'sepotify_app_settings_v1';
+const SETTINGS_KEY = 'sepotify_app_settings_v3';
 
 const DEFAULT_SETTINGS: AppSettings = {
-  isNationalNet: false,
-  language: 'fa', // Default to Persian as requested by user
+  isNationalNet: false, // Standard Online Meld/YouTube Music streaming by default
+  language: 'en', // Default to English as explicitly requested by user
   theme: 'dark',
 };
 
@@ -22,7 +22,7 @@ export const SettingsService = {
         const parsed = JSON.parse(data);
         return {
           isNationalNet: Boolean(parsed.isNationalNet),
-          language: parsed.language === 'en' ? 'en' : 'fa',
+          language: parsed.language === 'fa' ? 'fa' : 'en',
           theme: parsed.theme === 'light' ? 'light' : 'dark',
         };
       }

@@ -149,8 +149,15 @@ export default function App() {
       console.warn('Offline blob check error:', e);
     }
 
-    // Resolve full stream if track is an iTunes preview (30s) or unverified stream
-    if (!playableTrack.isDownloaded && (playableTrack.id.startsWith('itunes-') || playableTrack.url.includes('apple.com') || playableTrack.duration <= 35)) {
+    // Resolve full stream if track is not yet a direct stream
+    if (
+      !playableTrack.isDownloaded &&
+      !playableTrack.url.includes('/api/stream') &&
+      !playableTrack.url.includes('googlevideo.com') &&
+      !playableTrack.url.startsWith('blob:') &&
+      !playableTrack.id.startsWith('android-media-') &&
+      !playableTrack.id.startsWith('device-file-')
+    ) {
       try {
         playableTrack = await StreamResolverService.resolveTrack(playableTrack);
       } catch (err) {
@@ -181,6 +188,19 @@ export default function App() {
 
     const queueToUse = customQueue || tracks;
     audioService.playTrack(playableTrack, queueToUse);
+
+    // Preload next track's stream in the background
+    const nextItem = audioService.getNextTrack();
+    if (
+      nextItem &&
+      !nextItem.isDownloaded &&
+      !nextItem.url.includes('/api/stream') &&
+      !nextItem.url.includes('googlevideo.com') &&
+      !nextItem.url.endsWith('.mp3') &&
+      !nextItem.url.startsWith('blob:')
+    ) {
+      StreamResolverService.resolveTrack(nextItem).catch(() => {});
+    }
 
     setRecentTrackIds((prev) => [playableTrack.id, ...prev.filter((id) => id !== playableTrack.id)].slice(0, 8));
 
@@ -410,7 +430,7 @@ export default function App() {
               currentTrack={currentTrack}
               isPlaying={isPlaying}
               selectedMood={selectedMood}
-              onPlayTrack={(t) => handlePlayTrack(t, tracks)}
+              onPlayTrack={(t, q) => handlePlayTrack(t, q)}
               onSelectMood={handleSelectMood}
               onOpenDeviceLibrary={() => setScreenState('device_library_search')}
               isNationalNet={settings.isNationalNet}
@@ -437,7 +457,7 @@ export default function App() {
               allTracks={tracks}
               currentTrack={currentTrack}
               isPlaying={isPlaying}
-              onPlayTrack={(t) => handlePlayTrack(t, tracks)}
+              onPlayTrack={(t, q) => handlePlayTrack(t, q)}
               onToggleLike={handleToggleLike}
               onToggleDownload={handleToggleDownload}
               likedIds={likedIds}

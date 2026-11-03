@@ -13,7 +13,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   activeTab,
   onTabChange,
   isPlaying,
-  language = 'fa',
+  language = 'en',
 }) => {
   return (
     /* Figma Node 12:10 "bottem navbar": pinned to bottom for mobile responsiveness */
