@@ -78,22 +78,6 @@ html.light .lastwave-glass-dock {
   box-shadow: inset 0 1px 1px #ffffff, 0 10px 24px rgba(0, 0, 0, 0.06);
 }
 
-.lastwave-glass-top-navbar {
-  background: rgba(33, 33, 33, 0.20);
-  backdrop-filter: blur(8px) saturate(180%) brightness(105%);
-  -webkit-backdrop-filter: blur(8px) saturate(180%) brightness(105%);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: -17px -17px 34px 0px rgba(43, 43, 43, 0.25), 17px 17px 34px 0px rgba(23, 23, 23, 0.55), inset 0 1px 1px 0 rgba(255, 255, 255, 0.16), inset 0 -0.5px 0.5px 0 rgba(0, 0, 0, 0.20);
-}
-
-html.light .lastwave-glass-top-navbar {
-  background: rgba(255, 255, 255, 0.42);
-  backdrop-filter: blur(8px) saturate(170%);
-  -webkit-backdrop-filter: blur(8px) saturate(170%);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: -10px -10px 24px 0px rgba(255, 255, 255, 0.8), 10px 10px 24px 0px rgba(0, 0, 0, 0.08), inset 0 1px 1px #ffffff;
-}
-
 .lastwave-glass-pill {
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(16px);
