@@ -3,13 +3,11 @@ import {
   Play,
   Pause,
   Music,
-  ArrowRight,
   Clock,
-  Headphones,
-  Disc3,
-  User,
   MoreVertical,
   ShieldCheck,
+  ChevronRight,
+  Disc3,
 } from 'lucide-react';
 import { Track, MoodType, AppLanguage } from '../types/music';
 
@@ -26,6 +24,51 @@ interface HomeScreenProps {
   language?: AppLanguage;
 }
 
+const PLAYLISTS = [
+  {
+    id: 'ambient',
+    name: 'Ambient',
+    nameFa: 'امبینت',
+    gradient: 'from-violet-700/85 via-purple-800/70 to-indigo-950/90',
+    border: 'border-violet-500/35',
+  },
+  {
+    id: 'rock',
+    name: 'Rock',
+    nameFa: 'راک',
+    gradient: 'from-red-600/85 via-rose-700/70 to-red-950/90',
+    border: 'border-rose-500/35',
+  },
+  {
+    id: 'pop',
+    name: 'Pop Music',
+    nameFa: 'پاپ',
+    gradient: 'from-sky-500/85 via-blue-600/70 to-cyan-950/90',
+    border: 'border-sky-500/35',
+  },
+  {
+    id: 'hiphop',
+    name: 'Hip Hop',
+    nameFa: 'هیپ‌هاپ',
+    gradient: 'from-purple-600/85 via-fuchsia-700/70 to-indigo-950/90',
+    border: 'border-purple-500/35',
+  },
+  {
+    id: 'blues',
+    name: 'Blues',
+    nameFa: 'بلوز',
+    gradient: 'from-emerald-600/85 via-teal-700/70 to-emerald-950/90',
+    border: 'border-emerald-500/35',
+  },
+  {
+    id: 'electronic',
+    name: 'Electronic',
+    nameFa: 'الکترونیک',
+    gradient: 'from-amber-600/85 via-orange-700/70 to-amber-950/90',
+    border: 'border-amber-500/35',
+  },
+];
+
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   recentTracks,
   allTracks = [],
@@ -39,21 +82,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const [sortMode, setSortMode] = useState<'recent' | 'popular'>('recent');
   const [showSortDropdown, setShowSortDropdown] = useState<boolean>(false);
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
 
-  // Compute actual library stats
-  const stats = useMemo(() => {
-    const list = allTracks.length > 0 ? allTracks : recentTracks;
-    const trackCount = list.length;
-    const artistSet = new Set(list.map((t) => t.artist?.trim()).filter(Boolean));
-    const collectionSet = new Set(list.map((t) => t.collection?.trim()).filter(Boolean));
-
-    return {
-      playsCount: Math.max(1240, trackCount * 142 + 23),
-      tracks: trackCount,
-      artists: artistSet.size || 12,
-      playlists: Math.max(4, collectionSet.size),
-    };
+  // Group tracks into distinct albums for the Albums carousel
+  const albums = useMemo(() => {
+    const map = new Map<string, { name: string; artist: string; coverUrl?: string; tracks: Track[] }>();
+    const source = allTracks.length > 0 ? allTracks : recentTracks;
+    for (const t of source) {
+      const albumName = t.album?.trim() || 'Featured Album';
+      if (!map.has(albumName)) {
+        map.set(albumName, {
+          name: albumName,
+          artist: t.artist,
+          coverUrl: t.coverUrl,
+          tracks: [t],
+        });
+      } else {
+        map.get(albumName)!.tracks.push(t);
+      }
+    }
+    return Array.from(map.values());
   }, [allTracks, recentTracks]);
+
+  // Featured track for the hero card at the top
+  const featuredTrack = useMemo(() => {
+    return currentTrack || (allTracks.length > 0 ? allTracks[0] : recentTracks[0]);
+  }, [currentTrack, allTracks, recentTracks]);
 
   // Tracks for the List section
   const displayTracks = useMemo(() => {
@@ -61,11 +115,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     if (selectedMood) {
       list = list.filter((t) => t.mood === selectedMood);
     }
+    if (selectedGenre) {
+      const g = selectedGenre.toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.mood?.toLowerCase().includes(g) ||
+          t.genre?.toLowerCase().includes(g) ||
+          t.album?.toLowerCase().includes(g) ||
+          t.title?.toLowerCase().includes(g)
+      );
+    }
     if (sortMode === 'popular') {
       return [...list].sort((a, b) => (b.duration || 0) - (a.duration || 0));
     }
     return [...list];
-  }, [allTracks, recentTracks, selectedMood, sortMode]);
+  }, [allTracks, recentTracks, selectedMood, selectedGenre, sortMode]);
 
   const formatDuration = (seconds: number) => {
     if (!seconds) return '3:45';
@@ -75,89 +139,170 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 sm:px-6 overflow-y-auto no-scrollbar pt-18 sm:pt-20 pb-32 select-none">
-      {/* ── 1. Top Subheader Row: Real contextual pills ── */}
-      <div className="flex items-center justify-between mb-3 pt-1">
-        <div className="lastwave-glass-pill px-3 py-1 rounded-full flex items-center gap-2 cursor-pointer shadow-sm">
-          <div className="w-4 h-4 rounded-full bg-cyan-400/15 text-cyan-400 flex items-center justify-center">
-            <User className="w-2.5 h-2.5 stroke-[2]" />
+    <div className="flex-1 flex flex-col px-4 sm:px-6 overflow-y-auto no-scrollbar pt-24 sm:pt-28 pb-32 select-none">
+      {/* ── 1. Featured / Frequently Played Hero Card (Image 1 reference) ── */}
+      {featuredTrack && (
+        <div
+          onClick={() => onPlayTrack(featuredTrack, displayTracks)}
+          className="relative w-full h-44 sm:h-52 rounded-[28px] overflow-hidden mb-6 cursor-pointer group shadow-2xl border border-white/[0.08] active:scale-[0.99] transition-transform shrink-0"
+        >
+          {/* Background Artwork with rich ambient fallback */}
+          <div className="absolute inset-0 bg-gradient-to-br from-red-950/80 via-[#24162a] to-[#12141c]" />
+          {featuredTrack.coverUrl && (
+            <img
+              src={featuredTrack.coverUrl}
+              alt={featuredTrack.title}
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          )}
+
+          {/* Cinematic Overlay Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/25" />
+
+          {/* Top Right Circular Play Button */}
+          <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-lg group-hover:scale-110 active:scale-95 transition-transform">
+            {isPlaying && currentTrack?.id === featuredTrack.id ? (
+              <Pause className="w-4 h-4 fill-current" />
+            ) : (
+              <Play className="w-4 h-4 fill-current ml-0.5" />
+            )}
           </div>
-          <span className="text-xs font-medium text-[#ededed] tracking-tight">
-            {language === 'fa' ? 'آرشیو شما' : 'Your Library'}
-          </span>
-        </div>
 
-        <div className="lastwave-glass-pill px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-normal text-[#a1a1a6] shadow-sm">
-          <Headphones className="w-3.5 h-3.5 text-cyan-400 stroke-[1.8]" />
-          <span className="tabular-nums">{stats.tracks} songs</span>
-        </div>
-      </div>
-
-      {/* ── 2. Hero Stats Card (Clean, calm, zero blobs) ── */}
-      <div className="lastwave-card p-4 sm:p-5 mb-4 shadow-xl border border-white/[0.06] bg-[#12141c]">
-        {/* Top row: Counter & arrow button */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex flex-col">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-semibold text-[#ededed] tracking-tight leading-none tabular-nums font-mono">
-                {stats.playsCount.toLocaleString()}
+          {/* Bottom Card Info: Artist Title & Badge */}
+          <div className="absolute bottom-4 left-5 right-16 flex flex-col min-w-0">
+            <span className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight truncate drop-shadow-md">
+              {featuredTrack.artist || featuredTrack.title}
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] sm:text-xs font-semibold text-white/70 uppercase tracking-widest drop-shadow">
+                {language === 'fa' ? 'پیشنهادی برای شما' : 'FREQUENTLY PLAYED'}
               </span>
-              <span className="text-xs font-medium text-[#a1a1a6] tracking-wide uppercase">
-                {language === 'fa' ? 'پخش‌ها' : 'Plays'}
+              <span className="text-[10px] text-white/50">•</span>
+              <span className="text-[11px] text-white/85 font-medium truncate">
+                {featuredTrack.title}
               </span>
             </div>
-            <span className="text-[11px] text-[#71717a] mt-1 font-normal">
-              {language === 'fa' ? 'آمار کل پخش موسیقی شما' : 'Total listening history'}
-            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── 2. Albums Section (Image 1 reference) ── */}
+      <section className="mb-6 shrink-0">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-[#ededed] tracking-tight">
+              {language === 'fa' ? 'آلبوم‌ها' : 'Albums'}
+            </h2>
+            <span className="w-2 h-2 rounded-full bg-white/70 inline-block" />
           </div>
 
           <button
             type="button"
             onClick={onOpenDeviceLibrary}
-            className="w-9 h-9 rounded-full lastwave-glass-pill flex items-center justify-center text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
-            title="View library"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-[#a1a1a6] hover:text-[#ededed] transition-colors cursor-pointer"
+            title="Browse all albums"
           >
-            <ArrowRight className="w-4 h-4 stroke-[1.8]" />
+            <ChevronRight className="w-4 h-4 stroke-[2]" />
           </button>
         </div>
 
-        {/* Bottom row: 3 Stats Sub-cards with nested radius (card radius 24px - padding 16px = 8px) */}
-        <div className="grid grid-cols-3 gap-2">
-          {/* Sub-card 1: Tracks */}
-          <div className="bg-white/[0.03] rounded-xl p-2.5 flex flex-col items-center justify-center border border-white/[0.04]">
-            <Disc3 className="w-4 h-4 text-cyan-400 mb-1 stroke-[1.8]" />
-            <span className="text-sm font-semibold text-[#ededed] leading-tight tabular-nums font-mono">
-              {stats.tracks.toLocaleString()}
-            </span>
-            <span className="text-[10px] text-[#71717a] font-normal mt-0.5">Tracks</span>
-          </div>
+        {/* Horizontal Scrolling Albums Carousel */}
+        <div className="flex gap-3.5 overflow-x-auto no-scrollbar py-1">
+          {albums.map((album, idx) => (
+            <div
+              key={album.name + idx}
+              onClick={() => onPlayTrack(album.tracks[0], album.tracks)}
+              className="w-32 sm:w-36 shrink-0 cursor-pointer group active:scale-[0.98] transition-transform"
+            >
+              <div className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-2xl overflow-hidden bg-gradient-to-br from-[#1e2232] to-[#12141c] border border-white/10 shadow-lg group-hover:border-white/20 transition-all flex items-center justify-center">
+                <Disc3 className="w-10 h-10 text-cyan-400/40 stroke-[1.5]" />
+                {album.coverUrl && (
+                  <img
+                    src={album.coverUrl}
+                    alt={album.name}
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-2.5">
+                  <div className="w-8 h-8 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-md">
+                    <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                  </div>
+                </div>
+              </div>
 
-          {/* Sub-card 2: Artists */}
-          <div className="bg-white/[0.03] rounded-xl p-2.5 flex flex-col items-center justify-center border border-white/[0.04]">
-            <User className="w-4 h-4 text-indigo-400 mb-1 stroke-[1.8]" />
-            <span className="text-sm font-semibold text-[#ededed] leading-tight tabular-nums font-mono">
-              {stats.artists.toLocaleString()}
-            </span>
-            <span className="text-[10px] text-[#71717a] font-normal mt-0.5">Artists</span>
-          </div>
-
-          {/* Sub-card 3: Playlists */}
-          <div className="bg-white/[0.03] rounded-xl p-2.5 flex flex-col items-center justify-center border border-white/[0.04]">
-            <Music className="w-4 h-4 text-emerald-400 mb-1 stroke-[1.8]" />
-            <span className="text-sm font-semibold text-[#ededed] leading-tight tabular-nums font-mono">
-              {stats.playlists.toLocaleString()}
-            </span>
-            <span className="text-[10px] text-[#71717a] font-normal mt-0.5">Playlists</span>
-          </div>
+              <span className="block text-xs font-semibold text-[#ededed] truncate mt-2 leading-tight">
+                {album.name}
+              </span>
+              <span className="block text-[11px] text-[#a1a1a6] truncate mt-0.5 leading-tight">
+                {album.artist}
+              </span>
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
 
-      {/* ── 3. List Container ── */}
-      <div className="rounded-t-3xl bg-[#14161f] border-t border-white/[0.06] p-4 flex-1 shadow-2xl">
+      {/* ── 3. Playlists / Genres Section (Image 1 reference) ── */}
+      <section className="mb-6 shrink-0">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-[#ededed] tracking-tight">
+              {language === 'fa' ? 'پلی‌لیست‌ها' : 'Playlists'}
+            </h2>
+            <span className="w-2 h-2 rounded-full bg-white/70 inline-block" />
+          </div>
+
+          {selectedGenre && (
+            <button
+              type="button"
+              onClick={() => setSelectedGenre(null)}
+              className="text-[11px] text-cyan-400 hover:underline px-2 py-0.5"
+            >
+              {language === 'fa' ? 'نمایش همه' : 'Show all'}
+            </button>
+          )}
+        </div>
+
+        {/* Horizontal Scrolling Playlist Cards with vibrant frosted gradients */}
+        <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
+          {PLAYLISTS.map((pl) => {
+            const isSelected = selectedGenre === pl.name;
+            return (
+              <div
+                key={pl.id}
+                onClick={() => setSelectedGenre(isSelected ? null : pl.name)}
+                className={`w-28 sm:w-32 h-18 sm:h-20 shrink-0 rounded-2xl flex items-center justify-center px-3 py-2 cursor-pointer transition-all active:scale-95 shadow-lg border relative overflow-hidden bg-gradient-to-br ${
+                  pl.gradient
+                } ${pl.border} ${
+                  isSelected ? 'ring-2 ring-white scale-[1.03]' : 'opacity-90 hover:opacity-100'
+                }`}
+              >
+                <span className="text-xs sm:text-sm font-semibold text-white tracking-tight drop-shadow-md text-center leading-tight">
+                  {language === 'fa' ? pl.nameFa : pl.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── 4. Main Songs List Container (Preserved with clean modern styling) ── */}
+      <div className="rounded-3xl bg-[#14161f] border border-white/[0.06] p-4 flex-1 shadow-2xl">
         {/* List Header */}
         <div className="flex items-center justify-between mb-3 px-1 relative">
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-[#ededed] tracking-tight">List</h2>
+            <h2 className="text-base font-semibold text-[#ededed] tracking-tight">
+              {language === 'fa' ? 'آهنگ‌ها' : 'Songs'}
+            </h2>
+            {selectedGenre && (
+              <span className="text-xs text-cyan-400 font-medium">({selectedGenre})</span>
+            )}
             {isNationalNet && (
               <span className="text-[9px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 stroke-[1.8]" />
@@ -208,7 +353,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
 
-        {/* ── 4. Pinned Now Playing Row (Calm hairline glass card) ── */}
+        {/* ── Pinned Now Playing Row (Calm hairline glass card) ── */}
         {currentTrack && (
           <div
             onClick={() => onPlayTrack(currentTrack, displayTracks)}
@@ -262,7 +407,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         )}
 
-        {/* ── 5. Track Rows ── */}
+        {/* ── Track Rows ── */}
         <div className="flex flex-col gap-1">
           {displayTracks.slice(0, 16).map((track, idx) => {
             const isThisCurrent = currentTrack?.id === track.id;

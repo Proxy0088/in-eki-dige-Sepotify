@@ -199,86 +199,90 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 sm:px-6 pt-18 sm:pt-20 pb-32 overflow-y-auto no-scrollbar select-none">
-      {/* ── Search Input Bar ── */}
-      <div className="w-full relative mb-3">
-        <div className="w-full h-12 rounded-full lastwave-glass px-4 flex items-center gap-3 shadow-sm border border-white/10">
-          <SearchIcon className="w-4 h-4 text-[#71717a] shrink-0" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={
-              searchMode === 'local'
-                ? (language === 'fa' ? 'جست‌وجو در فایل‌های دستگاه...' : 'Search downloads & device files...')
-                : isNationalNet
-                ? (language === 'fa' ? 'جست‌وجو در موزیکدل (نت ملی)...' : 'Search musicdel.ir (National Net)...')
-                : (language === 'fa' ? 'جست‌وجوی آنلاین آهنگ یا خواننده...' : 'Search artists, songs, albums...')
-            }
-            className="w-full bg-transparent text-sm text-[#ededed] placeholder-[#71717a] outline-none font-normal"
-          />
+    <div className="flex-1 flex flex-col px-4 sm:px-6 pt-24 sm:pt-28 pb-32 overflow-hidden select-none">
+      {/* ── Pinned Search & Filter Controls (Never scrolls or hides behind top navbar) ── */}
+      <div className="shrink-0 mb-3">
+        {/* Search Input Bar */}
+        <div className="w-full relative mb-3">
+          <div className="w-full h-12 rounded-full lastwave-glass px-4 flex items-center gap-3 shadow-sm border border-white/10">
+            <SearchIcon className="w-4 h-4 text-[#71717a] shrink-0" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={
+                searchMode === 'local'
+                  ? (language === 'fa' ? 'جست‌وجو در فایل‌های دستگاه...' : 'Search downloads & device files...')
+                  : isNationalNet
+                  ? (language === 'fa' ? 'جست‌وجو در موزیکدل (نت ملی)...' : 'Search musicdel.ir (National Net)...')
+                  : (language === 'fa' ? 'جست‌وجوی آنلاین آهنگ یا خواننده...' : 'Search artists, songs, albums...')
+              }
+              className="w-full bg-transparent text-sm text-[#ededed] placeholder-[#71717a] outline-none font-normal"
+            />
 
-          {query && (
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="p-1 text-[#71717a] hover:text-[#ededed]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={() => setQuery('')}
-              className="p-1 text-[#71717a] hover:text-[#ededed]"
+              onClick={toggleSearchMode}
+              className="flex items-center justify-center p-1.5 rounded-full hover:bg-white/[0.06] text-[#a1a1a6] hover:text-[#ededed] transition-colors cursor-pointer active:scale-95 shrink-0"
+              title={
+                searchMode === 'online'
+                  ? 'حالت آنلاین YouTube Music'
+                  : 'حالت دانلودها و فایل‌های محلی'
+              }
             >
-              <X className="w-4 h-4" />
+              {searchMode === 'local' ? (
+                <FolderDown className="w-4 h-4 text-cyan-400 stroke-[1.8]" />
+              ) : isNationalNet ? (
+                <ShieldCheck className="w-4 h-4 text-emerald-400 stroke-[2]" />
+              ) : (
+                <Globe className="w-4 h-4 text-[#a1a1a6] stroke-[1.8]" />
+              )}
             </button>
-          )}
+          </div>
+        </div>
 
-          <button
-            type="button"
-            onClick={toggleSearchMode}
-            className="flex items-center justify-center p-1.5 rounded-full hover:bg-white/[0.06] text-[#a1a1a6] hover:text-[#ededed] transition-colors cursor-pointer active:scale-95 shrink-0"
-            title={
-              searchMode === 'online'
-                ? 'حالت آنلاین YouTube Music'
-                : 'حالت دانلودها و فایل‌های محلی'
-            }
-          >
-            {searchMode === 'local' ? (
-              <FolderDown className="w-4 h-4 text-cyan-400 stroke-[1.8]" />
-            ) : isNationalNet ? (
-              <ShieldCheck className="w-4 h-4 text-emerald-400 stroke-[2]" />
-            ) : (
-              <Globe className="w-4 h-4 text-[#a1a1a6] stroke-[1.8]" />
-            )}
-          </button>
+        {/* Category Filter Chips with flex-shrink prevention and dedicated horizontal scrolling */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          {CATEGORY_CHIPS.map((cat) => {
+            const isSelected = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setSelectedCategory(cat);
+                  if (cat !== 'All') {
+                    setQuery(cat.toLowerCase());
+                  } else {
+                    setQuery('');
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap cursor-pointer transition-all active:scale-95 shrink-0 ${
+                  isSelected
+                    ? 'lastwave-glass-active text-[#ededed] shadow-sm'
+                    : 'lastwave-glass-pill text-[#a1a1a6] hover:text-[#ededed]'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ── Category Filter Chips ── */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mb-1">
-        {CATEGORY_CHIPS.map((cat) => {
-          const isSelected = selectedCategory === cat;
-          return (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => {
-                setSelectedCategory(cat);
-                if (cat !== 'All' && !query) {
-                  setQuery(cat.toLowerCase());
-                } else if (cat === 'All' && CATEGORY_CHIPS.map(c => c.toLowerCase()).includes(query)) {
-                  setQuery('');
-                }
-              }}
-              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap cursor-pointer transition-colors active:scale-95 ${
-                isSelected
-                  ? 'lastwave-glass-active text-[#ededed] shadow-sm'
-                  : 'lastwave-glass-pill text-[#a1a1a6] hover:text-[#ededed]'
-              }`}
-            >
-              {cat}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Results Container ── */}
-      <div className="rounded-2xl bg-[#14161f] border border-white/[0.06] p-3 flex-1 flex flex-col gap-1 shadow-xl">
+      {/* ── Scrollable Results Container ── */}
+      <div className="rounded-2xl bg-[#14161f] border border-white/[0.06] p-3 flex-1 flex flex-col gap-1 shadow-xl overflow-y-auto no-scrollbar">
         {isSearching && displayRows.length === 0 ? (
           <div className="py-14 text-center text-[#a1a1a6] text-xs flex flex-col items-center justify-center gap-2">
             <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />

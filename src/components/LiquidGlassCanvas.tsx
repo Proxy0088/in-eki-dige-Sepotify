@@ -72,11 +72,11 @@ void main() {
   float distInside = max(-dist, 0.0);
   float bevelT = clamp(distInside / bevelWidth, 0.0, 1.0);
 
-  // Normal for perimeter: curves down toward edge
+  // Normal for perimeter: curves down toward outer edge
   vec2 pRel = p - center;
   vec2 n2d = calcBoxNormal(pRel, halfSize, cornerRadius);
   float slope = (1.0 - bevelT) * 1.7;
-  vec3 N = normalize(vec3(-n2d.x * slope, -n2d.y * slope, 1.0));
+  vec3 N = normalize(vec3(n2d.x * slope, n2d.y * slope, 1.0));
 
   // Active tab liquid bubble deformation (when activeRect is provided)
   if (u_active_rect.z > 0.0) {
@@ -102,20 +102,23 @@ void main() {
   vec3 H_over = normalize(L_over + V);
   float specOver = pow(max(dot(N, H_over), 0.0), 32.0) * 0.25;
 
+  // Bottom edge suppression factor: eliminates any bottom-facing rim glow or crescent line artifact
+  float bottomDamp = clamp(1.0 - max(n2d.y, 0.0) * 1.8, 0.0, 1.0);
+
   // 2. Calm, refined interactive pointer light (whisper-soft hover effect)
-  vec2 defaultLight = vec2(center.x, center.y - 10.0);
+  vec2 defaultLight = vec2(center.x, center.y - 12.0);
   vec2 lightPos = mix(defaultLight, u_pointer, u_pointer_active);
   vec2 lightDir2D = (lightPos - p) / max(size.x, size.y);
   vec3 L_ptr = normalize(vec3(lightDir2D * 2.2, 0.55));
   vec3 H_ptr = normalize(L_ptr + V);
   
-  // Whisper-soft specular highlight: subtle glint without harshness
+  // Whisper-soft specular highlight: subtle glint without harshness, strictly damped on bottom edge
   float specPtrSharp = pow(max(dot(N, H_ptr), 0.0), 36.0) * 0.10;
   float specPtrSoft = pow(max(dot(N, H_ptr), 0.0), 12.0) * 0.05;
-  float specPtr = (specPtrSharp + specPtrSoft) * (0.15 + 0.08 * u_pointer_active);
+  float specPtr = (specPtrSharp + specPtrSoft) * (0.15 + 0.08 * u_pointer_active) * (0.10 + 0.90 * bottomDamp);
 
-  // 3. Fresnel reflection (glass edge rim)
-  float fresnel = pow(1.0 - max(N.z, 0.0), 3.0) * 0.22;
+  // 3. Fresnel reflection (glass edge rim), extinguished at bottom edge to prevent white bottom line
+  float fresnel = pow(1.0 - max(N.z, 0.0), 3.0) * 0.18 * (0.05 + 0.95 * bottomDamp);
 
   // 4. Optical chromatic dispersion along curved boundaries
   vec3 dispersion = vec3(
@@ -128,7 +131,7 @@ void main() {
   float shimmer = sin(p.x * 0.05 + u_time * 0.7) * cos(p.y * 0.07 + u_time * 0.4) * 0.01;
 
   // 6. Bottom ambient inner depth / soft occlusion
-  float bottomEdge = smoothstep(size.y - bevelWidth * 1.4, size.y, p.y) * 0.10;
+  float bottomEdge = smoothstep(size.y - bevelWidth * 1.4, size.y, p.y) * 0.15;
 
   // Combine specular and edge reflections
   vec3 highlights = vec3(specPtr) + dispersion * 0.35 + shimmer;
