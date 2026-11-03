@@ -1,5 +1,4 @@
 import React from 'react';
-import { LiquidGlassCanvas } from './LiquidGlassCanvas';
 import { triggerHaptic } from '../utils/haptics';
 
 interface TopCapsuleProps {
@@ -35,17 +34,14 @@ export const TopCapsule: React.FC<TopCapsuleProps> = ({
       <div
         className="lastwave-glass-dock relative w-full h-[66px] sm:h-[68px] rounded-[36px] px-6 sm:px-8 flex items-center justify-between shadow-xl transition-[box-shadow,border-color] duration-300 overflow-hidden"
       >
-        {/* Interactive WebGL Liquid Glass Canvas with refraction & subtle sheen (same as bottom nav) */}
-        <LiquidGlassCanvas />
-
         {/* Top edge physical specular highlight catch-light */}
         <div
-          className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none rounded-full"
+          className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none rounded-full"
           style={{ zIndex: 2 }}
         />
 
         {/* Home / Current Screen Title - Audex 400 36px */}
-        <span className="relative z-10 font-audex text-[30px] sm:text-[36px] font-normal leading-none text-[#999999] hover:text-[#ededed] transition-colors cursor-default select-none tracking-tight">
+        <span className="relative z-10 font-audex text-[30px] sm:text-[36px] font-normal leading-none text-[#ededed] hover:text-white transition-colors cursor-default select-none tracking-tight">
           {title || 'Home'}
         </span>
 
@@ -53,7 +49,7 @@ export const TopCapsule: React.FC<TopCapsuleProps> = ({
         <button
           type="button"
           onClick={handleProfileClick}
-          className="relative z-10 w-[37px] h-[37px] flex items-center justify-center text-[#999999] hover:text-[#ededed] active:scale-95 transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-full"
+          className="relative z-10 w-[37px] h-[37px] flex items-center justify-center text-[#d1d1d6] hover:text-white active:scale-95 transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-full"
           aria-label="User profile and settings"
           title="پروفایل کاربری و تنظیمات"
         >

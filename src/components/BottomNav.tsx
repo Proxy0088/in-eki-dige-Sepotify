@@ -71,7 +71,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       >
         {/* Top edge physical specular highlight line */}
         <div
-          className="absolute inset-x-5 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full"
+          className="absolute inset-x-5 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none rounded-full"
           style={{ zIndex: 2 }}
         />
 
@@ -91,7 +91,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               className={`relative z-10 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
                 isActive
                   ? 'rounded-full px-3.5 py-1.5 text-white font-medium gap-2 shadow-sm'
-                  : 'w-10 h-9 rounded-full text-[#a1a1a6] hover:text-[#ededed] hover:bg-white/[0.015]'
+                  : 'w-10 h-9 rounded-full text-[#b8b8be] hover:text-white hover:bg-white/[0.04]'
               }`}
               aria-label={label}
               aria-current={isActive ? 'page' : undefined}

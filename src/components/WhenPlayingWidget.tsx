@@ -109,7 +109,7 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
       >
         {/* Top edge physical specular highlight catch-light */}
         <div
-          className="absolute inset-x-5 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full"
+          className="absolute inset-x-5 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none rounded-full"
           style={{ zIndex: 2 }}
         />
 
