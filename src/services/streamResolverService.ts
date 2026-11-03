@@ -98,14 +98,14 @@ export const StreamResolverService = {
       return inMem;
     }
 
-    // Helper to verify a candidate videoId against /api/stream-info
+    // Helper to quickly verify a candidate videoId against /api/stream-info if needed
     const verifyAndBuildStream = async (videoId: string): Promise<ResolvedStream | null> => {
       try {
         const streamEndpoint = apiUrl(`/api/stream?v=${encodeURIComponent(videoId)}`);
         const infoEndpoint = apiUrl(`/api/stream-info?v=${encodeURIComponent(videoId)}`);
 
-        // Generous 15s timeout to allow ytdl getInfo to complete under latency
-        const timeoutSignal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(15000) : undefined;
+        // Fast 3.5s timeout so resolution never stalls playback
+        const timeoutSignal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(3500) : undefined;
         const effectiveSignal =
           signal && timeoutSignal && typeof (AbortSignal as any).any === 'function'
             ? (AbortSignal as any).any([signal, timeoutSignal])
@@ -145,75 +145,96 @@ export const StreamResolverService = {
       }
     };
 
-    // 1. Check persistent match cache (including user manual overrides)
+    // 1. Check persistent match cache (instant return if already resolved or user-matched)
     const cachedMatch = TrackMatchCache.getMatch(artist, title);
     if (cachedMatch?.videoId) {
-      const verified = await verifyAndBuildStream(cachedMatch.videoId);
-      if (verified) return verified;
-      // If cached match failed verification, remove it from cache
-      TrackMatchCache.removeMatch(artist, title);
+      const streamEndpoint = apiUrl(`/api/stream?v=${encodeURIComponent(cachedMatch.videoId)}`);
+      const resolved: ResolvedStream = {
+        url: streamEndpoint,
+        youtubeId: cachedMatch.videoId,
+        duration: cachedMatch.duration || expectedDuration,
+        source: 'youtube',
+        isPlayable: true,
+      };
+      resolvedMemoryCache.set(key, resolved);
+      return resolved;
     }
 
     // 2. Query YouTube Music InnerTube for verified candidate tracks
     try {
       const query = `${artist} ${title}`.trim();
-      const candidates = await YouTubeMusicProvider.searchCandidates(query, signal, 10);
+      const candidates = await YouTubeMusicProvider.searchCandidates(query, signal, 8);
       let best = TrackMatcher.findBestMatch(
         { title, artist, duration: expectedDuration },
         candidates,
-        65
+        60
       );
 
       if (best?.candidate.videoId) {
-        const verified = await verifyAndBuildStream(best.candidate.videoId);
-        if (verified) {
-          TrackMatchCache.saveMatch(
-            artist,
-            title,
-            {
-              videoId: best.candidate.videoId,
-              title: best.candidate.title,
-              artist: best.candidate.artist,
-              duration: verified.duration,
-              thumbnailUrl: best.candidate.thumbnailUrl,
-            },
-            best.score,
-            false
-          );
-          return verified;
-        }
+        // High confidence match: construct direct stream URL immediately without blocking roundtrip
+        const streamEndpoint = apiUrl(`/api/stream?v=${encodeURIComponent(best.candidate.videoId)}`);
+        const resolved: ResolvedStream = {
+          url: streamEndpoint,
+          youtubeId: best.candidate.videoId,
+          duration: best.candidate.duration || expectedDuration,
+          source: 'youtube',
+          isPlayable: true,
+        };
+
+        resolvedMemoryCache.set(key, resolved);
+        TrackMatchCache.saveMatch(
+          artist,
+          title,
+          {
+            videoId: best.candidate.videoId,
+            title: best.candidate.title,
+            artist: best.candidate.artist,
+            duration: resolved.duration,
+            thumbnailUrl: best.candidate.thumbnailUrl,
+          },
+          best.score,
+          false
+        );
+        return resolved;
       }
 
       // Try alternative query with "official audio"
       const altCandidates = await YouTubeMusicProvider.searchCandidates(
         `${title} ${artist} official audio`,
         signal,
-        8
+        6
       );
       best = TrackMatcher.findBestMatch(
         { title, artist, duration: expectedDuration },
         altCandidates,
-        65
+        58
       );
 
       if (best?.candidate.videoId) {
-        const verified = await verifyAndBuildStream(best.candidate.videoId);
-        if (verified) {
-          TrackMatchCache.saveMatch(
-            artist,
-            title,
-            {
-              videoId: best.candidate.videoId,
-              title: best.candidate.title,
-              artist: best.candidate.artist,
-              duration: verified.duration,
-              thumbnailUrl: best.candidate.thumbnailUrl,
-            },
-            best.score,
-            false
-          );
-          return verified;
-        }
+        const streamEndpoint = apiUrl(`/api/stream?v=${encodeURIComponent(best.candidate.videoId)}`);
+        const resolved: ResolvedStream = {
+          url: streamEndpoint,
+          youtubeId: best.candidate.videoId,
+          duration: best.candidate.duration || expectedDuration,
+          source: 'youtube',
+          isPlayable: true,
+        };
+
+        resolvedMemoryCache.set(key, resolved);
+        TrackMatchCache.saveMatch(
+          artist,
+          title,
+          {
+            videoId: best.candidate.videoId,
+            title: best.candidate.title,
+            artist: best.candidate.artist,
+            duration: resolved.duration,
+            thumbnailUrl: best.candidate.thumbnailUrl,
+          },
+          best.score,
+          false
+        );
+        return resolved;
       }
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') throw err;

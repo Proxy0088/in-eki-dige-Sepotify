@@ -20,6 +20,7 @@ import { NextMusicPreview } from './NextMusicPreview';
 import { LyricsService, SongLyrics } from '../services/lyricsService';
 import { ManualMatchModal } from './ManualMatchModal';
 import { triggerHaptic } from '../utils/haptics';
+import { useCoverPalette } from '../utils/palette';
 
 interface FullScreenPlayerProps {
   currentTrack: Track | null;
@@ -89,6 +90,94 @@ const ButtonGlassTint: React.FC<{ coverUrl?: string; hasError?: boolean }> = ({
       aria-hidden="true"
       className="absolute inset-0 w-full h-full object-cover object-bottom blur-[10px] opacity-[0.16] saturate-[160%] scale-150 pointer-events-none"
     />
+  );
+};
+
+/**
+ * Organic glowing light dots (tinted with track cover palette) that slowly drift
+ * randomly left/right/up/down in the bottom region behind the liquid glass controls.
+ */
+const AmbientFloatingParticles: React.FC<{
+  coverUrl?: string;
+  title?: string;
+  artist?: string;
+}> = ({ coverUrl, title, artist }) => {
+  const palette = useCoverPalette(coverUrl, title, artist);
+
+  return (
+    <div className="absolute inset-x-0 bottom-0 top-[38%] pointer-events-none overflow-hidden z-10 select-none">
+      {/* Dot 1: Dominant Hue (e.g. green/amber/accent) */}
+      <div
+        className="absolute w-16 h-16 sm:w-20 sm:h-20 rounded-full animate-orb-drift-1"
+        style={{
+          left: '12%',
+          top: '22%',
+          background: `radial-gradient(circle, ${palette.primary} 0%, ${palette.glow} 45%, transparent 70%)`,
+          filter: 'blur(16px)',
+          opacity: 0.50,
+        }}
+      />
+
+      {/* Dot 2: Soft White Highlight Point */}
+      <div
+        className="absolute w-10 h-10 sm:w-12 sm:h-12 rounded-full animate-orb-drift-2"
+        style={{
+          right: '20%',
+          top: '16%',
+          background: 'radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.35) 45%, transparent 70%)',
+          filter: 'blur(11px)',
+          opacity: 0.55,
+        }}
+      />
+
+      {/* Dot 3: Secondary Hue (Lime / Vibrant Accent) drifting behind the main Play pill */}
+      <div
+        className="absolute w-22 h-22 sm:w-28 sm:h-28 rounded-full animate-orb-drift-3"
+        style={{
+          left: '40%',
+          top: '46%',
+          background: `radial-gradient(circle, ${palette.secondary} 0%, ${palette.glow} 40%, transparent 70%)`,
+          filter: 'blur(22px)',
+          opacity: 0.44,
+        }}
+      />
+
+      {/* Dot 4: Soft White/Lime Glimmer drifting behind left controls */}
+      <div
+        className="absolute w-9 h-9 sm:w-11 sm:h-11 rounded-full animate-orb-drift-4"
+        style={{
+          left: '24%',
+          bottom: '20%',
+          background: 'radial-gradient(circle, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.25) 50%, transparent 70%)',
+          filter: 'blur(10px)',
+          opacity: 0.50,
+        }}
+      />
+
+      {/* Dot 5: Accent Hue drifting behind right controls */}
+      <div
+        className="absolute w-18 h-18 sm:w-22 sm:h-22 rounded-full animate-orb-drift-5"
+        style={{
+          right: '14%',
+          bottom: '22%',
+          background: `radial-gradient(circle, ${palette.accent} 0%, ${palette.glow} 45%, transparent 70%)`,
+          filter: 'blur(18px)',
+          opacity: 0.46,
+        }}
+      />
+
+      {/* Dot 6: Small Crisp White Glimmer near center */}
+      <div
+        className="absolute w-8 h-8 sm:w-10 sm:h-10 rounded-full animate-orb-drift-1"
+        style={{
+          left: '58%',
+          top: '26%',
+          background: 'radial-gradient(circle, rgba(255, 255, 255, 0.82) 0%, transparent 70%)',
+          filter: 'blur(9px)',
+          opacity: 0.45,
+        }}
+      />
+    </div>
   );
 };
 
@@ -330,6 +419,13 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
         {/* Subtle top gradient for header clarity and smooth bottom fade into pitch-black controls */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-25% via-black/20 via-48% to-[#07080b] to-64% pointer-events-none" />
       </div>
+
+      {/* ── Ambient Floating Light Particles (Drifting smoothly & randomly behind liquid glass controls) ── */}
+      <AmbientFloatingParticles
+        coverUrl={currentTrack.coverUrl}
+        title={currentTrack.title}
+        artist={currentTrack.artist}
+      />
 
       {/* ── Top Header Bar ── */}
       <div className="relative z-30 w-full h-16 px-5 sm:px-6 flex items-center justify-between pt-3">

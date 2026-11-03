@@ -5,6 +5,7 @@ import { IranMusicService } from '../services/iranMusicService';
 import { OfficialMusicService } from '../services/officialMusicService';
 import { MusicDelService } from '../services/musicDelService';
 import { TrackMatchCache } from '../services/trackMatchCache';
+import { StreamResolverService } from '../services/streamResolverService';
 import { apiUrl } from '../services/apiConfig';
 import { MusicRow } from './MusicRow';
 import { ManualMatchModal } from './ManualMatchModal';
@@ -106,6 +107,12 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
               return track;
             });
             setOnlineResults(matchedTracks);
+            // Pre-resolve top search candidates silently in the background so clicks are instantaneous
+            matchedTracks.slice(0, 3).forEach((track) => {
+              if (!track.isFullLength && !track.url.includes('/api/stream')) {
+                StreamResolverService.resolveTrack(track).catch(() => {});
+              }
+            });
           } else {
             setOnlineResults([]);
           }

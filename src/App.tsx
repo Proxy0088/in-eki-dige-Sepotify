@@ -157,6 +157,15 @@ export default function App() {
 
   // Handle Playback with Queue - Keep queue and tracks array stable!
   const handlePlayTrack = async (track: Track, customQueue?: Track[], openPlayer: boolean = true) => {
+    // 1. Instant UI responsiveness: open player immediately and show song artwork/title
+    if (openPlayer) {
+      if (screenState !== 'player') {
+        previousScreenRef.current = screenState;
+      }
+      setScreenState('player');
+    }
+    setCurrentTrack(track);
+
     let playableTrack = track;
 
     try {
@@ -201,6 +210,9 @@ export default function App() {
     // Requirement 6: If full-length version cannot be resolved, show clear feedback and do not play 30s preview
     if (!playableTrack.isDownloaded && (!playableTrack.isFullLength || !playableTrack.url || playableTrack.isStreamable === false)) {
       alert('نسخه کامل این آهنگ در حال حاضر در دسترس نیست.');
+      if (openPlayer) {
+        setScreenState(previousScreenRef.current || 'home');
+      }
       return;
     }
 
@@ -228,13 +240,6 @@ export default function App() {
     }
 
     setRecentTrackIds((prev) => [playableTrack.id, ...prev.filter((id) => id !== playableTrack.id)].slice(0, 8));
-
-    if (openPlayer) {
-      if (screenState !== 'player') {
-        previousScreenRef.current = screenState;
-      }
-      setScreenState('player');
-    }
   };
 
   // Toggle Like
