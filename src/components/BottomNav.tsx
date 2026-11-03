@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
+import { motion } from 'motion/react';
 import { Search, Home as HomeIcon, Library as LibraryIcon } from 'lucide-react';
 import { NavTab, AppLanguage } from '../types/music';
+import { LiquidGlassCanvas, ActiveRect } from './LiquidGlassCanvas';
 
 interface BottomNavProps {
   activeTab: NavTab;
@@ -15,6 +17,45 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   isPlaying,
   language = 'en',
 }) => {
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const tabRefs = useRef<Record<NavTab, HTMLButtonElement | null>>({
+    home: null,
+    search: null,
+    library: null,
+  });
+
+  const [activeRect, setActiveRect] = useState<ActiveRect | null>(null);
+
+  // Measure active tab bounds relative to dock container
+  const updateActiveRect = () => {
+    const dockEl = dockRef.current;
+    const activeEl = tabRefs.current[activeTab];
+    if (dockEl && activeEl) {
+      const dockBox = dockEl.getBoundingClientRect();
+      const tabBox = activeEl.getBoundingClientRect();
+      setActiveRect({
+        x: tabBox.left - dockBox.left,
+        y: tabBox.top - dockBox.top,
+        width: tabBox.width,
+        height: tabBox.height,
+      });
+    }
+  };
+
+  useLayoutEffect(() => {
+    updateActiveRect();
+  }, [activeTab]);
+
+  useEffect(() => {
+    // Run an update on next tick to capture layout settlements
+    const timer = setTimeout(updateActiveRect, 50);
+    window.addEventListener('resize', updateActiveRect);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateActiveRect);
+    };
+  }, [activeTab]);
+
   const tabs: Array<{ id: NavTab; labelEn: string; labelFa: string; icon: React.ReactNode }> = [
     {
       id: 'home',
@@ -24,7 +65,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <div className="relative">
           <HomeIcon className="w-[18px] h-[18px] stroke-[1.8]" />
           {isPlaying && (
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400" />
+            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
           )}
         </div>
       ),
@@ -48,7 +89,37 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       aria-label="Floating Navigation Bar"
       className="fixed sm:absolute bottom-5 left-1/2 -translate-x-1/2 z-40 select-none pointer-events-auto"
     >
-      <div className="lastwave-glass-dock rounded-full p-1.5 flex items-center gap-1 shadow-2xl">
+      {/* SVG Displacement Filter inspired by liquid-glass-vue */}
+      <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
+        <defs>
+          <filter id="sepotify-liquid-lens" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" result="noise" />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale="5"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Dock Container: preserves existing color identity, shape and dimensions */}
+      <div
+        ref={dockRef}
+        className="lastwave-glass-dock relative rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-[box-shadow,border-color] duration-300"
+      >
+        {/* Interactive WebGL Liquid Glass Canvas */}
+        <LiquidGlassCanvas activeRect={activeRect} />
+
+        {/* Top edge physical specular highlight line */}
+        <div
+          className="absolute inset-x-5 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none rounded-full"
+          style={{ zIndex: 2 }}
+        />
+
+        {/* Tab Buttons */}
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const label = language === 'fa' ? tab.labelFa : tab.labelEn;
@@ -56,20 +127,61 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           return (
             <button
               key={tab.id}
+              ref={(el) => {
+                tabRefs.current[tab.id] = el;
+              }}
               type="button"
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center justify-center transition-[color,background-color,transform] duration-200 cursor-pointer active:scale-95 ${
+              className={`relative z-10 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
                 isActive
-                  ? 'lastwave-glass-active rounded-full px-3.5 py-1.5 text-[#ededed] font-medium gap-2 shadow-sm'
+                  ? 'rounded-full px-3.5 py-1.5 text-white font-medium gap-2 shadow-sm'
                   : 'w-10 h-9 rounded-full text-[#a1a1a6] hover:text-[#ededed] hover:bg-white/[0.06]'
               }`}
               aria-label={label}
+              aria-current={isActive ? 'page' : undefined}
             >
-              {tab.icon}
+              {/* Active Tab Spring-based Liquid Glass Indicator */}
               {isActive && (
-                <span className="text-xs tracking-tight font-medium whitespace-nowrap">
+                <motion.div
+                  layoutId="liquid-active-pill"
+                  className="absolute inset-0 rounded-full overflow-hidden pointer-events-none lastwave-glass-active"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 420,
+                    damping: 30,
+                    mass: 0.8,
+                  }}
+                  style={{
+                    background:
+                      'linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.10) 100%)',
+                    boxShadow:
+                      'inset 0 1px 1px 0 rgba(255, 255, 255, 0.38), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.25)',
+                    border: '1px solid rgba(255, 255, 255, 0.24)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                  }}
+                >
+                  {/* Internal meniscus specular reflection */}
+                  <div className="absolute inset-x-2 top-0.5 h-1.5 rounded-full bg-gradient-to-b from-white/35 to-transparent pointer-events-none" />
+                </motion.div>
+              )}
+
+              {/* Icon */}
+              <span className="relative z-10 flex items-center justify-center transition-transform duration-150">
+                {tab.icon}
+              </span>
+
+              {/* Animated Label */}
+              {isActive && (
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.92, x: -3 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.92, x: -3 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  className="relative z-10 text-xs tracking-tight font-medium whitespace-nowrap"
+                >
                   {label}
-                </span>
+                </motion.span>
               )}
             </button>
           );
