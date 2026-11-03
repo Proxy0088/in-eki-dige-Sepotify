@@ -199,7 +199,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 sm:px-6 pt-24 sm:pt-28 pb-32 overflow-hidden select-none">
+    <div className="flex-1 flex flex-col px-4 sm:px-6 pt-24 sm:pt-28 pb-32 overflow-hidden select-none animate-screen-enter">
       {/* ── Pinned Search & Filter Controls (Never scrolls or hides behind top navbar) ── */}
       <div className="shrink-0 mb-3">
         {/* Search Input Bar */}

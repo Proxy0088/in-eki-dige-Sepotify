@@ -139,7 +139,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 sm:px-6 overflow-y-auto no-scrollbar pt-24 sm:pt-28 pb-32 select-none">
+    <div className="flex-1 flex flex-col px-4 sm:px-6 overflow-y-auto no-scrollbar pt-24 sm:pt-28 pb-32 select-none animate-screen-enter">
       {/* ── 1. Featured / Frequently Played Hero Card (Image 1 reference) ── */}
       {featuredTrack && (
         <div
@@ -321,9 +321,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <span>{sortMode === 'recent' ? 'Recent ▾' : 'Popular ▾'}</span>
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu with spring physics animation */}
             {showSortDropdown && (
-              <div className="absolute right-0 top-8 w-32 rounded-xl bg-[#1c1e28] border border-white/10 shadow-2xl p-1 z-30 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 top-8 w-32 rounded-xl bg-[#1c1e28]/95 backdrop-blur-xl border border-white/10 shadow-2xl p-1 z-30 animate-dropdown">
                 <button
                   type="button"
                   onClick={() => {

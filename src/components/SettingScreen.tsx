@@ -16,7 +16,7 @@ export const SettingScreen: React.FC<SettingScreenProps> = ({
   onThemeChange,
 }) => {
   return (
-    <div className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-18 sm:pt-20 pb-32 overflow-y-auto no-scrollbar select-none">
+    <div className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-24 sm:pt-28 pb-32 overflow-y-auto no-scrollbar select-none animate-screen-enter">
       <div className="w-full max-w-[384px] flex flex-col gap-3">
         {/* Header Title */}
         <div className="flex items-center justify-between px-1 mb-1">

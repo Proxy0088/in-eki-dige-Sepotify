@@ -58,10 +58,20 @@ export default function App() {
   const previousScreenRef = useRef<ScreenState>('home');
 
   // Audio Player state
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(() => {
+    return tracks[0] || INITIAL_TRACKS[0] || null;
+  });
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(() => {
+    return tracks[0]?.duration || INITIAL_TRACKS[0]?.duration || 194;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __setScreenState?: (s: ScreenState) => void }).__setScreenState = setScreenState;
+    }
+  }, []);
 
   // Info modal state
   const [showAccountModal, setShowAccountModal] = useState<boolean>(false);

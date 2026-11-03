@@ -42,6 +42,8 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   );
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [newFolderName, setNewFolderName] = useState<string>('');
+  const [sortOption, setSortOption] = useState<'default' | 'name' | 'count'>('default');
+  const [showSortDropdown, setShowSortDropdown] = useState<boolean>(false);
 
   // Keep libraries synchronized
   useEffect(() => {
@@ -75,6 +77,18 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
     };
   }, [tracks, likedIds, downloadedIds]);
 
+  // Sorted libraries
+  const displayedLibraries = useMemo(() => {
+    const list = [...userLibraries];
+    if (sortOption === 'name') {
+      return list.sort((a, b) => a.localeCompare(b));
+    }
+    if (sortOption === 'count') {
+      return list.sort((a, b) => getTracksForCollection(b).length - getTracksForCollection(a).length);
+    }
+    return list;
+  }, [userLibraries, sortOption, getTracksForCollection]);
+
   // Tracks for active collection
   const activeTracks = useMemo(() => {
     if (!selectedCollection) return [];
@@ -102,7 +116,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 sm:px-6 pt-18 sm:pt-20 pb-32 overflow-y-auto no-scrollbar select-none">
+    <div className="flex-1 flex flex-col px-4 sm:px-6 pt-24 sm:pt-28 pb-32 overflow-y-auto no-scrollbar select-none animate-screen-enter">
       {/* ── Top Header ── */}
       <div className="flex items-center justify-between mb-4 px-1">
         {selectedCollection ? (
@@ -137,13 +151,58 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               >
                 <Plus className="w-4 h-4 stroke-[2]" />
               </button>
-              <button
-                type="button"
-                className="lastwave-glass-pill px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-medium text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
-              >
-                <ListFilter className="w-3.5 h-3.5 stroke-[1.8]" />
-                <span>Sort</span>
-              </button>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowSortDropdown(!showSortDropdown)}
+                  className="lastwave-glass-pill px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-medium text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
+                >
+                  <ListFilter className="w-3.5 h-3.5 stroke-[1.8]" />
+                  <span>Sort ▾</span>
+                </button>
+
+                {showSortDropdown && (
+                  <div className="absolute right-0 top-8 w-36 rounded-xl bg-[#1c1e28]/95 backdrop-blur-xl border border-white/10 shadow-2xl p-1 z-30 animate-dropdown">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortOption('default');
+                        setShowSortDropdown(false);
+                      }}
+                      className={`w-full px-3 py-1.5 text-xs text-left rounded-lg font-medium transition-colors cursor-pointer ${
+                        sortOption === 'default' ? 'bg-white/10 text-[#ededed]' : 'text-[#a1a1a6] hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      Default
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortOption('name');
+                        setShowSortDropdown(false);
+                      }}
+                      className={`w-full px-3 py-1.5 text-xs text-left rounded-lg font-medium transition-colors cursor-pointer ${
+                        sortOption === 'name' ? 'bg-white/10 text-[#ededed]' : 'text-[#a1a1a6] hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      Name (A-Z)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortOption('count');
+                        setShowSortDropdown(false);
+                      }}
+                      className={`w-full px-3 py-1.5 text-xs text-left rounded-lg font-medium transition-colors cursor-pointer ${
+                        sortOption === 'count' ? 'bg-white/10 text-[#ededed]' : 'text-[#a1a1a6] hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      Track Count
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -161,7 +220,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
       {selectedCollection === null ? (
         /* ── Playlists List Cards ── */
         <div className="flex flex-col gap-2">
-          {userLibraries.map((libName) => {
+          {displayedLibraries.map((libName) => {
             const colTracks = getTracksForCollection(libName);
             const cover = getCollectionArtwork(libName);
 

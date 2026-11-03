@@ -74,6 +74,24 @@ const ScrubberWaveform: React.FC = () => {
   );
 };
 
+/**
+ * Very subtle, low-intensity artwork color reflection strictly inside the button frame
+ */
+const ButtonGlassTint: React.FC<{ coverUrl?: string; hasError?: boolean }> = ({
+  coverUrl,
+  hasError,
+}) => {
+  if (!coverUrl || hasError) return null;
+  return (
+    <img
+      src={coverUrl}
+      alt=""
+      aria-hidden="true"
+      className="absolute inset-0 w-full h-full object-cover object-bottom blur-[10px] opacity-[0.16] saturate-[160%] scale-150 pointer-events-none"
+    />
+  );
+};
+
 export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   currentTrack,
   isPlaying,
@@ -294,9 +312,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 
   return (
     <div className="w-full h-full bg-[#07080b] relative overflow-hidden select-none flex flex-col justify-between animate-in fade-in duration-200">
-      {/* ── Full-Size Crisp Artwork Background (Matching reference image) ── */}
+      {/* ── Full-Size Crisp Artwork Background (Fades into pitch black) ── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-        {/* Crisp full-bleed artwork taking the entire upper screen */}
+        {/* Crisp full-bleed artwork taking the upper screen */}
         {currentTrack.coverUrl && !coverError ? (
           <img
             src={currentTrack.coverUrl}
@@ -307,15 +325,6 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
           />
         ) : (
           <div className="w-full h-[64%] sm:h-[68%] bg-gradient-to-b from-[#1f1610] via-[#120d09] to-[#07080b]" />
-        )}
-
-        {/* Ambient atmospheric backlight glow into bottom area */}
-        {currentTrack.coverUrl && !coverError && (
-          <img
-            src={currentTrack.coverUrl}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-30 scale-125 -z-10"
-          />
         )}
 
         {/* Subtle top gradient for header clarity and smooth bottom fade into pitch-black controls */}
@@ -331,8 +340,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
           className="w-11 h-11 rounded-full lastwave-player-btn flex items-center justify-center text-white cursor-pointer active:scale-95 transition-transform relative overflow-hidden"
           aria-label="Collapse player"
         >
+          <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
           <div className="absolute inset-x-2 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full" />
-          <ChevronDown className="w-5 h-5 stroke-[2.2]" />
+          <ChevronDown className="w-5 h-5 stroke-[2.2] relative z-10" />
         </button>
 
         {/* Center: NOW PLAYING & Source */}
@@ -355,8 +365,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
           className="w-11 h-11 rounded-full lastwave-player-btn flex items-center justify-center text-white cursor-pointer active:scale-95 transition-transform relative overflow-hidden"
           aria-label="Song options and match"
         >
+          <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
           <div className="absolute inset-x-2 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full" />
-          <MoreVertical className="w-4.5 h-4.5 stroke-[2]" />
+          <MoreVertical className="w-4.5 h-4.5 stroke-[2] relative z-10" />
         </button>
       </div>
 
@@ -426,9 +437,10 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
               className="w-11 h-11 rounded-full lastwave-player-btn flex items-center justify-center text-white cursor-pointer active:scale-95 transition-transform relative overflow-hidden"
               aria-label={isLiked ? 'Unlike' : 'Like'}
             >
+              <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
               <div className="absolute inset-x-2 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none rounded-full" />
               <Heart
-                className={`w-5 h-5 ${isLiked ? 'fill-rose-500 text-rose-500' : 'stroke-[1.8] text-white'}`}
+                className={`w-5 h-5 relative z-10 ${isLiked ? 'fill-rose-500 text-rose-500' : 'stroke-[1.8] text-white'}`}
               />
             </button>
 
@@ -442,8 +454,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
               aria-label="Toggle Lyrics"
               title="Lyrics"
             >
+              <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
               <div className="absolute inset-x-2 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none rounded-full" />
-              <Quote className="w-4.5 h-4.5 stroke-[2] fill-current" />
+              <Quote className="w-4.5 h-4.5 stroke-[2] fill-current relative z-10" />
             </button>
           </div>
         </div>
@@ -492,8 +505,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             className="w-14 h-14 rounded-full lastwave-player-btn flex items-center justify-center text-white cursor-pointer active:scale-95 transition-transform relative overflow-hidden shrink-0"
             aria-label="Previous track"
           >
+            <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
             <div className="absolute inset-x-3 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full" />
-            <SkipBack className="w-6 h-6 fill-current" />
+            <SkipBack className="w-6 h-6 fill-current relative z-10" />
           </button>
 
           {/* Main Play/Pause Capsule Pill (Translucent Glass with NO solid color fill) */}
@@ -503,16 +517,17 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             className="flex-1 h-14 rounded-full lastwave-player-btn flex items-center justify-center gap-2.5 text-white cursor-pointer active:scale-95 transition-transform relative overflow-hidden"
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
+            <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
             <div className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full" />
             {isPlaying ? (
               <>
-                <Pause className="w-5.5 h-5.5 fill-current" />
-                <span className="font-semibold text-base tracking-wide select-none">Pause</span>
+                <Pause className="w-5.5 h-5.5 fill-current relative z-10" />
+                <span className="font-semibold text-base tracking-wide select-none relative z-10">Pause</span>
               </>
             ) : (
               <>
-                <Play className="w-5.5 h-5.5 fill-current ml-0.5" />
-                <span className="font-semibold text-base tracking-wide select-none">Play</span>
+                <Play className="w-5.5 h-5.5 fill-current ml-0.5 relative z-10" />
+                <span className="font-semibold text-base tracking-wide select-none relative z-10">Play</span>
               </>
             )}
           </button>
@@ -526,8 +541,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             className="w-14 h-14 rounded-full lastwave-player-btn flex items-center justify-center text-white cursor-pointer active:scale-95 transition-transform relative overflow-hidden shrink-0"
             aria-label="Next track"
           >
+            <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
             <div className="absolute inset-x-3 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full" />
-            <SkipForward className="w-6 h-6 fill-current" />
+            <SkipForward className="w-6 h-6 fill-current relative z-10" />
           </button>
         </div>
 
@@ -543,8 +559,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             aria-label="Shuffle mode"
             title="Shuffle"
           >
+            <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
             <div className="absolute inset-x-3 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none rounded-full" />
-            <Shuffle className="w-5 h-5 stroke-[2]" />
+            <Shuffle className="w-5 h-5 stroke-[2] relative z-10" />
           </button>
 
           {/* Audio Quality / Match Modal Pill */}
@@ -558,9 +575,10 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             aria-label="Audio settings and match"
             title="Audio Quality"
           >
+            <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
             <div className="absolute inset-x-3 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none rounded-full" />
-            <Music className="w-4 h-4 stroke-[2]" />
-            <span className="select-none font-sans font-bold">AUDIO</span>
+            <Music className="w-4 h-4 stroke-[2] relative z-10" />
+            <span className="select-none font-sans font-bold relative z-10">AUDIO</span>
           </button>
 
           {/* Repeat Mode */}
@@ -573,11 +591,12 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             aria-label="Repeat mode"
             title="Repeat"
           >
+            <ButtonGlassTint coverUrl={currentTrack.coverUrl} hasError={coverError} />
             <div className="absolute inset-x-3 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none rounded-full" />
             {cycleMode === 'repeat_one' ? (
-              <Repeat1 className="w-5 h-5 stroke-[2]" />
+              <Repeat1 className="w-5 h-5 stroke-[2] relative z-10" />
             ) : (
-              <Repeat className="w-5 h-5 stroke-[2]" />
+              <Repeat className="w-5 h-5 stroke-[2] relative z-10" />
             )}
           </button>
         </div>

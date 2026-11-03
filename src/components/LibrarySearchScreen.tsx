@@ -39,7 +39,7 @@ export const LibrarySearchScreen: React.FC<LibrarySearchScreenProps> = ({
     : libraryTracks;
 
   return (
-    <div className="flex-1 flex flex-col px-4 sm:px-5 pt-[72px] sm:pt-[80px] pb-36 overflow-y-auto no-scrollbar select-none">
+    <div className="flex-1 flex flex-col px-4 sm:px-5 pt-24 sm:pt-28 pb-36 overflow-y-auto no-scrollbar select-none animate-screen-enter">
       {/* Header with back button and search input */}
       <div className="w-full relative mb-4 flex items-center gap-2">
         <button
