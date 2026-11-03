@@ -8,3 +8,6 @@ coverage/
 !.env.example
 .idea/
 unslop/
+reference-web/
+android-compose-backup/
+skills/
