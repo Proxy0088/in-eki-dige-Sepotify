@@ -554,6 +554,9 @@ export default function App() {
               setAccountModalType('group');
               setShowAccountModal(true);
             }}
+            onLogoClick={() => {
+              handleTabChange('home');
+            }}
           />
         )}
 
