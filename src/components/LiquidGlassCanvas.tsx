@@ -12,134 +12,230 @@ interface LiquidGlassCanvasProps {
   className?: string;
 }
 
-const VERTEX_SHADER_SOURCE = `
-attribute vec2 a_position;
+// Exact preset values from liquid-glass-2026-11-03T11-31-46.json
+const PRESET = {
+  refThickness: 42.0,
+  refFactor: 1.4,
+  refDispersion: 7.0,
+  refFresnelRange: 53.13,
+  refFresnelHardness: 59.82,
+  refFresnelFactor: 20.0,
+  glareRange: 16.58,
+  glareHardness: 100.0,
+  glareFactor: 56.04,
+  glareConvergence: 100.0,
+  glareOppositeFactor: 100.0,
+  glareAngle: -42.75,
+  blurRadius: 1.0,
+  shadowExpand: 25.0,
+  shadowFactor: 15.0,
+  shadowOffsetY: -10.0,
+  shapeRoundness: 5.0,
+  mergeRate: 0.05,
+  cursorRadius: 16.0,
+};
+
+const VERTEX_SHADER_SOURCE = `#version 300 es
+precision highp float;
+
+in vec2 a_position;
+out vec2 v_uv;
+
 void main() {
+  v_uv = a_position * 0.5 + 0.5;
   gl_Position = vec4(a_position, 0.0, 1.0);
 }
 `;
 
-const FRAGMENT_SHADER_SOURCE = `
-#ifdef GL_ES
+const FRAGMENT_SHADER_SOURCE = `#version 300 es
 precision highp float;
-#endif
 
+in vec2 v_uv;
+out vec4 fragColor;
+
+// Canvas & viewport
 uniform vec2 u_resolution;
-uniform vec2 u_pointer;
-uniform float u_pointer_active;
-uniform float u_time;
-uniform vec4 u_active_rect; // x, y, width, height (in CSS pixels * dpr)
-uniform float u_is_light;
+uniform float u_dpr;
+uniform vec2 u_mouse;
+uniform float u_mouse_active;
 
-// Rounded box SDF (p relative to box center, b is half-size, r is corner radius)
-float sdRoundedBox(vec2 p, vec2 b, float r) {
-  vec2 q = abs(p) - b + vec2(r);
-  return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+// Elements: 0 = dock, 1 = active pill
+uniform vec4 u_elements[2]; // center.x, center.y, width, height
+uniform float u_cornerRadii[2];
+
+// Liquid Glass Controls (ported directly from ShapeMerge & liquid-glass-2026-11-03T11-31-46.json)
+uniform float u_mergeRate;          // 0.05
+uniform float u_roundness;          // 5.0 (superellipse factor)
+uniform float u_cursorRadius;       // 16.0
+
+uniform float u_refThickness;       // 42.0
+uniform float u_refFactor;          // 1.4
+uniform float u_refDispersion;      // 7.0
+uniform float u_refFresnelRange;    // 53.13
+uniform float u_refFresnelHardness; // 59.82
+uniform float u_refFresnelFactor;   // 20.0
+
+uniform float u_glareRange;         // 16.58
+uniform float u_glareHardness;      // 100.0
+uniform float u_glareFactor;        // 56.04
+uniform float u_glareAngle;         // -42.75
+uniform float u_glareConvergence;   // 100.0
+uniform float u_glareOppositeFactor;// 100.0
+
+uniform float u_shadowExpand;       // 25.0
+uniform float u_shadowFactor;       // 15.0
+uniform vec2 u_shadowOffset;        // vec2(0.0, -10.0)
+
+// --- SDF Functions (ShapeMerge) ---
+
+float smin(float a, float b, float k) {
+  float k_safe = max(k, 0.001);
+  float h = clamp(0.5 + 0.5 * (b - a) / k_safe, 0.0, 1.0);
+  return mix(b, a, h) - k_safe * h * (1.0 - h);
 }
 
-// Exact 2D normal vector for a capsule / rounded box
-vec2 calcBoxNormal(vec2 p, vec2 b, float r) {
-  vec2 q = abs(p) - b + vec2(r);
-  vec2 s = sign(p);
-  if (q.x > 0.0 && q.y > 0.0) {
-    return s * normalize(q);
-  } else if (q.x > q.y) {
-    return vec2(s.x, 0.0);
+// Superellipse continuous corner SDF (Apple squircle curvature, n = 5.0)
+float superellipseCornerSDF(vec2 p, float r, float n) {
+  p = abs(p);
+  float v = pow(pow(p.x, n) + pow(p.y, n), 1.0 / n);
+  return v - r;
+}
+
+float roundedRectSDF(vec2 p, vec2 center, float width, float height, float cornerRadius, float n) {
+  p -= center;
+  float cr = cornerRadius;
+  vec2 halfSize = vec2(width, height) * 0.5;
+  vec2 d = abs(p) - halfSize;
+  
+  float dist;
+  if (d.x > -cr && d.y > -cr) {
+    vec2 cornerCenter = sign(p) * (halfSize - vec2(cr));
+    vec2 cornerP = p - cornerCenter;
+    dist = superellipseCornerSDF(cornerP, cr, n);
   } else {
-    return vec2(0.0, s.y);
+    dist = min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
   }
+  
+  return dist;
+}
+
+float map(vec2 p) {
+  // Dock container (Element 0)
+  vec4 elem0 = u_elements[0];
+  float finalSDF = roundedRectSDF(p, elem0.xy, elem0.z, elem0.w, u_cornerRadii[0], u_roundness);
+
+  // Active navigation pill (Element 1)
+  if (u_elements[1].z > 0.0) {
+    vec4 elem1 = u_elements[1];
+    float pillSDF = roundedRectSDF(p, elem1.xy, elem1.z, elem1.w, u_cornerRadii[1], u_roundness);
+    finalSDF = smin(finalSDF, pillSDF, u_mergeRate * 1000.0 * u_dpr);
+  }
+
+  // Pointer / touch interaction (Cursor droplet merging)
+  if (u_mouse_active > 0.01) {
+    float cursorRadius = u_cursorRadius * u_dpr;
+    float cursorSDF = length(p - u_mouse) - cursorRadius;
+    finalSDF = smin(finalSDF, cursorSDF, u_mergeRate * 750.0 * u_dpr * u_mouse_active);
+  }
+
+  return finalSDF;
+}
+
+vec2 getNormal(vec2 p) {
+  vec2 h = vec2(1.0, 0.0);
+  return normalize(vec2(
+    map(p + h.xy) - map(p - h.xy),
+    map(p + h.yx) - map(p - h.yx)
+  ));
 }
 
 void main() {
+  vec2 p = gl_FragCoord.xy;
   // Flip Y to match CSS DOM coordinates (0,0 is top-left)
-  vec2 p = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y);
-  vec2 size = u_resolution;
-  vec2 center = size * 0.5;
-  vec2 halfSize = size * 0.5;
-  float cornerRadius = min(halfSize.x, halfSize.y);
+  p.y = u_resolution.y - p.y;
 
-  // Outer dock SDF distance
-  float dist = sdRoundedBox(p - center, halfSize, cornerRadius);
+  float merged = map(p);
+  float nmerged = -merged; // Positive inside
 
-  // Antialiased capsule boundary
-  float dockAlpha = 1.0 - smoothstep(-0.8, 0.6, dist);
-  if (dockAlpha <= 0.001) {
-    discard;
-  }
+  // Scale refThickness proportionally to the dock height (matches the 506x234 reference playground)
+  float effectiveThickness = max(u_refThickness * (u_elements[0].w / 234.0), 10.0 * u_dpr);
 
-  // Physical bevel profile along dock perimeter
-  float bevelWidth = min(16.0, cornerRadius * 0.85);
-  float distInside = max(-dist, 0.0);
-  float bevelT = clamp(distInside / bevelWidth, 0.0, 1.0);
+  if (merged < 0.0) {
+    // Inside the liquid glass shape
+    vec2 normal = getNormal(p);
 
-  // Normal for dock perimeter: curves down toward edge
-  vec2 pRel = p - center;
-  vec2 n2d = calcBoxNormal(pRel, halfSize, cornerRadius);
-  float slope = (1.0 - bevelT) * 1.9;
-  vec3 N = normalize(vec3(-n2d.x * slope, -n2d.y * slope, 1.0));
-
-  // Active tab liquid bubble deformation
-  if (u_active_rect.z > 0.0) {
-    vec2 actCenter = u_active_rect.xy + u_active_rect.zw * 0.5;
-    vec2 actHalf = u_active_rect.zw * 0.5;
-    float actR = min(actHalf.x, actHalf.y);
-    vec2 pActRel = p - actCenter;
-    float distAct = sdRoundedBox(pActRel, actHalf, actR);
-
-    // Liquid meniscus around the active tab
-    if (distAct < actR * 0.4) {
-      vec2 actN2d = calcBoxNormal(pActRel, actHalf, actR);
-      float actBevel = clamp(-distAct / (actR * 0.75), 0.0, 1.0);
-      float actSlope = sin(actBevel * 3.14159265) * 0.75;
-      N = normalize(N + vec3(actN2d.x * actSlope, actN2d.y * actSlope, 0.0));
+    // Refraction Edge Factor (exact Snell's Law curvature from ShapeMerge)
+    float x_R_ratio = 1.0 - nmerged / effectiveThickness;
+    float thetaI = asin(clamp(pow(max(x_R_ratio, 0.0), 2.0), 0.0, 1.0));
+    float thetaT = asin(clamp((1.0 / u_refFactor) * sin(thetaI), -1.0, 1.0));
+    float edgeFactor = -1.0 * tan(thetaT - thetaI);
+    if (nmerged >= effectiveThickness) {
+      edgeFactor = 0.0;
     }
-  }
 
-  vec3 V = vec3(0.0, 0.0, 1.0);
+    // Chromatic Dispersion (exact coefficients from Liquid Glass Studio)
+    const float N_R = 1.0 - 0.02;
+    const float N_G = 1.0;
+    const float N_B = 1.0 + 0.02;
+    float dispFactor = u_refDispersion * 0.02;
+    vec3 dispOffsets = vec3(
+      1.0 - (N_R - 1.0) * dispFactor,
+      1.0 - (N_G - 1.0) * dispFactor,
+      1.0 - (N_B - 1.0) * dispFactor
+    );
 
-  // 1. Crisp Directional Overhead Light (simulating top glass rim catch-light)
-  vec3 L_over = normalize(vec3(0.0, -1.0, 0.65));
-  vec3 H_over = normalize(L_over + V);
-  float specOver = pow(max(dot(N, H_over), 0.0), 36.0) * 0.65;
+    // Fresnel Reflection at grazing edges
+    float fresnelBase = 1.0 + merged / 1500.0 * (500.0 / u_refFresnelRange) * (500.0 / u_refFresnelRange) + u_refFresnelHardness / 100.0;
+    float fresnelFactor = clamp(pow(max(fresnelBase, 0.0), 5.0), 0.0, 1.0) * (u_refFresnelFactor / 100.0) * 0.7;
 
-  // 2. Dynamic Interactive Pointer Light (tracks cursor / touch)
-  vec2 defaultLight = vec2(center.x, center.y - 10.0);
-  vec2 lightPos = mix(defaultLight, u_pointer, u_pointer_active);
-  vec2 lightDir2D = (lightPos - p) / max(size.x, size.y);
-  vec3 L_ptr = normalize(vec3(lightDir2D * 2.4, 0.5));
-  vec3 H_ptr = normalize(L_ptr + V);
-  float specPtrSharp = pow(max(dot(N, H_ptr), 0.0), 64.0) * 0.95;
-  float specPtrSoft = pow(max(dot(N, H_ptr), 0.0), 16.0) * 0.35;
-  float specPtr = (specPtrSharp + specPtrSoft) * (0.35 + 0.65 * u_pointer_active);
+    // Glare / Specular Highlight (at exact angle -42.75 deg with hardness 100 and convergence 100)
+    float glareAngleRad = radians(u_glareAngle);
+    vec2 glareDir = vec2(cos(glareAngleRad), sin(glareAngleRad));
+    float glareAngleFactor = clamp(dot(normal, glareDir), 0.0, 1.0);
+    float glareOppositeAngleFactor = clamp(dot(normal, -glareDir), 0.0, 1.0);
 
-  // 3. Fresnel reflection (glass edge rim)
-  float fresnel = pow(1.0 - max(N.z, 0.0), 3.0) * 0.55;
+    float glareEdgeMask = smoothstep(effectiveThickness, 0.0, nmerged);
+    float glareBase = 1.0 + merged / 1500.0 * (500.0 / u_glareRange) * (500.0 / u_glareRange) + u_glareHardness / 100.0;
+    float glareGeoFactor = clamp(pow(max(glareBase, 0.0), 5.0 * (u_glareConvergence / 100.0) * 10.0), 0.0, 1.0);
 
-  // 4. Optical chromatic dispersion along curved boundaries
-  vec3 dispersion = vec3(
-    fresnel * 1.15 + specOver * 0.96,
-    fresnel * 1.00 + specOver * 1.00,
-    fresnel * 1.25 + specOver * 1.08
-  );
+    float mainGlare = glareAngleFactor * glareGeoFactor * (u_glareFactor / 100.0);
+    float oppositeGlare = glareOppositeAngleFactor * glareGeoFactor * (u_glareOppositeFactor / 100.0);
+    float totalGlare = (mainGlare + oppositeGlare) * glareEdgeMask;
 
-  // 5. Subtle ambient liquid shimmer
-  float shimmer = sin(p.x * 0.05 + u_time * 0.7) * cos(p.y * 0.07 + u_time * 0.4) * 0.03;
+    // Compose prismatic specular reflections
+    vec3 glareCol = vec3(
+      totalGlare * dispOffsets.r,
+      totalGlare * dispOffsets.g,
+      totalGlare * dispOffsets.b
+    );
 
-  // 6. Bottom ambient inner depth / soft occlusion
-  float bottomEdge = smoothstep(size.y - bevelWidth * 1.4, size.y, p.y) * 0.25;
+    vec3 fresnelCol = vec3(
+      fresnelFactor * dispOffsets.r,
+      fresnelFactor * dispOffsets.g,
+      fresnelFactor * dispOffsets.b
+    );
 
-  // Combine specular and edge reflections
-  vec3 highlights = vec3(specPtr) + dispersion * 0.75 + shimmer;
+    // Subtle edge refraction glint
+    float edgeGlint = abs(edgeFactor) * 0.32;
 
-  // Output: strictly preserve underlying dock color, overlaying refined liquid glass optics
-  if (u_is_light > 0.5) {
-    vec3 col = vec3(1.0) + highlights * 0.5 - bottomEdge * 0.35;
-    float alpha = clamp((specOver + specPtr) * 0.55 + fresnel * 0.45, 0.0, 0.85);
-    gl_FragColor = vec4(col, alpha * dockAlpha);
+    // Anti-aliased outer rim
+    float antialias = 1.0 - smoothstep(-0.8, 0.2, merged);
+
+    vec3 finalGlint = glareCol * 1.1 + fresnelCol * 0.75 + vec3(edgeGlint);
+    float alpha = clamp(totalGlare * 0.95 + fresnelFactor * 0.65 + edgeGlint * 0.35, 0.0, 0.95);
+
+    fragColor = vec4(finalGlint, alpha * antialias);
   } else {
-    vec3 col = vec3(1.0) + highlights * 0.85 - vec3(bottomEdge);
-    float alpha = clamp((specOver + specPtr) * 0.75 + fresnel * 0.55, 0.0, 0.92);
-    gl_FragColor = vec4(col, alpha * dockAlpha);
+    // Outside shape: soft drop-shadow from preset (shadowOffset 0, -10, shadowExpand 25, shadowFactor 15)
+    vec2 shadowPos = p - u_shadowOffset * u_dpr;
+    float shadowDist = map(shadowPos);
+    if (shadowDist < 0.0) {
+      float shadowIntensity = smoothstep(0.0, -u_shadowExpand * u_dpr, shadowDist);
+      float shadowA = shadowIntensity * (u_shadowFactor / 100.0) * 0.35;
+      fragColor = vec4(0.0, 0.0, 0.0, shadowA);
+    } else {
+      discard;
+    }
   }
 }
 `;
@@ -157,20 +253,17 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
     const parent = canvas.parentElement;
     if (!parent) return;
 
-    // Check for reduced motion preference
+    // Check for reduced motion
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // WebGL initialization
-    const gl =
-      canvas.getContext('webgl2', { alpha: true, antialias: true, premultipliedAlpha: true }) ||
-      (canvas.getContext('webgl', {
-        alpha: true,
-        antialias: true,
-        premultipliedAlpha: true,
-      }) as WebGLRenderingContext | null);
+    // WebGL2 context
+    const gl = canvas.getContext('webgl2', {
+      alpha: true,
+      antialias: true,
+      premultipliedAlpha: true,
+    });
 
     if (!gl) {
-      // Graceful fallback: WebGL unsupported
       canvas.style.display = 'none';
       return;
     }
@@ -203,7 +296,7 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
     gl.linkProgram(program);
 
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.warn('LiquidGlass program link error:', gl.getProgramInfoLog(program));
+      console.warn('LiquidGlass link error:', gl.getProgramInfoLog(program));
       gl.deleteProgram(program);
       canvas.style.display = 'none';
       return;
@@ -211,11 +304,14 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
 
     gl.useProgram(program);
 
-    // Quad geometry (full-screen triangle strip)
+    // Quad geometry (triangle strip)
     const positionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    const positions = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
-    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
+      gl.STATIC_DRAW
+    );
 
     const aPositionLoc = gl.getAttribLocation(program, 'a_position');
     gl.enableVertexAttribArray(aPositionLoc);
@@ -223,14 +319,53 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
 
     // Uniform locations
     const uResolutionLoc = gl.getUniformLocation(program, 'u_resolution');
-    const uPointerLoc = gl.getUniformLocation(program, 'u_pointer');
-    const uPointerActiveLoc = gl.getUniformLocation(program, 'u_pointer_active');
-    const uTimeLoc = gl.getUniformLocation(program, 'u_time');
-    const uActiveRectLoc = gl.getUniformLocation(program, 'u_active_rect');
-    const uIsLightLoc = gl.getUniformLocation(program, 'u_is_light');
+    const uDprLoc = gl.getUniformLocation(program, 'u_dpr');
+    const uMouseLoc = gl.getUniformLocation(program, 'u_mouse');
+    const uMouseActiveLoc = gl.getUniformLocation(program, 'u_mouse_active');
+    const uElementsLoc = gl.getUniformLocation(program, 'u_elements');
+    const uCornerRadiiLoc = gl.getUniformLocation(program, 'u_cornerRadii');
 
-    // Pointer state tracking
-    const pointer = {
+    const uMergeRateLoc = gl.getUniformLocation(program, 'u_mergeRate');
+    const uRoundnessLoc = gl.getUniformLocation(program, 'u_roundness');
+    const uCursorRadiusLoc = gl.getUniformLocation(program, 'u_cursorRadius');
+    const uRefThicknessLoc = gl.getUniformLocation(program, 'u_refThickness');
+    const uRefFactorLoc = gl.getUniformLocation(program, 'u_refFactor');
+    const uRefDispersionLoc = gl.getUniformLocation(program, 'u_refDispersion');
+    const uRefFresnelRangeLoc = gl.getUniformLocation(program, 'u_refFresnelRange');
+    const uRefFresnelHardnessLoc = gl.getUniformLocation(program, 'u_refFresnelHardness');
+    const uRefFresnelFactorLoc = gl.getUniformLocation(program, 'u_refFresnelFactor');
+    const uGlareRangeLoc = gl.getUniformLocation(program, 'u_glareRange');
+    const uGlareHardnessLoc = gl.getUniformLocation(program, 'u_glareHardness');
+    const uGlareFactorLoc = gl.getUniformLocation(program, 'u_glareFactor');
+    const uGlareAngleLoc = gl.getUniformLocation(program, 'u_glareAngle');
+    const uGlareConvergenceLoc = gl.getUniformLocation(program, 'u_glareConvergence');
+    const uGlareOppositeFactorLoc = gl.getUniformLocation(program, 'u_glareOppositeFactor');
+    const uShadowExpandLoc = gl.getUniformLocation(program, 'u_shadowExpand');
+    const uShadowFactorLoc = gl.getUniformLocation(program, 'u_shadowFactor');
+    const uShadowOffsetLoc = gl.getUniformLocation(program, 'u_shadowOffset');
+
+    // Static presets from JSON
+    gl.uniform1f(uMergeRateLoc, PRESET.mergeRate);
+    gl.uniform1f(uRoundnessLoc, PRESET.shapeRoundness);
+    gl.uniform1f(uCursorRadiusLoc, PRESET.cursorRadius);
+    gl.uniform1f(uRefThicknessLoc, PRESET.refThickness);
+    gl.uniform1f(uRefFactorLoc, PRESET.refFactor);
+    gl.uniform1f(uRefDispersionLoc, PRESET.refDispersion);
+    gl.uniform1f(uRefFresnelRangeLoc, PRESET.refFresnelRange);
+    gl.uniform1f(uRefFresnelHardnessLoc, PRESET.refFresnelHardness);
+    gl.uniform1f(uRefFresnelFactorLoc, PRESET.refFresnelFactor);
+    gl.uniform1f(uGlareRangeLoc, PRESET.glareRange);
+    gl.uniform1f(uGlareHardnessLoc, PRESET.glareHardness);
+    gl.uniform1f(uGlareFactorLoc, PRESET.glareFactor);
+    gl.uniform1f(uGlareAngleLoc, PRESET.glareAngle);
+    gl.uniform1f(uGlareConvergenceLoc, PRESET.glareConvergence);
+    gl.uniform1f(uGlareOppositeFactorLoc, PRESET.glareOppositeFactor);
+    gl.uniform1f(uShadowExpandLoc, PRESET.shadowExpand);
+    gl.uniform1f(uShadowFactorLoc, PRESET.shadowFactor);
+    gl.uniform2f(uShadowOffsetLoc, 0.0, PRESET.shadowOffsetY);
+
+    // Mouse tracking
+    const mouse = {
       x: 0,
       y: 0,
       targetX: 0,
@@ -239,15 +374,15 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
       targetActive: 0,
     };
 
-    // Smooth active rect interpolation state
-    const currentActiveRect = {
+    // Smooth active rect spring interpolation
+    const currentActive = {
       x: 0,
       y: 0,
       w: 0,
       h: 0,
     };
 
-    let targetActiveRect = activeRect;
+    let targetActive = activeRect;
 
     let width = 0;
     let height = 0;
@@ -272,25 +407,25 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
     const resizeObserver = new ResizeObserver(() => resize());
     resizeObserver.observe(parent);
 
-    // Pointer event listeners on the dock container
+    // Pointer events on parent dock
     const onPointerMove = (e: PointerEvent) => {
       const rect = parent.getBoundingClientRect();
-      pointer.targetX = (e.clientX - rect.left) * dpr;
-      pointer.targetY = (e.clientY - rect.top) * dpr;
-      pointer.targetActive = 1.0;
+      mouse.targetX = (e.clientX - rect.left) * dpr;
+      mouse.targetY = (e.clientY - rect.top) * dpr;
+      mouse.targetActive = 1.0;
       wakeLoop();
     };
 
     const onPointerEnter = (e: PointerEvent) => {
       const rect = parent.getBoundingClientRect();
-      pointer.targetX = (e.clientX - rect.left) * dpr;
-      pointer.targetY = (e.clientY - rect.top) * dpr;
-      pointer.targetActive = 1.0;
+      mouse.targetX = (e.clientX - rect.left) * dpr;
+      mouse.targetY = (e.clientY - rect.top) * dpr;
+      mouse.targetActive = 1.0;
       wakeLoop();
     };
 
     const onPointerLeave = () => {
-      pointer.targetActive = 0.0;
+      mouse.targetActive = 0.0;
       wakeLoop();
     };
 
@@ -298,69 +433,74 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
     parent.addEventListener('pointerenter', onPointerEnter, { passive: true });
     parent.addEventListener('pointerleave', onPointerLeave, { passive: true });
 
-    // Animation loop with automatic idle-sleep to eliminate CPU/GPU drain
+    // Render loop with idle sleep
     let animationFrameId: number | null = null;
     let isLoopRunning = false;
     let idleFrames = 0;
-    const startTime = performance.now();
 
     const render = () => {
       if (!canvas || !gl) return;
 
-      const elapsed = (performance.now() - startTime) / 1000;
+      const lerpSpeed = prefersReducedMotion ? 1.0 : 0.16;
+      mouse.x += (mouse.targetX - mouse.x) * lerpSpeed;
+      mouse.y += (mouse.targetY - mouse.y) * lerpSpeed;
+      mouse.active += (mouse.targetActive - mouse.active) * lerpSpeed;
 
-      // Smooth pointer interpolation
-      const lerpSpeed = prefersReducedMotion ? 1.0 : 0.14;
-      pointer.x += (pointer.targetX - pointer.x) * lerpSpeed;
-      pointer.y += (pointer.targetY - pointer.y) * lerpSpeed;
-      pointer.active += (pointer.targetActive - pointer.active) * lerpSpeed;
+      // Smooth active rect spring
+      if (targetActive) {
+        const tx = (targetActive.x + targetActive.width / 2) * dpr;
+        const ty = (targetActive.y + targetActive.height / 2) * dpr;
+        const tw = targetActive.width * dpr;
+        const th = targetActive.height * dpr;
 
-      // Smooth active rect interpolation
-      if (targetActiveRect) {
-        const tx = targetActiveRect.x * dpr;
-        const ty = targetActiveRect.y * dpr;
-        const tw = targetActiveRect.width * dpr;
-        const th = targetActiveRect.height * dpr;
-
-        currentActiveRect.x += (tx - currentActiveRect.x) * 0.18;
-        currentActiveRect.y += (ty - currentActiveRect.y) * 0.18;
-        currentActiveRect.w += (tw - currentActiveRect.w) * 0.18;
-        currentActiveRect.h += (th - currentActiveRect.h) * 0.18;
+        currentActive.x += (tx - currentActive.x) * 0.22;
+        currentActive.y += (ty - currentActive.y) * 0.22;
+        currentActive.w += (tw - currentActive.w) * 0.22;
+        currentActive.h += (th - currentActive.h) * 0.22;
       }
 
-      // Check light theme
-      const isLight = document.documentElement.classList.contains('light') ? 1.0 : 0.0;
+      // Elements array:
+      // elem 0: dock container
+      // elem 1: active pill
+      const elementsData = new Float32Array([
+        width / 2,
+        height / 2,
+        width,
+        height, // elem 0 (center X, center Y, width, height)
+        currentActive.x,
+        currentActive.y,
+        currentActive.w,
+        currentActive.h, // elem 1
+      ]);
 
-      // Render shader pass
+      const cornerRadii = new Float32Array([
+        height / 2, // dock radius
+        currentActive.h > 0 ? currentActive.h / 2 : height / 2, // active pill radius
+      ]);
+
       gl.useProgram(program);
       gl.uniform2f(uResolutionLoc, width, height);
-      gl.uniform2f(uPointerLoc, pointer.x, pointer.y);
-      gl.uniform1f(uPointerActiveLoc, pointer.active);
-      gl.uniform1f(uTimeLoc, prefersReducedMotion ? 0.0 : elapsed);
-      gl.uniform4f(
-        uActiveRectLoc,
-        currentActiveRect.x,
-        currentActiveRect.y,
-        currentActiveRect.w,
-        currentActiveRect.h
-      );
-      gl.uniform1f(uIsLightLoc, isLight);
+      gl.uniform1f(uDprLoc, dpr);
+      gl.uniform2f(uMouseLoc, mouse.x, mouse.y);
+      gl.uniform1f(uMouseActiveLoc, mouse.active);
+      gl.uniform4fv(uElementsLoc, elementsData);
+      gl.uniform1fv(uCornerRadiiLoc, cornerRadii);
 
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-      // Sleep detection: if pointer & rect have settled, sleep after 30 idle frames
-      const pointerDiff =
-        Math.abs(pointer.targetX - pointer.x) +
-        Math.abs(pointer.targetY - pointer.y) +
-        Math.abs(pointer.targetActive - pointer.active);
-      const rectDiff = targetActiveRect
-        ? Math.abs(targetActiveRect.x * dpr - currentActiveRect.x) +
-          Math.abs(targetActiveRect.width * dpr - currentActiveRect.w)
+      // Sleep when steady
+      const mouseDelta =
+        Math.abs(mouse.targetX - mouse.x) +
+        Math.abs(mouse.targetY - mouse.y) +
+        Math.abs(mouse.targetActive - mouse.active);
+      const rectDelta = targetActive
+        ? Math.abs((targetActive.x + targetActive.width / 2) * dpr - currentActive.x) +
+          Math.abs(targetActive.width * dpr - currentActive.w)
         : 0;
 
-      if (pointerDiff < 0.2 && rectDiff < 0.2 && pointer.active < 0.02) {
+      if (mouseDelta < 0.2 && rectDelta < 0.2 && mouse.active < 0.02) {
         idleFrames++;
         if (idleFrames > 30) {
           isLoopRunning = false;
@@ -382,10 +522,9 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
       }
     };
 
-    // Initial render & loop start
     wakeLoop();
 
-    // Context loss / restoration handling
+    // Context handling
     const onContextLost = (e: Event) => {
       e.preventDefault();
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -399,14 +538,12 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
     canvas.addEventListener('webglcontextlost', onContextLost, false);
     canvas.addEventListener('webglcontextrestored', onContextRestored, false);
 
-    // Keep activeRect ref updated
-    const updateActiveRect = (rect: ActiveRect | null) => {
-      targetActiveRect = rect;
+    const updateActive = (rect: ActiveRect | null) => {
+      targetActive = rect;
       wakeLoop();
     };
 
-    (canvas as unknown as { _updateActiveRect: typeof updateActiveRect })._updateActiveRect =
-      updateActiveRect;
+    (canvas as unknown as { _updateActive: typeof updateActive })._updateActive = updateActive;
 
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -419,13 +556,12 @@ export const LiquidGlassCanvas: React.FC<LiquidGlassCanvasProps> = ({
     };
   }, []);
 
-  // Update active rect on prop change
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas && '_updateActiveRect' in canvas) {
-      (
-        canvas as unknown as { _updateActiveRect: (r: ActiveRect | null) => void }
-      )._updateActiveRect(activeRect);
+    if (canvas && '_updateActive' in canvas) {
+      (canvas as unknown as { _updateActive: (r: ActiveRect | null) => void })._updateActive(
+        activeRect
+      );
     }
   }, [activeRect]);
 

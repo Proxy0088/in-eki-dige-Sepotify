@@ -47,7 +47,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   }, [activeTab]);
 
   useEffect(() => {
-    // Run an update on next tick to capture layout settlements
     const timer = setTimeout(updateActiveRect, 50);
     window.addEventListener('resize', updateActiveRect);
     return () => {
@@ -89,35 +88,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       aria-label="Floating Navigation Bar"
       className="fixed sm:absolute bottom-5 left-1/2 -translate-x-1/2 z-40 select-none pointer-events-auto"
     >
-      {/* SVG Displacement Filter inspired by liquid-glass-vue */}
-      <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
-        <defs>
-          <filter id="sepotify-liquid-lens" x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" result="noise" />
-            <feDisplacementMap
-              in="SourceGraphic"
-              in2="noise"
-              scale="5"
-              xChannelSelector="R"
-              yChannelSelector="G"
-            />
-          </filter>
-        </defs>
-      </svg>
-
-      {/* Dock Container: preserves existing color identity, shape and dimensions */}
+      {/* Dock Container: preserves existing dark slate color and capsule shape */}
       <div
         ref={dockRef}
-        className="lastwave-glass-dock relative rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-[box-shadow,border-color] duration-300"
+        className="lastwave-glass-dock relative rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-[box-shadow,border-color] duration-300 overflow-hidden"
       >
-        {/* Interactive WebGL Liquid Glass Canvas */}
+        {/* Interactive WebGL Liquid Glass Canvas powered by preset configuration */}
         <LiquidGlassCanvas activeRect={activeRect} />
-
-        {/* Top edge physical specular highlight line */}
-        <div
-          className="absolute inset-x-5 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none rounded-full"
-          style={{ zIndex: 2 }}
-        />
 
         {/* Tab Buttons */}
         {tabs.map((tab) => {
@@ -135,7 +112,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               className={`relative z-10 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
                 isActive
                   ? 'rounded-full px-3.5 py-1.5 text-white font-medium gap-2 shadow-sm'
-                  : 'w-10 h-9 rounded-full text-[#a1a1a6] hover:text-[#ededed] hover:bg-white/[0.06]'
+                  : 'w-10 h-9 rounded-full text-[#a1a1a6] hover:text-[#ededed] hover:bg-white/[0.05]'
               }`}
               aria-label={label}
               aria-current={isActive ? 'page' : undefined}
@@ -144,26 +121,22 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               {isActive && (
                 <motion.div
                   layoutId="liquid-active-pill"
-                  className="absolute inset-0 rounded-full overflow-hidden pointer-events-none lastwave-glass-active"
+                  className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"
                   transition={{
                     type: 'spring',
                     stiffness: 420,
-                    damping: 30,
+                    damping: 32,
                     mass: 0.8,
                   }}
                   style={{
-                    background:
-                      'linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.10) 100%)',
+                    background: 'rgba(255, 255, 255, 0.10)',
                     boxShadow:
-                      'inset 0 1px 1px 0 rgba(255, 255, 255, 0.38), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.25)',
-                    border: '1px solid rgba(255, 255, 255, 0.24)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
+                      'inset 0 1px 1px 0 rgba(255, 255, 255, 0.30), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.25)',
+                    border: '1px solid rgba(255, 255, 255, 0.20)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
                   }}
-                >
-                  {/* Internal meniscus specular reflection */}
-                  <div className="absolute inset-x-2 top-0.5 h-1.5 rounded-full bg-gradient-to-b from-white/35 to-transparent pointer-events-none" />
-                </motion.div>
+                />
               )}
 
               {/* Icon */}
