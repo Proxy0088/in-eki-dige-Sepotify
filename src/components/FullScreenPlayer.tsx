@@ -142,14 +142,14 @@ const AmbientFloatingParticles: React.FC<{
     resize();
     window.addEventListener('resize', resize);
 
-    // Initial 6 large, serene wandering halos (much larger & very calm motion)
+    // Initial large, serene wandering halos (enlarged for majestic ambient glow)
     const particleDefs: Array<{ type: AmbientParticle['type']; radius: number; speed: number; opacity: number }> = [
-      { type: 'primary', radius: 155, speed: 7.5, opacity: 0.48 },
-      { type: 'white', radius: 120, speed: 8.5, opacity: 0.52 },
-      { type: 'secondary', radius: 175, speed: 6.5, opacity: 0.44 },
-      { type: 'white', radius: 110, speed: 9.0, opacity: 0.50 },
-      { type: 'accent', radius: 160, speed: 7.0, opacity: 0.46 },
-      { type: 'primary', radius: 185, speed: 5.5, opacity: 0.40 },
+      { type: 'primary', radius: 270, speed: 6.0, opacity: 0.52 },
+      { type: 'white', radius: 210, speed: 7.0, opacity: 0.54 },
+      { type: 'secondary', radius: 310, speed: 5.2, opacity: 0.48 },
+      { type: 'white', radius: 190, speed: 7.5, opacity: 0.50 },
+      { type: 'accent', radius: 280, speed: 5.8, opacity: 0.48 },
+      { type: 'primary', radius: 340, speed: 4.8, opacity: 0.44 },
     ];
 
     const particles: AmbientParticle[] = particleDefs.map((def, i) => {
@@ -190,7 +190,7 @@ const AmbientFloatingParticles: React.FC<{
         p.y += Math.sin(p.angle) * p.speed * dt;
 
         // Boundary reflection with soft deflection
-        const margin = p.radius * 0.2;
+        const margin = p.radius * 0.15;
         if (p.x < margin) {
           p.x = margin;
           p.angle = Math.PI - p.angle + (Math.random() - 0.5) * 0.3;
@@ -249,7 +249,7 @@ const AmbientFloatingParticles: React.FC<{
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none filter blur-[14px]"
+      className="absolute inset-x-0 bottom-0 top-[48%] pointer-events-none overflow-hidden z-10 select-none filter blur-[18px] [mask-image:linear-gradient(to_bottom,transparent,black_50px,black)]"
     >
       <canvas ref={canvasRef} className="w-full h-full block" />
     </div>
@@ -578,15 +578,15 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
         )}
       </div>
 
+      {/* ── Ambient Floating Halos (From artwork fade-out region down through controls) ── */}
+      <AmbientFloatingParticles
+        coverUrl={currentTrack.coverUrl}
+        title={currentTrack.title}
+        artist={currentTrack.artist}
+      />
+
       {/* ── Bottom Controls Section (Pixel-matched to reference image) ── */}
       <div className="relative z-30 w-full flex flex-col gap-3 pb-6">
-        {/* Ambient Floating Halos anchored strictly from where the track title begins down to bottom controls */}
-        <AmbientFloatingParticles
-          coverUrl={currentTrack.coverUrl}
-          title={currentTrack.title}
-          artist={currentTrack.artist}
-        />
-
         {/* Track Title, Artist & Circular Action Buttons */}
         <div className="relative z-10 flex items-end justify-between gap-4 w-full px-6">
           <div className="flex flex-col min-w-0 flex-1">
