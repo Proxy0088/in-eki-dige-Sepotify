@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Music } from 'lucide-react';
+import { Play, Pause, SkipForward, Music } from 'lucide-react';
 import { Track } from '../types/music';
+import { audioService } from '../services/audioPlayer';
 
 interface WhenPlayingWidgetProps {
   currentTrack: Track | null;
@@ -16,238 +17,150 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
   isPlaying,
   onTogglePlay,
   onNextTrack,
-  onPreviousTrack,
   onOpenPlayer,
 }) => {
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
-  const [autoHidden, setAutoHidden] = useState<boolean>(false);
   const [coverError, setCoverError] = useState<boolean>(false);
-  const pauseTimerRef = useRef<number | null>(null);
+  const [progress, setProgress] = useState<number>(0);
   const touchStartY = useRef<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     setCoverError(false);
   }, [currentTrack?.coverUrl]);
 
+  // Subscribe to time updates for the thin progress indicator
   useEffect(() => {
-    if (isPlaying) {
-      if (pauseTimerRef.current) {
-        clearTimeout(pauseTimerRef.current);
-        pauseTimerRef.current = null;
+    const unsub = audioService.subscribe(() => {
+      const cur = audioService.getCurrentTime();
+      const dur = audioService.getDuration();
+      if (dur > 0) {
+        setProgress(Math.min(100, Math.max(0, (cur / dur) * 100)));
+      } else {
+        setProgress(0);
       }
-      setAutoHidden(false);
-      setIsDismissed(false);
-    } else if (currentTrack) {
-      if (pauseTimerRef.current) {
-        clearTimeout(pauseTimerRef.current);
-      }
-      pauseTimerRef.current = window.setTimeout(() => {
-        setAutoHidden(true);
-      }, 4000);
-    }
+    });
+    return () => unsub();
+  }, []);
 
-    return () => {
-      if (pauseTimerRef.current) {
-        clearTimeout(pauseTimerRef.current);
-      }
-    };
-  }, [isPlaying, currentTrack]);
-
-  if (!currentTrack) {
+  if (!currentTrack || isDismissed) {
     return null;
   }
 
-  const isVisible = !isDismissed && !autoHidden;
-
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartY.current === null) return;
+    if (touchStartY.current === null || touchStartX.current === null) return;
     const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
     touchStartY.current = null;
+    touchStartX.current = null;
 
-    if (deltaY > 25 && isVisible) {
-      setIsDismissed(true);
-    } else if (deltaY < -20 && !isVisible) {
-      setIsDismissed(false);
-      setAutoHidden(false);
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
+      if (deltaY < -24 && onOpenPlayer) {
+        // Swipe up opens full player
+        onOpenPlayer();
+      } else if (deltaY > 30) {
+        // Swipe down dismisses mini player
+        setIsDismissed(true);
+      }
+    } else {
+      if (deltaX < -40) {
+        onNextTrack();
+      }
     }
   };
 
-  const isTitleLong = currentTrack.title.length > 10;
-
   return (
-    <>
-      {/* iPhone-style Lock Screen Grabber Handle (When widget is tucked under navbar) */}
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="fixed sm:absolute bottom-[72px] sm:bottom-[82px] left-3.5 right-3.5 sm:left-4 sm:right-4 z-40 max-w-[392px] mx-auto select-none pointer-events-auto transition-transform duration-300 ease-out"
+    >
+      {/* LastWave Floating Mini-Player Pill */}
       <div
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onClick={() => {
-          setIsDismissed(false);
-          setAutoHidden(false);
-        }}
-        className={`fixed sm:absolute bottom-[98px] sm:bottom-[118px] left-1/2 -translate-x-1/2 z-40 transition-all duration-500 ease-out cursor-pointer flex flex-col items-center gap-1 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/10 shadow-lg ${
-          !isVisible
-            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
-            : 'opacity-0 translate-y-6 scale-90 pointer-events-none'
-        }`}
-        title="Swipe up or tap to show player"
+        onClick={onOpenPlayer}
+        className="w-full h-[62px] rounded-full lastwave-glass px-2.5 pr-3.5 flex items-center justify-between gap-3 shadow-[0_16px_40px_rgba(0,0,0,0.6)] cursor-pointer group hover:border-white/20 transition-all duration-200 relative overflow-hidden active:scale-[0.99]"
+        role="button"
+        aria-label="Open full player"
       >
-        <div className="flex items-center gap-2">
-          <Music className="w-3.5 h-3.5 text-white/90 animate-pulse" />
-          <span className="text-[11px] font-roboto font-medium text-white/80 max-w-[140px] truncate">
+        {/* Track Artwork */}
+        <div className="relative w-11 h-11 rounded-[14px] overflow-hidden bg-[#181a22] shrink-0 shadow-md border border-white/10">
+          {currentTrack.coverUrl && !coverError ? (
+            <img
+              src={currentTrack.coverUrl}
+              alt={currentTrack.title}
+              referrerPolicy="no-referrer"
+              onError={() => setCoverError(true)}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Music className="w-5 h-5 text-white/50" />
+            </div>
+          )}
+
+          {/* Equalizer animation when playing */}
+          {isPlaying && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-0.5">
+              <span className="w-0.5 h-3 bg-white rounded-full animate-[pulse_0.6s_infinite]" />
+              <span className="w-0.5 h-4 bg-white rounded-full animate-[pulse_0.4s_infinite]" />
+              <span className="w-0.5 h-2.5 bg-white rounded-full animate-[pulse_0.7s_infinite]" />
+            </div>
+          )}
+        </div>
+
+        {/* Track Title and Artist */}
+        <div className="flex flex-col min-w-0 flex-1 justify-center pr-1">
+          <span className="text-[13px] font-bold text-white tracking-tight truncate leading-snug">
             {currentTrack.title}
           </span>
-        </div>
-        <div className="w-10 h-1 bg-white/50 rounded-full hover:bg-white transition-colors" />
-      </div>
-
-      {/* Main Figma Node 78:21 "When is playing" (width: 307, height: 135, pinned relative to bottom navbar) */}
-      <div
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        className={`fixed sm:absolute bottom-[74px] sm:bottom-[94px] left-1/2 -translate-x-1/2 w-[307px] max-w-[calc(100%-48px)] h-[135px] z-20 transition-all duration-500 ease-out ${
-          isVisible
-            ? 'opacity-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 translate-y-44 pointer-events-none'
-        }`}
-      >
-        {/* Swipe down grabber bar on top */}
-        <button
-          type="button"
-          onClick={() => setIsDismissed(true)}
-          className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center text-white/40 hover:text-white transition-colors cursor-pointer z-40 group"
-          aria-label="Swipe down to hide"
-        >
-          <div className="w-9 h-1 rounded-full bg-white/25 group-hover:bg-white/60 transition-colors" />
-        </button>
-
-        {/* Node 78:4 "info" Frame: width: 307, height: 69, top: 27px, borderRadius: 20, bg: #212121, inner-shadows */}
-        <div
-          onClick={onOpenPlayer}
-          className="absolute top-[27px] left-0 w-[307px] h-[69px] rounded-[20px] shadow-figma-playing-info flex items-center justify-between px-[13px] cursor-pointer hover:bg-[#252525] transition-colors"
-        >
-          {/* Name Text: x: 13, y: 27, Roboto Bold 13.3px, letter-spacing: 1.33px, #FFFFFF */}
-          <div className="w-[64px] overflow-hidden flex items-center justify-center">
-            <span
-              className={`font-roboto font-bold text-[13.3px] text-white tracking-[1.33px] ${
-                isTitleLong ? 'animate-marquee-text' : 'truncate text-center'
-              }`}
-              title={currentTrack.title}
-            >
-              {currentTrack.title}
-            </span>
-          </div>
-
-          {/* Artis Text: x: 230, y: 27, Roboto Bold 13.3px, letter-spacing: 1.33px, #FFFFFF */}
-          <div className="w-[64px] overflow-hidden flex items-center justify-center">
-            <span
-              className="font-roboto font-bold text-[13.3px] text-white tracking-[1.33px] truncate text-center"
-              title={currentTrack.artist}
-            >
-              {currentTrack.artist}
-            </span>
-          </div>
+          <span className="text-[11px] font-medium text-white/60 truncate leading-snug">
+            {currentTrack.artist}
+          </span>
         </div>
 
-        {/* Node 78:2 "Ellipse 1": width: 135, height: 135, centered horizontally at left: 86px (138 - 52), top: 0 */}
+        {/* Action Controls */}
         <div
-          onClick={onOpenPlayer}
-          className="absolute left-[86px] top-0 w-[135px] h-[135px] rounded-full overflow-hidden shadow-figma-ellipse select-none cursor-pointer active:scale-95 transition-transform"
-          style={{ backgroundColor: '#D9D9D9' }}
-          role="button"
-          aria-label="Open Fullscreen Player"
-          title="Open Player"
+          className="flex items-center gap-1.5 shrink-0"
+          onClick={(e) => e.stopPropagation()}
         >
-          {/* Rotating Album Artwork */}
-          <div
-            className={`absolute inset-0 w-full h-full rounded-full overflow-hidden animate-spin-vinyl ${
-              isPlaying ? '' : 'animation-paused'
-            }`}
+          {/* Main Play/Pause Button - Light/White Circular */}
+          <button
+            type="button"
+            onClick={onTogglePlay}
+            className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-[0_4px_14px_rgba(255,255,255,0.25)] hover:bg-slate-100 active:scale-90 transition-all cursor-pointer"
+            aria-label={isPlaying ? 'Pause' : 'Play'}
           >
-            {currentTrack.coverUrl && !coverError ? (
-              <img
-                src={currentTrack.coverUrl}
-                alt={currentTrack.title}
-                referrerPolicy="no-referrer"
-                onError={() => setCoverError(true)}
-                className="w-full h-full object-cover"
-              />
+            {isPlaying ? (
+              <Pause className="w-4 h-4 fill-black text-black" />
             ) : (
-              <div className="w-full h-full bg-[#1b1b1b] flex items-center justify-center">
-                <Music className="w-12 h-12 text-[#999999]" />
-              </div>
+              <Play className="w-4 h-4 fill-black text-black ml-0.5" />
             )}
-          </div>
+          </button>
 
-          {/* Frosted Metallic Spherical Shading Overlay matching #D9D9D9 spec */}
+          {/* Next Track Button */}
+          <button
+            type="button"
+            onClick={onNextTrack}
+            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/15 text-white/85 hover:text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer"
+            aria-label="Next track"
+          >
+            <SkipForward className="w-4 h-4 fill-current" />
+          </button>
+        </div>
+
+        {/* Mini Progress Line along the bottom of the capsule */}
+        <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-white/10 overflow-hidden rounded-full">
           <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background:
-                'radial-gradient(circle at 50% 32%, rgba(245, 247, 250, 0.72) 0%, rgba(217, 217, 217, 0.76) 55%, rgba(145, 150, 160, 0.85) 100%)',
-              boxShadow:
-                'inset 0 3px 6px rgba(255, 255, 255, 0.6), inset 0 -3px 6px rgba(0, 0, 0, 0.35)',
-            }}
+            className="h-full bg-cyan-400 transition-all duration-300"
+            style={{ width: `${progress}%` }}
           />
-
-          {/* Center Playback Controls: Pause (47x47), Next (43x43), Prev (43x43) */}
-          <div className="absolute inset-0 flex items-center justify-center gap-2 z-10 text-[#40434a]">
-            {/* Skip Previous (|◀) */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPreviousTrack();
-              }}
-              className="w-[36px] h-[36px] flex items-center justify-center hover:text-black transition-colors active:scale-90 cursor-pointer"
-              aria-label="Previous track"
-            >
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-              </svg>
-            </button>
-
-            {/* Pause / Play in Center */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onTogglePlay();
-              }}
-              className="w-[47px] h-[47px] flex items-center justify-center hover:text-black transition-colors active:scale-95 cursor-pointer"
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-            >
-              {isPlaying ? (
-                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                  <path d="M7 5v14l11-7z" />
-                </svg>
-              )}
-            </button>
-
-            {/* Skip Next (▶|) */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onNextTrack();
-              }}
-              className="w-[36px] h-[36px] flex items-center justify-center hover:text-black transition-colors active:scale-90 cursor-pointer"
-              aria-label="Next track"
-            >
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-              </svg>
-            </button>
-          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };

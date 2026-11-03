@@ -1,4 +1,5 @@
 import React from 'react';
+import { Users, User, Radio } from 'lucide-react';
 
 interface TopCapsuleProps {
   title: string;
@@ -12,65 +13,51 @@ export const TopCapsule: React.FC<TopCapsuleProps> = ({
   onGroupClick,
 }) => {
   return (
-    <nav
-      aria-label="Top Navigation"
-      className="absolute right-5 sm:right-[27px] top-[max(calc(env(safe-area-inset-top,0px)+16px),24px)] sm:top-[45px] w-[236px] h-[48px] rounded-[36px] bg-[#212121]/90 backdrop-blur-md shrink-0 select-none z-30 pointer-events-auto shadow-figma-top-navbar"
+    <header
+      aria-label="App Top Navigation"
+      className="absolute top-0 left-0 right-0 h-[64px] sm:h-[72px] px-5 sm:px-6 flex items-center justify-between z-30 select-none pointer-events-auto bg-gradient-to-b from-[#0a0b0e]/90 via-[#0a0b0e]/50 to-transparent backdrop-blur-md"
     >
-      {/* Home (28:57): x: 31, y: 12, w: 55, h: 24 - Audex 400 20px */}
-      <span
-        className="absolute left-[31px] top-[12px] h-[24px] flex items-center font-audex text-[20px] font-normal tracking-tight text-[#999999] leading-none select-none pointer-events-none"
-      >
-        {title || 'Home'}
-      </span>
+      {/* Brand title on left matching LastWave ExpressiveHeader */}
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-400 via-sky-500 to-indigo-600 flex items-center justify-center shadow-[0_2px_12px_rgba(14,165,233,0.35)]">
+          <Radio className="w-4 h-4 text-white stroke-[2.2]" />
+        </div>
+        <div className="flex flex-col">
+          <span className="font-sans text-[20px] sm:text-[22px] font-black tracking-tight text-white leading-none">
+            Sepotify
+          </span>
+          <span className="text-[10px] font-medium text-white/50 tracking-wider uppercase mt-0.5">
+            {title || 'LastWave'}
+          </span>
+        </div>
+      </div>
 
-      {/* People alt (28:59): x: 126, y: 12, w: 24, h: 24 */}
-      <button
-        type="button"
-        onClick={onGroupClick}
-        className="absolute left-[126px] top-[12px] w-[24px] h-[24px] flex items-center justify-center text-[#999999] hover:text-white transition-colors cursor-pointer"
-        aria-label="Friends and group"
-        title="گروه و دوستان"
-      >
-        <svg
-          className="w-[22px] h-[22px]"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      {/* Action buttons on right: Group/Friends & Profile avatar */}
+      <div className="flex items-center gap-2.5">
+        {/* Listen with Friends button */}
+        <button
+          type="button"
+          onClick={onGroupClick}
+          className="w-10 h-10 rounded-full lastwave-glass-pill flex items-center justify-center text-white/80 hover:text-white cursor-pointer active:scale-90 transition-all"
+          aria-label="Friends and group"
+          title="گوش دادن با رفیق‌ها"
         >
-          {/* Main user */}
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          {/* Second user behind */}
-          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      </button>
+          <Users className="w-[18px] h-[18px] stroke-[1.8]" />
+        </button>
 
-      {/* Account circle (28:78): x: 181, y: 12, w: 24, h: 24 */}
-      <button
-        type="button"
-        onClick={onProfileClick}
-        className="absolute left-[181px] top-[12px] w-[24px] h-[24px] flex items-center justify-center text-[#999999] hover:text-white transition-colors cursor-pointer"
-        aria-label="User profile"
-        title="پروفایل کاربری"
-      >
-        <svg
-          className="w-[22px] h-[22px]"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        {/* Profile Avatar circle */}
+        <button
+          type="button"
+          onClick={onProfileClick}
+          className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 hover:brightness-110 active:scale-90 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.35)] cursor-pointer"
+          aria-label="User profile"
+          title="پروفایل کاربری و تنظیمات"
         >
-          <circle cx="12" cy="12" r="10" />
-          <circle cx="12" cy="10" r="3" />
-          <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
-        </svg>
-      </button>
-    </nav>
+          <div className="w-full h-full rounded-full bg-[#13151d] flex items-center justify-center overflow-hidden">
+            <User className="w-[18px] h-[18px] text-white/90 stroke-[2]" />
+          </div>
+        </button>
+      </div>
+    </header>
   );
 };

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Shield, Globe, Sun, Moon, Info, Radio, Sparkles } from 'lucide-react';
 import { AppTheme } from '../types/music';
 
 interface SettingScreenProps {
@@ -15,131 +16,132 @@ export const SettingScreen: React.FC<SettingScreenProps> = ({
   onThemeChange,
 }) => {
   return (
-    <div className="flex-1 flex flex-col items-center px-5 pt-[max(calc(env(safe-area-inset-top,0px)+96px),108px)] sm:pt-[118px] pb-32 overflow-y-auto no-scrollbar select-none">
-      {/* 
-        Figma Node 133:108 "Setting list"
-        Geometry & Shadows:
-        - width: 370px, max-w-full
-        - borderRadius: 30px
-        - background: #212121
-        - shadows: -15px -15px 100px 0px rgba(60,60,60,0.27), 15px 15px 30px 0px #191919
-      */}
-      <div className="w-full max-w-[370px] rounded-[30px] shadow-setting-list p-[13px] flex flex-col gap-[25px]">
-        {/* ========================================================
-            CARD 1: Node 133:133 "div.card" -> "IR net mode"
-            ======================================================== */}
-        <div className="w-full h-[102px] rounded-[30px] shadow-setting-card relative flex items-center justify-between px-[17px] transition-all">
-          <div className="flex flex-col min-w-0 pr-3">
-            {/* Node 133:109 "IR net mode": Audex 400 24px, #999999 */}
-            <span className="font-audex text-[24px] font-normal leading-tight text-[#999999] tracking-tight truncate">
-              IR net mode
-            </span>
-            {/* Node 134:167 "this is for iranian when the internet shuts down": Audex 400 12px, #999999 */}
-            <span className="font-audex text-[12px] font-normal leading-[1.25] text-[#999999] tracking-tight mt-1 whitespace-pre-line opacity-90">
-              {'this is for iranian \nwhen the internet shuts down '}
-            </span>
+    <div className="flex-1 flex flex-col items-center px-4 sm:px-5 pt-[72px] sm:pt-[80px] pb-32 overflow-y-auto no-scrollbar select-none">
+      <div className="w-full max-w-[390px] flex flex-col gap-3.5">
+        {/* Header Title */}
+        <div className="flex items-center justify-between px-1 mb-1">
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-black text-white tracking-tight">Settings</h1>
+            <span className="text-xs text-white/50 font-medium">Preferences & network</span>
+          </div>
+          <span className="text-xs font-mono font-semibold text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-1 rounded-full">
+            v2.4
+          </span>
+        </div>
+
+        {/* ── CARD 1: IR Net Mode (National Net Shield) ── */}
+        <div className="w-full rounded-[24px] bg-[#14151c] border border-white/5 p-4 flex items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div className={`w-11 h-11 rounded-[16px] flex items-center justify-center shrink-0 border ${
+              isNationalNet
+                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                : 'bg-white/5 border-white/10 text-white/60'
+            }`}>
+              <Shield className="w-5 h-5 stroke-[2]" />
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-white tracking-tight">
+                IR Net Shield
+              </span>
+              <span className="text-xs text-white/50 leading-relaxed mt-0.5">
+                Stream via domestic servers (musicdel.ir) without VPN
+              </span>
+            </div>
           </div>
 
-          {/* Node 133:130 "Label": Toggle Frame w: 71.5, h: 34, r: 50, border 2px #414141 */}
+          {/* iOS-style toggle */}
           <button
             type="button"
             role="switch"
             aria-checked={isNationalNet}
             onClick={() => onToggleNationalNet(!isNationalNet)}
-            className={`w-[71.5px] h-[34px] rounded-[50px] border-2 transition-all duration-300 relative shrink-0 cursor-pointer p-[3px] flex items-center ${
+            className={`w-12 h-7 rounded-full transition-colors duration-300 relative shrink-0 cursor-pointer p-0.5 flex items-center ${
               isNationalNet
-                ? 'border-emerald-500 bg-emerald-950/40 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
-                : 'border-[#414141] bg-transparent'
+                ? 'bg-emerald-500'
+                : 'bg-white/20'
             }`}
           >
-            {/* Node 133:131 "::before": Knob w: 23.8, h: 23.8, r: 50, bg #979797 */}
             <div
-              className={`w-[23.8px] h-[23.8px] rounded-[50px] transition-transform duration-300 transform shadow-md ${
-                isNationalNet
-                  ? 'translate-x-[36px] bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
-                  : 'translate-x-[2px] bg-[#979797]'
+              className={`w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 ${
+                isNationalNet ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>
         </div>
 
-        {/* ========================================================
-            CARD 2: Node 133:135 "div.card" -> "language"
-            ======================================================== */}
-        <div className="w-full h-[102px] rounded-[30px] shadow-setting-card relative flex items-center justify-between px-[15px] transition-all">
-          <div className="flex flex-col min-w-0 pr-3">
-            {/* Node 133:136 "language": Audex 400 24px, #999999 */}
-            <span className="font-audex text-[24px] font-normal leading-tight text-[#999999] tracking-tight">
-              language
-            </span>
+        {/* ── CARD 2: Language ── */}
+        <div className="w-full rounded-[24px] bg-[#14151c] border border-white/5 p-4 flex items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div className="w-11 h-11 rounded-[16px] bg-white/5 border border-white/10 text-cyan-400 flex items-center justify-center shrink-0">
+              <Globe className="w-5 h-5 stroke-[2]" />
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-white tracking-tight">
+                Language
+              </span>
+              <span className="text-xs text-white/50 mt-0.5">
+                Default display language
+              </span>
+            </div>
           </div>
 
-          {/* 
-            Node 134:161 "div.card": Dropdown container w: 159, h: 42, r: 30, bg #212121
-            User requirement: "گذینه زبان رو کلا غیر فعال کن . گذینه اش باشه ها ولی هیچ کاری انجام نده"
-          */}
-          <div
-            className="w-[159px] h-[42px] rounded-[30px] shadow-setting-dropdown flex items-center justify-between px-5 select-none cursor-default shrink-0 opacity-80"
-            title="Language selector (Fixed to English)"
-          >
-            {/* Node 134:166 "En": Audex 400 20px, #999999 */}
-            <span className="font-audex text-[20px] font-normal text-[#999999] leading-none">
-              En
-            </span>
-
-            {/* Node 134:163 "icon-park-outline:left": rotated -90deg (downward arrow) */}
-            <svg
-              width="25"
-              height="25"
-              viewBox="0 0 25 25"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="rotate-[-90deg] shrink-0"
-            >
-              {/* Node 134:164 Vector: 6.25 x 12.5 */}
-              <path
-                d="M15.5 6.25L9.25 12.5L15.5 18.75"
-                stroke="#999999"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+          {/* En fixed badge (per user specification) */}
+          <div className="lastwave-glass-pill px-3 py-1.5 rounded-full text-xs font-bold text-white/80">
+            English
           </div>
         </div>
 
-        {/* ========================================================
-            CARD 3: Node 133:139 "div.card" -> "Light mode"
-            ======================================================== */}
-        <div className="w-full h-[102px] rounded-[30px] shadow-setting-card relative flex items-center justify-between px-[15px] transition-all">
-          <div className="flex flex-col min-w-0 pr-3">
-            {/* Node 133:140 "Light mode": Audex 400 24px, #999999 */}
-            <span className="font-audex text-[24px] font-normal leading-tight text-[#999999] tracking-tight">
-              Light mode
-            </span>
+        {/* ── CARD 3: Theme Toggle ── */}
+        <div className="w-full rounded-[24px] bg-[#14151c] border border-white/5 p-4 flex items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div className="w-11 h-11 rounded-[16px] bg-white/5 border border-white/10 text-amber-400 flex items-center justify-center shrink-0">
+              {theme === 'light' ? (
+                <Sun className="w-5 h-5 stroke-[2]" />
+              ) : (
+                <Moon className="w-5 h-5 stroke-[2]" />
+              )}
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-white tracking-tight">
+                Theme
+              </span>
+              <span className="text-xs text-white/50 mt-0.5">
+                {theme === 'light' ? 'Light Theme (Clean Frost)' : 'Dark Theme (OLED Black)'}
+              </span>
+            </div>
           </div>
 
-          {/* Node 133:141 "Label": Toggle Frame w: 71.5, h: 34, r: 50, border 2px #414141 */}
           <button
             type="button"
             role="switch"
             aria-checked={theme === 'light'}
             onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
-            className={`w-[71.5px] h-[34px] rounded-[50px] border-2 transition-all duration-300 relative shrink-0 cursor-pointer p-[3px] flex items-center ${
+            className={`w-12 h-7 rounded-full transition-colors duration-300 relative shrink-0 cursor-pointer p-0.5 flex items-center ${
               theme === 'light'
-                ? 'border-amber-400 bg-amber-950/40 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
-                : 'border-[#414141] bg-transparent'
+                ? 'bg-amber-400'
+                : 'bg-white/20'
             }`}
           >
-            {/* Node 133:142 "::before": Knob w: 23.8, h: 23.8, r: 50, bg #979797 */}
             <div
-              className={`w-[23.8px] h-[23.8px] rounded-[50px] transition-transform duration-300 transform shadow-md ${
-                theme === 'light'
-                  ? 'translate-x-[36px] bg-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.8)]'
-                  : 'translate-x-[2px] bg-[#979797]'
+              className={`w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 ${
+                theme === 'light' ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>
+        </div>
+
+        {/* ── App Info Card ── */}
+        <div className="w-full rounded-[24px] bg-[#14151c]/60 border border-white/5 p-4 flex flex-col gap-2 mt-2">
+          <div className="flex items-center gap-2 text-white/70">
+            <Radio className="w-4 h-4 text-cyan-400" />
+            <span className="text-xs font-bold text-white">Sepotify x LastWave Native</span>
+          </div>
+          <p className="text-[11px] text-white/40 leading-relaxed">
+            High-fidelity audio streaming client inspired by LastWave Native with Liquid Glass materials and verified YouTube Music streaming.
+          </p>
         </div>
       </div>
     </div>

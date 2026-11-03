@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Globe, FolderDown, ShieldCheck } from 'lucide-react';
+import { Search as SearchIcon, Globe, FolderDown, ShieldCheck, X, Sparkles } from 'lucide-react';
 import { AppLanguage, Track } from '../types/music';
 import { IranMusicService } from '../services/iranMusicService';
 import { OfficialMusicService } from '../services/officialMusicService';
 import { MusicDelService } from '../services/musicDelService';
-import { YouTubeMusicProvider } from '../services/youtubeMusicProvider';
-import { TrackMatcher } from '../services/trackMatcher';
 import { TrackMatchCache } from '../services/trackMatchCache';
 import { apiUrl } from '../services/apiConfig';
 import { MusicRow } from './MusicRow';
@@ -25,6 +23,8 @@ interface OnlineSearchScreenProps {
   language?: AppLanguage;
 }
 
+const CATEGORY_CHIPS = ['All', 'Ambient', 'Electronic', 'Pop', 'Rock', 'Classical', 'Lo-Fi'];
+
 export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
   allTracks,
   currentTrack,
@@ -40,6 +40,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
 }) => {
   const [searchMode, setSearchMode] = useState<'online' | 'local'>('online');
   const [query, setQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [onlineResults, setOnlineResults] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -47,7 +48,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // 350ms debounced search for online original music
+  // 350ms debounced search
   useEffect(() => {
     if (searchMode !== 'online') {
       setIsSearching(false);
@@ -75,7 +76,6 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
     const timer = setTimeout(async () => {
       try {
         if (isNationalNet) {
-          // National Net mode: Direct search on musicdel.ir
           const results = await MusicDelService.searchTracks(trimmed, controller.signal, 15);
           if (results.length > 0) {
             setOnlineResults(results);
@@ -84,15 +84,13 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
             setOnlineResults(fallback);
           }
         } else {
-          // Standard Global Mode: Canonical iTunes Catalog + on-demand verified YouTube Music InnerTube streaming
           const officialTracks = await OfficialMusicService.searchOriginalTracks(
             trimmed,
             controller.signal,
-            12
+            15
           );
 
           if (officialTracks.length > 0) {
-            // Map canonical tracks with existing high-confidence cached streams
             const matchedTracks: Track[] = officialTracks.map((track) => {
               const cached = TrackMatchCache.getMatch(track.artist, track.title);
               if (cached?.videoId && (cached.score >= 65 || cached.manualOverride)) {
@@ -105,47 +103,16 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
                   isStreamable: true,
                 };
               }
-              // Authentic track - will be matched with 100% precision specifically for this artist+title on playback
               return track;
             });
-
             setOnlineResults(matchedTracks);
           } else {
-            // Fallback for rare indie or Persian tracks not in iTunes: search YouTube Music directly
-            const ytmCandidates = await YouTubeMusicProvider.searchCandidates(
-              trimmed,
-              controller.signal,
-              12
-            );
-
-            const directTracks: Track[] = [];
-            for (const cand of ytmCandidates) {
-              if (cand.isSong || (cand.duration && cand.duration > 40 && cand.duration < 900)) {
-                directTracks.push({
-                  id: `yt-${cand.videoId}`,
-                  title: cand.title,
-                  artist: cand.artist,
-                  album: cand.album || 'YouTube Music',
-                  duration: cand.duration || 210,
-                  url: apiUrl(`/api/stream?v=${cand.videoId}`),
-                  mood: 'Feels good',
-                  coverUrl: cand.thumbnailUrl,
-                  youtubeId: cand.videoId,
-                  isYouTube: true,
-                  isFullLength: true,
-                  isStreamable: true,
-                  collection: 'YouTube Music Original',
-                  dateAdded: Math.floor(Date.now() / 1000),
-                });
-              }
-            }
-
-            setOnlineResults(directTracks);
+            setOnlineResults([]);
           }
         }
       } catch (err: unknown) {
-        if ((err as Error)?.name !== 'AbortError') {
-          console.warn('Online search error:', err);
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.error('Online search error:', err);
           setSearchError(
             language === 'fa'
               ? 'خطا در برقراری ارتباط با سرور آنلاین'
@@ -161,7 +128,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, searchMode, isNationalNet]);
+  }, [query, searchMode, isNationalNet, language]);
 
   // Local/Downloaded tracks catalog
   const localCatalog = useMemo(() => {
@@ -170,8 +137,6 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
         downloadedIds.has(t.id) ||
         t.isDownloaded ||
         t.collection === 'Downloads' ||
-        t.collection === 'library 1' ||
-        t.collection === 'library 2' ||
         t.id.startsWith('android-media-') ||
         t.id.startsWith('device-file-') ||
         t.id.startsWith('local-device-') ||
@@ -192,17 +157,24 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
     );
   }, [localCatalog, query]);
 
-  // Selected tracks for rendering
+  // Selected tracks for rendering with category filtering
   const displayRows = useMemo(() => {
+    let list: Track[] = [];
     if (searchMode === 'online') {
-      if (query.trim()) {
-        return onlineResults;
-      }
-      return allTracks.slice(0, 5);
+      list = query.trim() ? onlineResults : allTracks.slice(0, 8);
     } else {
-      return localFiltered;
+      list = localFiltered;
     }
-  }, [searchMode, query, onlineResults, allTracks, localFiltered]);
+
+    if (selectedCategory !== 'All' && !query.trim()) {
+      list = list.filter(
+        (t) =>
+          t.mood?.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+          t.genre?.toLowerCase().includes(selectedCategory.toLowerCase())
+      );
+    }
+    return list;
+  }, [searchMode, query, onlineResults, allTracks, localFiltered, selectedCategory]);
 
   const toggleSearchMode = () => {
     setSearchMode((prev) => (prev === 'online' ? 'local' : 'online'));
@@ -227,50 +199,90 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-7 pt-[max(calc(env(safe-area-inset-top,0px)+96px),108px)] sm:pt-[118px] pb-36 overflow-y-auto no-scrollbar">
-      {/* Rounded Search Bar with Mode Toggle Icon */}
-      <div className="w-full relative mb-7">
-        <div className="w-full h-13 rounded-full neumorph-input border border-white/5 flex items-center px-5 py-2">
+    <div className="flex-1 flex flex-col px-4 sm:px-5 pt-[72px] sm:pt-[80px] pb-36 overflow-y-auto no-scrollbar select-none">
+      {/* ── LastWave Search Input Bar ── */}
+      <div className="w-full relative mb-3">
+        <div className="w-full h-12 rounded-full lastwave-glass px-4 flex items-center gap-3 shadow-md border border-white/10">
+          <SearchIcon className="w-4 h-4 text-white/50 shrink-0" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
               searchMode === 'local'
-                ? (language === 'fa' ? 'جست‌وجو در دانلودها و پوشه‌ها...' : 'Search downloads & folders...')
+                ? (language === 'fa' ? 'جست‌وجو در دانلودها و پوشه‌ها...' : 'Search downloads & device files...')
                 : isNationalNet
-                ? (language === 'fa' ? 'جست‌وجو در موزیکدل musicdel.ir (نت ملی)...' : 'Search on musicdel.ir (National Net)...')
-                : (language === 'fa' ? 'جست‌وجوی آنلاین نام آهنگ یا خواننده...' : 'Search online tracks (YouTube Music)...')
+                ? (language === 'fa' ? 'جست‌وجو در موزیکدل (نت ملی)...' : 'Search musicdel.ir (National Net)...')
+                : (language === 'fa' ? 'جست‌وجوی آنلاین نام آهنگ یا خواننده...' : 'Search artists, songs, albums...')
             }
-            className="w-full bg-transparent text-sm text-[#e5e7eb] placeholder-[#7d828c] outline-none font-medium pr-10"
+            className="w-full bg-transparent text-sm text-white placeholder-white/45 outline-none font-medium"
           />
+
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="p-1 text-white/50 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={toggleSearchMode}
-            className="absolute right-4 flex items-center justify-center p-1 text-[#9aa0a6] hover:text-white transition-colors cursor-pointer active:scale-90"
+            className="flex items-center justify-center p-1.5 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer active:scale-90 shrink-0"
             title={
               searchMode === 'online'
-                ? 'حالت آنلاین YouTube Music (کلیک برای سوئیچ به پوشه‌ها و آهنگ‌های دانلودی)'
-                : 'حالت پوشه‌ها و دانلودها (کلیک برای سوئیچ به جستجوی آنلاین)'
+                ? 'حالت آنلاین YouTube Music (کلیک برای سوئیچ به دانلودها)'
+                : 'حالت دانلودها (کلیک برای سوئیچ به آنلاین)'
             }
-            aria-label="Toggle Search Mode"
           >
             {searchMode === 'local' ? (
-              <FolderDown className="w-5 h-5 stroke-[1.8] text-white" />
+              <FolderDown className="w-4 h-4 text-cyan-400 stroke-[2]" />
             ) : isNationalNet ? (
-              <ShieldCheck className="w-5 h-5 stroke-[2] text-emerald-400" />
+              <ShieldCheck className="w-4 h-4 text-emerald-400 stroke-[2.2]" />
             ) : (
-              <Globe className="w-5 h-5 stroke-[1.8]" />
+              <Globe className="w-4 h-4 text-white/70 stroke-[2]" />
             )}
           </button>
         </div>
       </div>
 
-      {/* Music Rows matching Figma proportions */}
-      <div className="flex flex-col gap-4">
+      {/* ── Category Filter Chips ── */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mb-2">
+        {CATEGORY_CHIPS.map((cat) => {
+          const isSelected = selectedCategory === cat;
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => {
+                setSelectedCategory(cat);
+                if (cat !== 'All' && !query) {
+                  setQuery(cat.toLowerCase());
+                } else if (cat === 'All' && CATEGORY_CHIPS.map(c => c.toLowerCase()).includes(query)) {
+                  setQuery('');
+                }
+              }}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer transition-all active:scale-95 ${
+                isSelected
+                  ? 'lastwave-glass-active text-white shadow-md'
+                  : 'lastwave-glass-pill text-white/60 hover:text-white'
+              }`}
+            >
+              {cat}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Results Container ── */}
+      <div className="rounded-[24px] bg-[#14161f] border border-white/5 p-3 flex-1 flex flex-col gap-1.5 shadow-xl">
         {isSearching && displayRows.length === 0 ? (
-          <div className="py-12 text-center text-[#7e828d] text-sm animate-pulse">
-            {language === 'fa' ? 'در حال جستجو در آرشیو آنلاین...' : 'Searching online tracks...'}
+          <div className="py-14 text-center text-white/50 text-sm flex flex-col items-center justify-center gap-2">
+            <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            <span>{language === 'fa' ? 'در حال جستجو...' : 'Searching catalog...'}</span>
           </div>
         ) : displayRows.length > 0 ? (
           displayRows.map((track) => (
@@ -282,29 +294,29 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
               onPlay={(t) => onPlayTrack(t, displayRows)}
               onToggleLike={onToggleLike}
               onToggleDownload={onToggleDownload}
-              onOpenManualMatch={(t) => setMatchingTrack(t)}
+              onOpenManualMatch={
+                searchMode === 'online' ? (t) => setMatchingTrack(t) : undefined
+              }
               isLiked={likedIds.has(track.id)}
-              isDownloaded={downloadedIds.has(track.id)}
+              isDownloaded={downloadedIds.has(track.id) || track.isDownloaded}
               isDownloading={downloadingIds.has(track.id)}
             />
           ))
         ) : (
-          <div className="py-12 text-center text-[#7e828d] text-sm">
-            {searchError ||
-              (searchMode === 'online'
-                ? (language === 'fa' ? `هیچ آهنگی برای "${query}" یافت نشد` : `No online tracks found for "${query}"`)
-                : (language === 'fa' ? 'هیچ قطعه‌ای در پوشه‌ها و دانلودها یافت نشد' : 'No tracks found in downloads or folders'))}
+          <div className="py-16 text-center text-white/40 text-sm flex flex-col items-center justify-center gap-2">
+            <Sparkles className="w-8 h-8 text-white/20" />
+            <span>{language === 'fa' ? 'نتیجه‌ای یافت نشد.' : 'No tracks found.'}</span>
           </div>
         )}
       </div>
 
-      {/* Manual Match Modal */}
+      {/* Manual Stream Match Modal */}
       {matchingTrack && (
         <ManualMatchModal
           track={matchingTrack}
           isOpen={Boolean(matchingTrack)}
           onClose={() => setMatchingTrack(null)}
-          onMatchSelected={handleMatchSelected}
+          onMatched={(newVideoId) => handleMatchSelected(matchingTrack, newVideoId)}
         />
       )}
     </div>

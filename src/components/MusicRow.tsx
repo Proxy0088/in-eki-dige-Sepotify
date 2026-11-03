@@ -43,13 +43,15 @@ export const MusicRow: React.FC<MusicRowProps> = ({
   return (
     <div
       onClick={() => onPlay(track)}
-      className={`w-full h-[74px] rounded-[24px] neumorph-row-outer border border-white/5 flex items-center justify-between px-3.5 py-2.5 cursor-pointer transition-all duration-200 group ${
-        isCurrent ? 'ring-1 ring-white/20' : 'hover:scale-[1.01]'
+      className={`w-full h-[68px] rounded-[18px] flex items-center justify-between px-3 py-2 cursor-pointer transition-all duration-200 group active:scale-[0.99] select-none ${
+        isCurrent
+          ? 'bg-white/10 border border-white/15 shadow-sm'
+          : 'hover:bg-white/[0.04] border border-transparent'
       }`}
     >
       <div className="flex items-center gap-3.5 min-w-0 flex-1">
-        {/* Rounded square artwork with music cover art or music note icon */}
-        <div className="relative w-14 h-14 rounded-[18px] bg-black border border-[#444850] shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
+        {/* Squircle artwork matching LastWave ArtworkShape (RoundedCornerShape(14.dp)) */}
+        <div className="relative w-12 h-12 rounded-[14px] bg-[#181a24] border border-white/5 shrink-0 flex items-center justify-center overflow-hidden shadow-sm">
           {track.coverUrl && !imgError ? (
             <img
               src={track.coverUrl}
@@ -60,18 +62,17 @@ export const MusicRow: React.FC<MusicRowProps> = ({
               loading="lazy"
             />
           ) : (
-            <div className="absolute inset-0 w-full h-full bg-[#1b1b1b] flex items-center justify-center">
-              <Music className="w-6 h-6 text-[#8e929b]" />
+            <div className="absolute inset-0 w-full h-full bg-[#1b1b22] flex items-center justify-center">
+              <Music className="w-5 h-5 text-white/40" />
             </div>
           )}
-          {/* Subtle dark overlay for contrast */}
-          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors pointer-events-none" />
 
+          {/* Equalizer animation when playing */}
           {activePlaying ? (
             <div className="relative z-10 flex items-end gap-0.5 h-4 bg-black/60 px-1.5 py-1 rounded-md backdrop-blur-xs">
-              <span className="w-1 bg-white animate-[pulse_0.7s_infinite] h-2.5 rounded-full" />
-              <span className="w-1 bg-white animate-[pulse_0.5s_infinite] h-4 rounded-full" />
-              <span className="w-1 bg-white animate-[pulse_0.9s_infinite] h-3 rounded-full" />
+              <span className="w-0.5 bg-cyan-300 animate-[pulse_0.7s_infinite] h-2.5 rounded-full" />
+              <span className="w-0.5 bg-cyan-300 animate-[pulse_0.5s_infinite] h-4 rounded-full" />
+              <span className="w-0.5 bg-cyan-300 animate-[pulse_0.9s_infinite] h-3 rounded-full" />
             </div>
           ) : isCurrent ? (
             <div className="relative z-10 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-xs">
@@ -85,11 +86,11 @@ export const MusicRow: React.FC<MusicRowProps> = ({
         </div>
 
         {/* Track Title and Artist */}
-        <div className="flex flex-col min-w-0 pr-2">
+        <div className="flex flex-col min-w-0 pr-2 justify-center">
           <div className="flex items-center gap-1.5 min-w-0">
             <span
-              className={`text-sm font-semibold truncate tracking-tight ${
-                isCurrent ? 'text-white' : 'text-[#dedfe4]'
+              className={`text-sm font-semibold truncate tracking-tight leading-snug ${
+                isCurrent ? 'text-cyan-300' : 'text-white'
               }`}
             >
               {track.title}
@@ -100,7 +101,7 @@ export const MusicRow: React.FC<MusicRowProps> = ({
               </span>
             )}
           </div>
-          <span className="text-xs text-[#7f838c] truncate font-medium">
+          <span className="text-xs text-white/55 truncate font-medium leading-snug">
             {track.artist}
           </span>
         </div>
@@ -108,10 +109,10 @@ export const MusicRow: React.FC<MusicRowProps> = ({
 
       {/* Right controls: Duration, Match options, Like, Download */}
       <div
-        className="flex items-center gap-2 shrink-0 pl-1"
+        className="flex items-center gap-1.5 shrink-0 pl-1"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-[11px] font-mono text-[#8a8f99] shrink-0 font-medium">
+        <span className="text-xs font-mono text-white/40 shrink-0 font-medium mr-1">
           {formatDuration(track.duration)}
         </span>
 
@@ -119,7 +120,7 @@ export const MusicRow: React.FC<MusicRowProps> = ({
           <button
             type="button"
             onClick={() => onOpenManualMatch(track)}
-            className="p-1.5 text-[#7f838c] hover:text-emerald-400 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-cyan-400 hover:bg-white/10 transition-colors cursor-pointer"
             aria-label="Manual match"
             title="اصلاح نسخه پخش (تطبیق دستی یوتیوب موزیک)"
           >
@@ -131,7 +132,7 @@ export const MusicRow: React.FC<MusicRowProps> = ({
           <button
             type="button"
             onClick={() => onToggleLike(track)}
-            className="p-1.5 text-[#7f838c] hover:text-rose-400 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-rose-400 hover:bg-white/10 transition-colors cursor-pointer"
             aria-label={isLiked ? 'Unlike song' : 'Like song'}
           >
             <Heart
@@ -146,7 +147,7 @@ export const MusicRow: React.FC<MusicRowProps> = ({
           <button
             type="button"
             onClick={() => onToggleDownload(track)}
-            className="p-1.5 text-[#7f838c] hover:text-white transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             aria-label={isDownloaded ? 'Downloaded' : 'Download for offline'}
           >
             {isDownloading ? (

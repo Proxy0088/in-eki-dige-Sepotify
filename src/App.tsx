@@ -451,9 +451,10 @@ export default function App() {
             />
           )}
 
-{screenState === 'home' && (
+          {screenState === 'home' && (
             <HomeScreen
               recentTracks={recentTracks.length > 0 ? recentTracks : INITIAL_TRACKS}
+              allTracks={tracks}
               currentTrack={currentTrack}
               isPlaying={isPlaying}
               selectedMood={selectedMood}

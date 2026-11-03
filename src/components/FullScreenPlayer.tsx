@@ -1,13 +1,26 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Music } from 'lucide-react';
+import {
+  ChevronDown,
+  MoreVertical,
+  Heart,
+  Quote,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Shuffle,
+  Repeat,
+  Repeat1,
+  FolderPlus,
+  SlidersHorizontal,
+  Music,
+} from 'lucide-react';
 import { Track, NavTab } from '../types/music';
 import { audioService, PlaybackCycleMode } from '../services/audioPlayer';
 import { AskListLibraryModal } from './AskListLibraryModal';
 import { NextMusicPreview } from './NextMusicPreview';
 import { LyricsService, SongLyrics } from '../services/lyricsService';
-import { Mic2, SlidersHorizontal } from 'lucide-react';
 import { ManualMatchModal } from './ManualMatchModal';
-import { apiUrl } from '../services/apiConfig';
 
 interface FullScreenPlayerProps {
   currentTrack: Track | null;
@@ -36,13 +49,10 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   onPreviousTrack,
   onToggleLike,
   onSaveToLibrary,
-  onTabChange,
 }) => {
-  // Secondary Controls State
   const [cycleMode, setCycleMode] = useState<PlaybackCycleMode>(() =>
     audioService.getPlaybackCycleMode()
   );
-  const [isMuted, setIsMuted] = useState<boolean>(() => audioService.getIsMuted());
   const [showLibraryModal, setShowLibraryModal] = useState<boolean>(false);
   const [coverError, setCoverError] = useState<boolean>(false);
   const [showMatchModal, setShowMatchModal] = useState<boolean>(false);
@@ -51,7 +61,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   const [loadingLyrics, setLoadingLyrics] = useState<boolean>(false);
   const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Dragging / Scrubbing State for fluid seeking
+  // Dragging / Scrubbing State
   const [scrubRatio, setScrubRatio] = useState<number | null>(null);
   const isDraggingProgressRef = useRef<boolean>(false);
   const lastSeekTimeRef = useRef<number>(0);
@@ -66,7 +76,6 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   useEffect(() => {
     const unsub = audioService.subscribe(() => {
       setCycleMode(audioService.getPlaybackCycleMode());
-      setIsMuted(audioService.getIsMuted());
     });
     return () => unsub();
   }, []);
@@ -75,7 +84,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
     setCoverError(false);
   }, [currentTrack?.coverUrl]);
 
-  // Fetch millisecond-synced lyrics from LRCLIB
+  // Fetch lyrics
   useEffect(() => {
     if (!currentTrack) {
       setLyrics(null);
@@ -92,9 +101,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentTrack?.title, currentTrack?.artist]);
+  }, [currentTrack?.title, currentTrack?.artist, duration]);
 
-  // Compute active synced lyric line
+  // Active line index
   const activeLineIndex = useMemo(() => {
     if (!lyrics?.lines?.length) return -1;
     for (let i = lyrics.lines.length - 1; i >= 0; i--) {
@@ -105,21 +114,24 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
     return 0;
   }, [currentTime, lyrics]);
 
+  // Auto-scroll lyrics to active line
+  useEffect(() => {
+    if (showLyrics && activeLineIndex >= 0 && lyricsContainerRef.current) {
+      const activeEl = lyricsContainerRef.current.children[activeLineIndex] as HTMLElement;
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [activeLineIndex, showLyrics]);
+
   const isLiked = currentTrack ? likedIds.has(currentTrack.id) : false;
 
-  // Cycle Repeat / Shuffle Modes
   const handleCyclePlaybackMode = () => {
     const next = audioService.cyclePlaybackMode();
     setCycleMode(next);
   };
 
-  // Toggle Mute / Unmute
-  const handleToggleMute = () => {
-    const muted = audioService.toggleMute();
-    setIsMuted(muted);
-  };
-
-  // Next button pointer events for long-press preview
+  // Next button pointer events for preview
   const handleNextPointerDown = () => {
     isLongPressRef.current = false;
     longPressTimerRef.current = window.setTimeout(() => {
@@ -150,92 +162,46 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
     isLongPressRef.current = false;
   };
 
-  // Save to Library modal selection handler
-  const handleCloseLibraryModal = useCallback(() => {
-    setShowLibraryModal(false);
-  }, []);
+  // Seekbar scrubbing
+  const effectiveRatio = useMemo(() => {
+    if (scrubRatio !== null) return scrubRatio;
+    if (!duration || duration <= 0) return 0;
+    return Math.min(1, Math.max(0, currentTime / duration));
+  }, [scrubRatio, currentTime, duration]);
 
-  const handleSelectLibrary = useCallback((libraryName: string) => {
-    if (onSaveToLibrary && currentTrack) {
-      onSaveToLibrary(currentTrack, libraryName);
-    }
-    if (!isLiked && currentTrack) {
-      onToggleLike(currentTrack);
-    }
-  }, [onSaveToLibrary, currentTrack, isLiked, onToggleLike]);
-
-  // Progress Bar Arc Geometry
-  const R = 126;
-  const cx = 144;
-  const cy = 144;
-  const arcLength = Math.PI * R;
-
-  const trackDuration = duration || currentTrack?.duration || 180;
-  const actualRatio = trackDuration > 0 ? Math.min(Math.max(currentTime / trackDuration, 0), 1) : 0;
-  const displayRatio = scrubRatio !== null ? scrubRatio : actualRatio;
-
-  const strokeDashoffset = arcLength * (1 - displayRatio);
-  const knobAngle = Math.PI * (1 - displayRatio);
-  const knobX = cx + R * Math.cos(knobAngle);
-  const knobY = cy + R * Math.sin(knobAngle);
-
-  // Accurate angle & ratio calculator based on screen coordinates
-  const calculateSeekRatio = useCallback((clientX: number, clientY: number, target: SVGSVGElement): number => {
-    const rect = target.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-
-    const dx = clientX - centerX;
-    const dy = clientY - centerY;
-
-    let angle = Math.atan2(dy, dx);
-
-    // If pointer is above the horizontal line
-    if (dy < 0) {
-      const halfW = rect.width * 0.44;
-      const ratioFromX = (dx + halfW) / (2 * halfW);
-      return Math.max(0, Math.min(1, ratioFromX));
-    }
-
-    // In bottom half: Left (angle = Math.PI) -> ratio = 0; Right (angle = 0) -> ratio = 1
-    const ratio = (Math.PI - angle) / Math.PI;
-    return Math.max(0, Math.min(1, ratio));
-  }, []);
-
-  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+  const handleSeekbarPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     isDraggingProgressRef.current = true;
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
       // ignore
     }
-    const ratio = calculateSeekRatio(e.clientX, e.clientY, e.currentTarget);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     setScrubRatio(ratio);
-    const targetTime = ratio * trackDuration;
-    audioService.seek(targetTime);
+    audioService.seek(ratio * duration);
   };
 
-  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+  const handleSeekbarPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDraggingProgressRef.current) return;
-    const ratio = calculateSeekRatio(e.clientX, e.clientY, e.currentTarget);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     setScrubRatio(ratio);
 
-    // Throttle audio seek during dragging to keep playback responsive without overloading MediaPlayer
     const now = performance.now();
-    if (now - lastSeekTimeRef.current > 120) {
+    if (now - lastSeekTimeRef.current > 100) {
       lastSeekTimeRef.current = now;
-      const targetTime = ratio * trackDuration;
-      audioService.seek(targetTime);
+      audioService.seek(ratio * duration);
     }
   };
 
-  const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+  const handleSeekbarPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isDraggingProgressRef.current) {
-      const ratio = calculateSeekRatio(e.clientX, e.clientY, e.currentTarget);
+      const rect = e.currentTarget.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       isDraggingProgressRef.current = false;
       setScrubRatio(null);
-      const targetTime = ratio * trackDuration;
-      audioService.seek(targetTime);
+      audioService.seek(ratio * duration);
       try {
         e.currentTarget.releasePointerCapture(e.pointerId);
       } catch {
@@ -244,418 +210,333 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
     }
   };
 
+  const formatTime = (seconds: number) => {
+    if (isNaN(seconds) || seconds < 0) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const formatRemainingTime = (cur: number, dur: number) => {
+    if (isNaN(dur) || dur <= 0) return '-0:00';
+    const remaining = Math.max(0, dur - cur);
+    return `-${formatTime(remaining)}`;
+  };
+
   if (!currentTrack) {
     return null;
   }
 
   return (
-    <div className="w-full h-full bg-[#212121] relative overflow-hidden select-none animate-in fade-in duration-300 flex flex-col justify-between">
-      {/* 
-        Figma Node 114:289 "Back Page":
-        Positioned at top-left with high z-index
-      */}
-      <button
-        type="button"
-        onClick={onBack}
-        className="absolute left-[20px] sm:left-[25px] top-[24px] sm:top-[44px] z-50 w-11 h-11 flex items-center justify-center text-[#E4E4E4] hover:text-white transition-colors cursor-pointer active:scale-90"
-        aria-label="Back to previous page"
-      >
-        <svg
-          width="13"
-          height="22"
-          viewBox="0 0 12 20"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M10 2L2 10L10 18"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+    <div className="w-full h-full bg-[#0a0b0e] relative overflow-hidden select-none flex flex-col justify-between animate-in fade-in duration-300">
+      {/* ── Dynamic Ambient Artwork Backdrop (LastWave / Apple Music style) ── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {currentTrack.coverUrl && !coverError ? (
+          <img
+            src={currentTrack.coverUrl}
+            alt=""
+            className="w-full h-full object-cover scale-150 blur-[70px] opacity-40 brightness-75 transition-opacity duration-700"
           />
-        </svg>
-      </button>
-
-      {/* 
-        HERO SECTION:
-        1) Music Profile Pill: Top extends beyond frame (-top-[90px]/117px), top is NOT curved (rounded-t-none), bottom is curved (rounded-b-[140px]/158px)
-        2) Progress Bar: Placed OUTSIDE the music profile frame as an independent layer, completely unclipped and visible!
-      */}
-      <div className="relative mx-auto w-[276px] h-[min(48vh,540px)] min-h-[300px] sm:min-h-[360px] flex-shrink-0 z-30">
-        {/* 
-          Node 112:129 "music profile":
-          Top extends above frame without curve, bottom curved gracefully
-        */}
-        <div
-          className="absolute -top-[90px] sm:-top-[117px] left-0 w-full h-[calc(100%+90px)] sm:h-[calc(100%+117px)] rounded-b-[140px] sm:rounded-b-[158px] rounded-t-none bg-[#212121] overflow-hidden select-none pointer-events-none"
-          style={{
-            boxShadow: '-2px -15px 30px #3C3C3C, 17px 15px 30px #191919',
-          }}
-        >
-          {/* Full Album Artwork covering the pill */}
-          <div className="absolute inset-0 w-full h-full overflow-hidden">
-            {currentTrack.coverUrl && !coverError ? (
-              <img
-                src={currentTrack.coverUrl}
-                alt={currentTrack.title}
-                referrerPolicy="no-referrer"
-                onError={() => setCoverError(true)}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-[#1c1c1c] flex items-center justify-center">
-                <Music className="w-24 h-24 text-[#999999]" />
-              </div>
-            )}
-
-            {/* Dark Glass / Gradient Vignette Overlay to enhance contrast */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/75" />
-          </div>
-        </div>
-
-        {/* 
-          Progress Bar Group: OUTSIDE the Music Profile frame!
-          Anchored right over the bottom curve, fully visible and unclipped
-        */}
-        <div
-          className="absolute -bottom-[8px] sm:-bottom-[4px] left-1/2 -translate-x-1/2 w-[288px] h-[288px] z-40 pointer-events-auto select-none"
-          style={{ width: 288, height: 288 }}
-        >
-          <svg
-            className="w-full h-full cursor-pointer touch-none select-none drop-shadow-lg"
-            viewBox="0 0 288 288"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-          >
-            {/* Background Track Arc (#757575) */}
-            <path
-              d={`M ${cx - R} ${cy} A ${R} ${R} 0 0 0 ${cx + R} ${cy}`}
-              fill="none"
-              stroke="#757575"
-              strokeWidth="9"
-              strokeLinecap="round"
-            />
-
-            {/* Progress Arc (#D9D9D9) */}
-            <path
-              d={`M ${cx - R} ${cy} A ${R} ${R} 0 0 0 ${cx + R} ${cy}`}
-              fill="none"
-              stroke="#D9D9D9"
-              strokeWidth="9"
-              strokeDasharray={arcLength}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              className={scrubRatio !== null ? '' : 'transition-[stroke-dashoffset] duration-150 ease-linear'}
-            />
-
-            {/* Knob Dot (18x18) */}
-            <circle
-              cx={knobX}
-              cy={knobY}
-              r="9"
-              fill="#212121"
-              stroke="#D9D9D9"
-              strokeWidth="2.5"
-              className="drop-shadow-md"
-            />
-          </svg>
-
-          {/* Song Name & Artist centered inside the progress curve */}
-          <div className="absolute left-[47px] top-[19px] w-[182px] h-[116px] flex flex-col items-center justify-center pointer-events-none px-2 text-center">
-            <h1
-              className="font-roboto text-white text-[22px] sm:text-[24px] font-normal leading-tight tracking-normal line-clamp-2 drop-shadow-md"
-              title={currentTrack.title}
-            >
-              {currentTrack.title}
-            </h1>
-            <p className="font-roboto text-[#E4E4E4]/90 text-[12px] sm:text-[13px] font-normal mt-1 truncate max-w-[160px] drop-shadow">
-              {currentTrack.artist}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-b from-[#181a24] to-[#0a0b0e]" />
+        )}
+        {/* Darkening Scrims */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-[#0a0b0e]/70 to-[#0a0b0e]" />
       </div>
 
-      {/* 
-        Figma Node 119:720 "What is the next music ?" popup
-        Appears above controls when holding Next button
-      */}
-      <NextMusicPreview nextTrack={nextTrack} isVisible={showNextPreview} />
+      {/* ── Top Header Bar ── */}
+      <div className="relative z-30 w-full h-[64px] sm:h-[72px] px-5 sm:px-6 flex items-center justify-between pt-2">
+        {/* Collapse Button (Chevron Down) */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-11 h-11 rounded-full lastwave-glass-pill flex items-center justify-center text-white/90 hover:text-white cursor-pointer active:scale-90 transition-all shadow-md"
+          aria-label="Collapse player"
+        >
+          <ChevronDown className="w-6 h-6 stroke-[2.2]" />
+        </button>
 
-      {/* 
-        BOTTOM CONTROLS SECTION:
-        1) Secondary Controls Row (Like, Repeat/Shuffle, Mute)
-        2) Primary Playback Capsule (Prev, Play/Pause, Next)
-        3) Bottom Navbar
-        Positioned relative to bottom to guarantee 100% visibility on all screen heights
-      */}
-      <div className="w-full flex flex-col items-center pb-3 sm:pb-6 z-10 gap-2.5 sm:gap-4 mt-auto">
-        {/* SECONDARY CONTROLS ROW */}
-        <div className="w-[300px] sm:w-[320px] max-w-[calc(100%-48px)] flex items-center justify-between px-2 mb-3.5 sm:mb-5">
-          {/* Like Button */}
-          <button
-            type="button"
-            onClick={() => setShowLibraryModal(true)}
-            className="w-[48px] h-[48px] rounded-full bg-[#212121] border border-[#212121] flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
-            style={{
-              boxShadow: '-6px -6px 12px #2F2F2F, 6px 6px 12px #0A0A0A',
-            }}
-            aria-label={isLiked ? 'Liked' : 'Add to favorites'}
-          >
-            {isLiked ? (
-              <svg className="w-[20px] h-[18.35px] fill-[#E4E4E4]" viewBox="0 0 24 24">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-              </svg>
-            ) : (
-              <svg
-                className="w-[20px] h-[18.35px] text-[#E4E4E4]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-              </svg>
-            )}
-          </button>
-
-          {/* Repeat / Shuffle Button */}
-          <button
-            type="button"
-            onClick={handleCyclePlaybackMode}
-            className="w-[48px] h-[48px] rounded-full bg-[#212121] border border-[#212121] flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
-            style={{
-              boxShadow: '-6px -6px 12px #2F2F2F, 6px 6px 12px #0A0A0A',
-            }}
-            aria-label={`Playback mode: ${cycleMode}`}
-            title={`Playback mode: ${cycleMode}`}
-          >
-            {cycleMode === 'repeat_all' && (
-              <svg className="w-[24px] h-[24px] fill-[#E4E4E4]" viewBox="0 0 24 24">
-                <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
-              </svg>
-            )}
-
-            {cycleMode === 'repeat_one' && (
-              <svg className="w-[24px] h-[24px] fill-[#E4E4E4]" viewBox="0 0 24 24">
-                <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
-                <text
-                  x="12"
-                  y="14.5"
-                  textAnchor="middle"
-                  fontSize="9"
-                  fontWeight="bold"
-                  fill="#E4E4E4"
-                >
-                  1
-                </text>
-              </svg>
-            )}
-
-            {cycleMode === 'shuffle' && (
-              <svg className="w-[24px] h-[24px] fill-[#E4E4E4]" viewBox="0 0 24 24">
-                <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
-              </svg>
-            )}
-
-            {cycleMode === 'off' && (
-              <svg className="w-[24px] h-[24px] fill-[#757575]" viewBox="0 0 24 24">
-                <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
-              </svg>
-            )}
-          </button>
-
-          {/* Mute / Unmute Button */}
-          <button
-            type="button"
-            onClick={handleToggleMute}
-            className="w-[48px] h-[48px] rounded-full bg-[#212121] border border-[#212121] flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
-            style={{
-              boxShadow: '-6px -6px 12px #2F2F2F, 6px 6px 12px #0A0A0A',
-            }}
-            aria-label={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted ? (
-              <svg className="w-[24px] h-[24px] fill-[#E4E4E4]" viewBox="0 0 24 24">
-                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-              </svg>
-            ) : (
-              <svg className="w-[24px] h-[24px] fill-[#E4E4E4]" viewBox="0 0 24 24">
-                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-              </svg>
-            )}
-          </button>
-
-          {/* Manual Match Override Button (Meld Architecture) */}
-          <button
-            type="button"
-            onClick={() => setShowMatchModal(true)}
-            className="w-[48px] h-[48px] rounded-full bg-[#212121] border border-[#212121] flex items-center justify-center cursor-pointer active:scale-95 transition-transform text-[#E4E4E4] hover:text-emerald-400"
-            style={{
-              boxShadow: '-6px -6px 12px #2F2F2F, 6px 6px 12px #0A0A0A',
-            }}
-            aria-label="اصلاح نسخه پخش"
-            title="اصلاح نسخه پخش (تطبیق دستی یوتیوب موزیک)"
-          >
-            <SlidersHorizontal className="w-[18px] h-[18px] stroke-[2]" />
-          </button>
+        {/* Center: "NOW PLAYING" & Source Title */}
+        <div className="flex flex-col items-center justify-center max-w-[200px]">
+          <span className="text-[11px] font-bold tracking-[2px] text-white/90 uppercase leading-none">
+            {showLyrics ? 'LYRICS' : 'NOW PLAYING'}
+          </span>
+          <span className="text-xs text-white/60 font-medium truncate mt-1 leading-none">
+            {currentTrack.collection || 'Sepotify'}
+          </span>
         </div>
 
-        {/* PRIMARY PLAYBACK CAPSULE (Node 112:153 Group 1) */}
-        <div
-          className="relative w-[272px] h-[74px] flex items-center justify-between"
-          style={{ width: 272, height: 74 }}
+        {/* Options Button (3-dots) */}
+        <button
+          type="button"
+          onClick={() => setShowMatchModal(true)}
+          className="w-11 h-11 rounded-full lastwave-glass-pill flex items-center justify-center text-white/90 hover:text-white cursor-pointer active:scale-90 transition-all shadow-md"
+          aria-label="Song options & match"
         >
-          {/* Skip Back Button */}
+          <MoreVertical className="w-5 h-5 stroke-[2]" />
+        </button>
+      </div>
+
+      {/* ── Center Content: Artwork or Lyrics ── */}
+      <div className="relative z-20 flex-1 flex flex-col items-center justify-center px-6 min-h-0">
+        {showLyrics ? (
+          /* Lyrics View */
+          <div
+            ref={lyricsContainerRef}
+            className="w-full h-[min(48vh,420px)] overflow-y-auto no-scrollbar py-12 px-4 flex flex-col items-center gap-6 text-center select-none"
+          >
+            {loadingLyrics ? (
+              <div className="flex flex-col items-center justify-center h-full gap-3 text-white/60">
+                <span className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="text-sm">در حال بارگذاری متن ترانه...</span>
+              </div>
+            ) : lyrics?.lines && lyrics.lines.length > 0 ? (
+              lyrics.lines.map((line, idx) => {
+                const isActive = idx === activeLineIndex;
+                return (
+                  <p
+                    key={idx}
+                    onClick={() => audioService.seek(line.time)}
+                    className={`cursor-pointer transition-all duration-300 font-bold leading-relaxed max-w-md ${
+                      isActive
+                        ? 'text-white text-2xl sm:text-3xl scale-105 filter drop-shadow-[0_4px_16px_rgba(255,255,255,0.4)]'
+                        : 'text-white/40 text-lg sm:text-xl hover:text-white/70'
+                    }`}
+                  >
+                    {line.text}
+                  </p>
+                );
+              })
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-white/50">
+                <p className="text-base font-medium">متن ترانه برای این آهنگ یافت نشد.</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Main Squircle Artwork Hero */
+          <div className="relative flex items-center justify-center my-auto">
+            {/* Ambient artwork glow behind squircle */}
+            {isPlaying && (
+              <div className="absolute inset-0 w-full h-full rounded-[36px] bg-cyan-500/25 blur-3xl scale-110 pointer-events-none transition-all duration-700" />
+            )}
+
+            {/* Squircle Album Artwork Frame */}
+            <div className="relative w-[270px] h-[270px] sm:w-[310px] sm:h-[310px] rounded-[32px] sm:rounded-[38px] overflow-hidden bg-[#161822] shadow-[0_24px_60px_rgba(0,0,0,0.85)] border border-white/10 shrink-0">
+              {currentTrack.coverUrl && !coverError ? (
+                <img
+                  src={currentTrack.coverUrl}
+                  alt={currentTrack.title}
+                  referrerPolicy="no-referrer"
+                  onError={() => setCoverError(true)}
+                  className="w-full h-full object-cover select-none"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-[#151720]">
+                  <Music className="w-20 h-20 text-white/30" />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Bottom Controls Section ── */}
+      <div className="relative z-30 w-full px-6 sm:px-7 pb-8 flex flex-col gap-3">
+        {/* Track Title, Artist & Action Buttons */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col min-w-0 flex-1">
+            <h1 className="text-[21px] sm:text-[23px] font-black text-white tracking-tight truncate leading-tight">
+              {currentTrack.title}
+            </h1>
+            <span className="text-sm font-semibold text-white/65 truncate mt-0.5 leading-snug">
+              {currentTrack.artist}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Heart / Like Button */}
+            <button
+              type="button"
+              onClick={() => onToggleLike(currentTrack)}
+              className={`w-11 h-11 rounded-full lastwave-glass-pill flex items-center justify-center cursor-pointer active:scale-90 transition-all ${
+                isLiked ? 'text-rose-400 bg-rose-500/15 border-rose-500/30' : 'text-white/80'
+              }`}
+              aria-label={isLiked ? 'Unlike' : 'Like'}
+            >
+              <Heart
+                className={`w-5 h-5 ${isLiked ? 'fill-rose-400 text-rose-400' : 'stroke-[2]'}`}
+              />
+            </button>
+
+            {/* Lyrics Quote Button */}
+            <button
+              type="button"
+              onClick={() => setShowLyrics(!showLyrics)}
+              className={`w-11 h-11 rounded-full lastwave-glass-pill flex items-center justify-center cursor-pointer active:scale-90 transition-all ${
+                showLyrics ? 'text-cyan-400 bg-cyan-500/20 border-cyan-500/40' : 'text-white/80'
+              }`}
+              aria-label="Toggle Lyrics"
+              title="Lyrics"
+            >
+              <Quote className="w-5 h-5 stroke-[2]" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── LastWave Seekbar ── */}
+        <div className="w-full flex flex-col gap-1.5 pt-1">
+          <div
+            onPointerDown={handleSeekbarPointerDown}
+            onPointerMove={handleSeekbarPointerMove}
+            onPointerUp={handleSeekbarPointerUp}
+            className="w-full h-4 flex items-center cursor-pointer relative group touch-none"
+          >
+            <div className="w-full h-1.5 group-hover:h-2 rounded-full bg-white/15 overflow-hidden transition-all relative">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-400 to-sky-300 rounded-full"
+                style={{ width: `${effectiveRatio * 100}%` }}
+              />
+            </div>
+            {/* Scrub thumb */}
+            <div
+              className="absolute w-3.5 h-3.5 rounded-full bg-white shadow-lg pointer-events-none -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ left: `${effectiveRatio * 100}%` }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] font-mono text-white/50 font-medium px-0.5">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatRemainingTime(currentTime, duration)}</span>
+          </div>
+        </div>
+
+        {/* ── Apple Music / LastWave Audio Quality Badge ── */}
+        <div className="flex items-center justify-center my-0.5">
+          <div
+            onClick={() => setShowMatchModal(true)}
+            className="lastwave-glass-pill px-3 py-1 rounded-full flex items-center gap-1.5 text-[10px] font-bold text-white/75 tracking-wider uppercase cursor-pointer hover:text-white"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+            <span>HQ 320 KBPS • LOSSLESS</span>
+          </div>
+        </div>
+
+        {/* ── Primary Controls Row (Prev, HUGE Play/Pause, Next) ── */}
+        <div className="flex items-center justify-center gap-7 pt-1">
+          {/* Previous Track Button */}
           <button
             type="button"
             onClick={onPreviousTrack}
-            className="w-[110px] h-[66px] rounded-l-full rounded-r-none border border-[#292929] flex items-center justify-start pl-[26px] cursor-pointer active:scale-95 transition-transform"
-            style={{
-              background: 'linear-gradient(180deg, #171717 0%, #242424 100%)',
-              boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.4), 0px 2px 4px rgba(0, 0, 0, 1)',
-            }}
-            aria-label="Previous Track"
+            className="w-14 h-14 rounded-full lastwave-glass-pill flex items-center justify-center text-white/90 hover:text-white cursor-pointer active:scale-90 transition-all shadow-md"
+            aria-label="Previous track"
           >
-            <div className="w-[37px] h-[37px] flex items-center justify-center">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <rect x="4" y="5" width="3.08" height="14" rx="1" fill="#999999" />
-                <polygon points="20,5 9,12 20,19" fill="#999999" />
-              </svg>
-            </div>
+            <SkipBack className="w-6 h-6 fill-current" />
           </button>
 
-          {/* Skip Forward Button with Long-press detection */}
+          {/* HUGE White Play/Pause Button */}
+          <button
+            type="button"
+            onClick={onTogglePlay}
+            className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center shadow-[0_10px_35px_rgba(255,255,255,0.3)] hover:bg-slate-100 active:scale-90 transition-all cursor-pointer"
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? (
+              <Pause className="w-8 h-8 fill-black text-black" />
+            ) : (
+              <Play className="w-8 h-8 fill-black text-black ml-1" />
+            )}
+          </button>
+
+          {/* Next Track Button with long-press preview */}
           <button
             type="button"
             onPointerDown={handleNextPointerDown}
             onPointerUp={handleNextPointerUp}
             onPointerLeave={handleNextPointerLeave}
-            className="w-[110px] h-[66px] rounded-r-full rounded-l-none border border-[#292929] flex items-center justify-end pr-[26px] cursor-pointer active:scale-95 transition-transform"
-            style={{
-              background: 'linear-gradient(180deg, #171717 0%, #242424 100%)',
-              boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.4), 0px 2px 4px rgba(0, 0, 0, 1)',
-            }}
-            aria-label="Next Track (Hold to preview)"
+            className="w-14 h-14 rounded-full lastwave-glass-pill flex items-center justify-center text-white/90 hover:text-white cursor-pointer active:scale-90 transition-all shadow-md"
+            aria-label="Next track"
           >
-            <div className="w-[37px] h-[37px] flex items-center justify-center">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <polygon points="4,5 15,12 4,19" fill="#999999" />
-                <rect x="17" y="5" width="3.08" height="14" rx="1" fill="#999999" />
-              </svg>
-            </div>
-          </button>
-
-          {/* Central Play/Pause Capsule */}
-          <button
-            type="button"
-            onClick={onTogglePlay}
-            className="absolute left-1/2 -translate-x-1/2 -top-[7px] w-[88px] h-[88px] rounded-full border border-[#333333] flex items-center justify-center cursor-pointer active:scale-95 transition-all z-10 hover:border-[#4d4d4d]"
-            style={{
-              background: 'linear-gradient(180deg, #181818 0%, #262626 100%)',
-              boxShadow:
-                '0px 14px 28px rgba(0, 0, 0, 0.55), 0px 4px 10px rgba(0, 0, 0, 0.9), inset 0px 1.5px 2px rgba(255, 255, 255, 0.22)',
-            }}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isPlaying ? (
-              <div className="flex items-center gap-[7px]">
-                <div className="w-[10.5px] h-[32px] bg-[#E4E4E4] rounded-[2px]" />
-                <div className="w-[10.5px] h-[32px] bg-[#E4E4E4] rounded-[2px]" />
-              </div>
-            ) : (
-              <svg className="w-[34px] h-[34px] fill-[#E4E4E4]" viewBox="0 0 24 24">
-                <polygon points="6.5,4 19.5,12 6.5,20" />
-              </svg>
-            )}
+            <SkipForward className="w-6 h-6 fill-current" />
           </button>
         </div>
 
-        {/* BOTTOM NAVBAR */}
-        <div
-          className="w-[342px] max-w-[calc(100%-32px)] h-[69px] rounded-[20px] bg-[#212121] flex items-center justify-between px-[28px] select-none"
-          style={{
-            boxShadow: '-23px -13px 23px #2A2A2A, 23px 23px 46px #181818',
-          }}
-        >
-          {/* Search Tab */}
+        {/* ── Secondary Bottom Row (3 Wide Frosted Glass Pills) ── */}
+        <div className="grid grid-cols-3 gap-2.5 pt-2">
+          {/* Shuffle Toggle Pill */}
           <button
             type="button"
-            onClick={() => onTabChange('search')}
-            className="flex flex-col items-center justify-center gap-1 cursor-pointer text-[#999999] hover:text-[#E4E4E4] transition-colors"
-            aria-label="Search"
+            onClick={handleCyclePlaybackMode}
+            className={`lastwave-glass-pill py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all text-xs font-semibold ${
+              cycleMode === 'shuffle'
+                ? 'text-cyan-400 bg-cyan-500/15 border-cyan-500/30'
+                : 'text-white/70'
+            }`}
           >
-            <svg className="w-[22px] h-[22px] stroke-[2] fill-none stroke-current" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <span className="font-roboto text-[12px] font-normal leading-none tracking-tight">
-              Search
-            </span>
+            <Shuffle className="w-3.5 h-3.5 stroke-[2.2]" />
+            <span>Shuffle</span>
           </button>
 
-          {/* Home Tab */}
+          {/* Add to Library Pill */}
           <button
             type="button"
-            onClick={() => onTabChange('home')}
-            className="flex flex-col items-center justify-center gap-1 cursor-pointer text-[#999999] hover:text-[#E4E4E4] transition-colors"
-            aria-label="Home"
+            onClick={() => setShowLibraryModal(true)}
+            className="lastwave-glass-pill py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 text-white/75 hover:text-white cursor-pointer active:scale-95 transition-all text-xs font-semibold"
           >
-            <svg className="w-[24px] h-[24px] stroke-[2] fill-none stroke-current" viewBox="0 0 24 24">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            <span className="font-roboto text-[12px] font-normal leading-none tracking-tight">
-              Home
-            </span>
+            <FolderPlus className="w-3.5 h-3.5 stroke-[2.2]" />
+            <span>Library</span>
           </button>
 
-          {/* Library Tab */}
+          {/* Repeat Mode Pill */}
           <button
             type="button"
-            onClick={() => onTabChange('library')}
-            className="flex flex-col items-center justify-center gap-1 cursor-pointer text-[#E4E4E4] hover:text-white transition-colors"
-            aria-label="Library"
+            onClick={handleCyclePlaybackMode}
+            className={`lastwave-glass-pill py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all text-xs font-semibold ${
+              cycleMode === 'repeat_all' || cycleMode === 'repeat_one'
+                ? 'text-cyan-400 bg-cyan-500/15 border-cyan-500/30'
+                : 'text-white/70'
+            }`}
           >
-            <svg className="w-[24px] h-[24px] stroke-[2] fill-none stroke-current" viewBox="0 0 24 24">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-            </svg>
-            <span className="font-roboto text-[12px] font-normal leading-none tracking-tight">
-              Library
-            </span>
+            {cycleMode === 'repeat_one' ? (
+              <Repeat1 className="w-3.5 h-3.5 stroke-[2.2]" />
+            ) : (
+              <Repeat className="w-3.5 h-3.5 stroke-[2.2]" />
+            )}
+            <span>{cycleMode === 'repeat_one' ? 'One' : 'Repeat'}</span>
           </button>
         </div>
       </div>
 
-      {/* Save to Library Modal */}
-            {/* Manual Match Modal */}
-      {showMatchModal && currentTrack && (
+      {/* Next Track Long-Press Preview Floating Overlay */}
+      {showNextPreview && nextTrack && (
+        <NextMusicPreview nextTrack={nextTrack} isVisible={showNextPreview} />
+      )}
+
+      {/* Manual Match Modal for stream replacement */}
+      {showMatchModal && (
         <ManualMatchModal
           track={currentTrack}
           isOpen={showMatchModal}
           onClose={() => setShowMatchModal(false)}
-          onMatchSelected={(t, newVideoId) => {
-            const newUrl = apiUrl(`/api/stream?v=${newVideoId}`);
-            const updated = {
-              ...t,
-              url: newUrl,
-              youtubeId: newVideoId,
-              isYouTube: true,
-              isFullLength: true,
-              isStreamable: true,
-            };
-            audioService.playTrack(updated);
+          onMatched={() => {
+            setShowMatchModal(false);
           }}
         />
       )}
 
-      <AskListLibraryModal
-        isOpen={showLibraryModal}
-        onClose={handleCloseLibraryModal}
-        onSelectLibrary={handleSelectLibrary}
-      />
+      {/* Add to Library Modal */}
+      {showLibraryModal && (
+        <AskListLibraryModal
+          isOpen={showLibraryModal}
+          onClose={() => setShowLibraryModal(false)}
+          onSelectLibrary={(lib) => {
+            if (onSaveToLibrary && currentTrack) {
+              onSaveToLibrary(currentTrack, lib);
+            }
+            setShowLibraryModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -15,70 +15,67 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   isPlaying,
   language = 'en',
 }) => {
-  return (
-    /* Figma Node 12:10 "bottem navbar": pinned to bottom for mobile responsiveness */
-    <div className="fixed sm:absolute bottom-4 sm:bottom-[39px] left-1/2 -translate-x-1/2 w-[342px] max-w-[calc(100%-32px)] h-[69px] rounded-[20px] bg-[#212121] shadow-figma-bottom-navbar flex items-center justify-between px-[28px] z-30">
-      {/* Search Tab (Node 20:3): width: 33, height: 34 */}
-      <button
-        type="button"
-        onClick={() => onTabChange('search')}
-        className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
-          activeTab === 'search' ? 'text-white' : 'text-[#999999] hover:text-[#E4E4E4]'
-        }`}
-        aria-label="Online Search"
-      >
-        <Search
-          className={`w-[22px] h-[22px] ${
-            activeTab === 'search' ? 'stroke-[2.2] scale-105' : 'stroke-[1.8]'
-          }`}
-        />
-        <span className="font-roboto text-[12px] font-normal leading-none tracking-tight">
-          {language === 'fa' ? 'جست‌وجو' : 'Search'}
-        </span>
-      </button>
-
-      {/* Home Tab (Node 20:10): width: 33, height: 36 */}
-      <button
-        type="button"
-        onClick={() => onTabChange('home')}
-        className={`flex flex-col items-center justify-center gap-1 cursor-pointer relative transition-colors ${
-          activeTab === 'home' ? 'text-white' : 'text-[#999999] hover:text-[#E4E4E4]'
-        }`}
-        aria-label="Home"
-      >
+  const tabs: Array<{ id: NavTab; labelEn: string; labelFa: string; icon: React.ReactNode }> = [
+    {
+      id: 'home',
+      labelEn: 'Home',
+      labelFa: 'خانه',
+      icon: (
         <div className="relative">
-          <HomeIcon
-            className={`w-[24px] h-[24px] ${
-              activeTab === 'home' ? 'stroke-[2.2] scale-105' : 'stroke-[1.8]'
-            }`}
-          />
+          <HomeIcon className="w-5 h-5 stroke-[2]" />
           {isPlaying && (
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.8)] animate-pulse" />
           )}
         </div>
-        <span className="font-roboto text-[12px] font-normal leading-none tracking-tight">
-          {language === 'fa' ? 'خانه' : 'Home'}
-        </span>
-      </button>
+      ),
+    },
+    {
+      id: 'search',
+      labelEn: 'Search',
+      labelFa: 'جست‌وجو',
+      icon: <Search className="w-5 h-5 stroke-[2]" />,
+    },
+    {
+      id: 'library',
+      labelEn: 'Playlists',
+      labelFa: 'پلی‌لیست',
+      icon: <LibraryIcon className="w-5 h-5 stroke-[2]" />,
+    },
+  ];
 
-      {/* Library Tab (Node 20:4): width: 46, height: 36 */}
-      <button
-        type="button"
-        onClick={() => onTabChange('library')}
-        className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
-          activeTab === 'library' ? 'text-white' : 'text-[#999999] hover:text-[#E4E4E4]'
-        }`}
-        aria-label="Library"
-      >
-        <LibraryIcon
-          className={`w-[24px] h-[24px] ${
-            activeTab === 'library' ? 'stroke-[2.2] scale-105' : 'stroke-[1.8]'
-          }`}
-        />
-        <span className="font-roboto text-[12px] font-normal leading-none tracking-tight">
-          {language === 'fa' ? 'کتابخانه' : 'Library'}
-        </span>
-      </button>
-    </div>
+  return (
+    <nav
+      aria-label="Floating Navigation Bar"
+      className="fixed sm:absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none pointer-events-auto"
+    >
+      {/* LastWave Floating Dock Container (DockShape: RoundedCornerShape(32.dp)) */}
+      <div className="lastwave-glass-dock rounded-full p-1.5 flex items-center gap-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const label = language === 'fa' ? tab.labelFa : tab.labelEn;
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onTabChange(tab.id)}
+              className={`flex items-center justify-center transition-all duration-300 ease-out cursor-pointer active:scale-95 ${
+                isActive
+                  ? 'lastwave-glass-active rounded-full px-4 py-2 text-white font-semibold gap-2 shadow-md'
+                  : 'w-11 h-10 rounded-full text-white/55 hover:text-white/90 hover:bg-white/10'
+              }`}
+              aria-label={label}
+            >
+              {tab.icon}
+              {isActive && (
+                <span className="text-xs tracking-tight font-medium whitespace-nowrap animate-in fade-in duration-200">
+                  {label}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 };
