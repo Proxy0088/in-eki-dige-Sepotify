@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, Music } from 'lucide-react';
 import { Track } from '../types/music';
 import { audioService } from '../services/audioPlayer';
-import { LiquidGlassCanvas } from './LiquidGlassCanvas';
 import { triggerHaptic } from '../utils/haptics';
 
 interface WhenPlayingWidgetProps {
@@ -108,9 +107,6 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
         role="button"
         aria-label="Open playback controls"
       >
-        {/* Interactive Liquid Glass Shader Canvas with calmed hover intensity */}
-        <LiquidGlassCanvas />
-
         {/* Top edge physical specular highlight catch-light */}
         <div
           className="absolute inset-x-5 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full"

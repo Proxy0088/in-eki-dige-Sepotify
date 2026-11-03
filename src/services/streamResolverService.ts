@@ -241,7 +241,29 @@ export const StreamResolverService = {
       console.warn('Track matching error for', artist, title, err);
     }
 
-    // 3. Fallback: Report full track is unavailable
+    // 3. Fallback: Search MusicDel for Persian / Eastern songs (e.g. Dariush, Shadmehr, etc.)
+    try {
+      const q = `${artist} ${title}`.trim();
+      const musicDelResults = await MusicDelService.searchTracks(q, signal, 5);
+      if (musicDelResults.length > 0) {
+        const topDel = musicDelResults[0];
+        const resolvedDel = await MusicDelService.resolveTrack(topDel, signal);
+        if (resolvedDel.url && (resolvedDel.url.endsWith('.mp3') || resolvedDel.url.includes('.mp3'))) {
+          const resolved: ResolvedStream = {
+            url: resolvedDel.url,
+            duration: resolvedDel.duration || expectedDuration,
+            source: 'musicdel',
+            isPlayable: true,
+          };
+          resolvedMemoryCache.set(key, resolved);
+          return resolved;
+        }
+      }
+    } catch (e) {
+      console.warn('MusicDel fallback stream resolution error:', e);
+    }
+
+    // 4. Fallback: Report full track is unavailable
     // NEVER fall back to 30-second previews for full playback
     return {
       url: '',

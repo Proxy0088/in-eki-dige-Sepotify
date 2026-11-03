@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { motion } from 'motion/react';
 import { Search, Home as HomeIcon, Library as LibraryIcon } from 'lucide-react';
 import { NavTab, AppLanguage } from '../types/music';
-import { LiquidGlassCanvas, ActiveRect } from './LiquidGlassCanvas';
 import { triggerHaptic } from '../utils/haptics';
 
 interface BottomNavProps {
@@ -24,37 +23,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     search: null,
     library: null,
   });
-
-  const [activeRect, setActiveRect] = useState<ActiveRect | null>(null);
-
-  // Measure active tab bounds relative to dock container
-  const updateActiveRect = () => {
-    const dockEl = dockRef.current;
-    const activeEl = tabRefs.current[activeTab];
-    if (dockEl && activeEl) {
-      const dockBox = dockEl.getBoundingClientRect();
-      const tabBox = activeEl.getBoundingClientRect();
-      setActiveRect({
-        x: tabBox.left - dockBox.left,
-        y: tabBox.top - dockBox.top,
-        width: tabBox.width,
-        height: tabBox.height,
-      });
-    }
-  };
-
-  useLayoutEffect(() => {
-    updateActiveRect();
-  }, [activeTab]);
-
-  useEffect(() => {
-    const timer = setTimeout(updateActiveRect, 50);
-    window.addEventListener('resize', updateActiveRect);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', updateActiveRect);
-    };
-  }, [activeTab]);
 
   const tabs: Array<{ id: NavTab; labelEn: string; labelFa: string; icon: React.ReactNode }> = [
     {
@@ -101,9 +69,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         ref={dockRef}
         className="lastwave-glass-dock relative rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-[box-shadow,border-color] duration-300"
       >
-        {/* Interactive WebGL Liquid Glass Canvas with calmed hover intensity */}
-        <LiquidGlassCanvas activeRect={activeRect} />
-
         {/* Top edge physical specular highlight line */}
         <div
           className="absolute inset-x-5 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full"

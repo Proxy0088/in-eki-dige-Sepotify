@@ -56,6 +56,16 @@ function streamResolutionPlugin() {
     name: 'stream-resolution-plugin',
     configureServer(server: any) {
       server.middlewares.use(async (req: any, res: any, next: any) => {
+        // Health check endpoint for native mobile client auto-discovery
+        if (req.url === '/api/health') {
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          });
+          res.end(JSON.stringify({ status: 'ok', server: 'vite-proxy' }));
+          return;
+        }
+
         // Stream direct proxy endpoint (/api/stream?v=...)
         if (req.url && req.url.startsWith('/api/stream?')) {
           const parsed = new URL(req.url, 'http://localhost:3000');
