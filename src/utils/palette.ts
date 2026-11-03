@@ -73,12 +73,10 @@ export function useCoverPalette(
         ctx.drawImage(img, 0, 0, 16, 16);
         const data = ctx.getImageData(0, 0, 16, 16).data;
 
-        // Sample dominant saturated colors
-        let bestSat = -1;
-        let pR = 34, pG = 197, pB = 94; // fallback green
-        let sR = 163, sG = 230, sB = 53;
+        // Weighted histogram over all 256 pixels to find the true dominant cover color
+        const buckets = new Map<number, { rSum: number; gSum: number; bSum: number; count: number; score: number }>();
 
-        for (let i = 0; i < data.length; i += 16) {
+        for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
@@ -86,16 +84,51 @@ export function useCoverPalette(
           const min = Math.min(r, g, b);
           const delta = max - min;
           const sat = max === 0 ? 0 : delta / max;
+          const lum = r * 0.299 + g * 0.587 + b * 0.114;
 
-          // Reject extreme darks or whites
-          const lum = (r * 0.299 + g * 0.587 + b * 0.114);
-          if (lum > 25 && lum < 235 && sat > bestSat) {
-            bestSat = sat;
-            pR = r;
-            pG = g;
-            pB = b;
+          // Filter out near-pure black (< 15) and blown-out white (> 245)
+          if (lum < 15 || lum > 245) continue;
+
+          // Quantize into 32-step RGB buckets
+          const bR = Math.floor(r / 32);
+          const bG = Math.floor(g / 32);
+          const bB = Math.floor(b / 32);
+          const key = (bR << 6) | (bG << 3) | bB;
+
+          // Weight: saturation and balanced mid-tone luminosity
+          const satWeight = 0.5 + sat * 1.5;
+          const lumWeight = Math.max(0.2, 1 - Math.abs(lum - 128) / 160);
+          const pixelScore = satWeight * lumWeight;
+
+          const existing = buckets.get(key);
+          if (existing) {
+            existing.rSum += r;
+            existing.gSum += g;
+            existing.bSum += b;
+            existing.count += 1;
+            existing.score += pixelScore;
+          } else {
+            buckets.set(key, {
+              rSum: r,
+              gSum: g,
+              bSum: b,
+              count: 1,
+              score: pixelScore,
+            });
           }
         }
+
+        let bestScore = -1;
+        let pR = 34, pG = 197, pB = 94;
+
+        buckets.forEach((entry) => {
+          if (entry.score > bestScore) {
+            bestScore = entry.score;
+            pR = Math.round(entry.rSum / entry.count);
+            pG = Math.round(entry.gSum / entry.count);
+            pB = Math.round(entry.bSum / entry.count);
+          }
+        });
 
         // Secondary color slightly offset
         sR = Math.min(255, Math.floor(pR * 0.8 + 40));

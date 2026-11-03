@@ -87,7 +87,6 @@ interface AmbientParticle {
   baseOpacity: number;
   pulse: number;
   pulseSpeed: number;
-  type: 'white' | 'primary' | 'secondary' | 'accent';
 }
 
 function parseRgbNumbers(str: string): [number, number, number] {
@@ -95,13 +94,13 @@ function parseRgbNumbers(str: string): [number, number, number] {
   if (m && m.length >= 3) {
     return [parseInt(m[0], 10), parseInt(m[1], 10), parseInt(m[2], 10)];
   }
-  return [34, 197, 94];
+  return [245, 158, 11];
 }
 
 /**
- * High-fidelity HTML5 Canvas Random Ambient Light Particle System:
- * Generates organic glowing light halos (tinted with track cover palette: greens & glowing whites)
- * that smoothly, continuously, and randomly drift left/right/up/down behind the liquid glass buttons.
+ * HTML5 Canvas Ambient Light Halos:
+ * Renders exactly 3 large, serene halos using strictly the dominant color extracted from the track cover.
+ * Gently drifts left/right/up/down behind the liquid glass controls with crisp, elegant blur.
  */
 const AmbientFloatingParticles: React.FC<{
   coverUrl?: string;
@@ -125,9 +124,8 @@ const AmbientFloatingParticles: React.FC<{
     let height = 0;
     let lastTime = performance.now();
 
+    // Use strictly the dominant artwork color (no white, no gray)
     const pRgb = parseRgbNumbers(palette.primary);
-    const sRgb = parseRgbNumbers(palette.secondary);
-    const aRgb = parseRgbNumbers(palette.accent);
 
     const resize = () => {
       const rect = container.getBoundingClientRect();
@@ -142,36 +140,32 @@ const AmbientFloatingParticles: React.FC<{
     resize();
     window.addEventListener('resize', resize);
 
-    // Initial large, serene wandering halos (enlarged for majestic ambient glow)
-    const particleDefs: Array<{ type: AmbientParticle['type']; radius: number; speed: number; opacity: number }> = [
-      { type: 'primary', radius: 270, speed: 6.0, opacity: 0.52 },
-      { type: 'white', radius: 210, speed: 7.0, opacity: 0.54 },
-      { type: 'secondary', radius: 310, speed: 5.2, opacity: 0.48 },
-      { type: 'white', radius: 190, speed: 7.5, opacity: 0.50 },
-      { type: 'accent', radius: 280, speed: 5.8, opacity: 0.48 },
-      { type: 'primary', radius: 340, speed: 4.8, opacity: 0.44 },
+    // Reduced to 3 serene, elegant halos using strictly the dominant cover color
+    const particleDefs: Array<{ radius: number; speed: number; opacity: number }> = [
+      { radius: 240, speed: 5.5, opacity: 0.58 },
+      { radius: 290, speed: 4.4, opacity: 0.50 },
+      { radius: 220, speed: 6.2, opacity: 0.54 },
     ];
 
     const particles: AmbientParticle[] = particleDefs.map((def, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      const initX = (width || 360) * (0.2 + 0.3 * col) + (Math.random() - 0.5) * 60;
-      const initY = (height || 400) * (0.25 + 0.35 * row) + (Math.random() - 0.5) * 60;
+      const initX = (width || 360) * (0.24 + 0.26 * i) + (Math.random() - 0.5) * 40;
+      const initY = (height || 400) * (0.32 + 0.22 * i) + (Math.random() - 0.5) * 40;
 
       return {
-        x: Math.max(def.radius * 0.4, Math.min(width - def.radius * 0.4, initX)),
-        y: Math.max(def.radius * 0.4, Math.min(height - def.radius * 0.4, initY)),
+        x: Math.max(def.radius * 0.3, Math.min(width - def.radius * 0.3, initX)),
+        y: Math.max(def.radius * 0.3, Math.min(height - def.radius * 0.3, initY)),
         angle: Math.random() * Math.PI * 2,
-        speed: def.speed * (0.85 + Math.random() * 0.3),
+        speed: def.speed * (0.9 + Math.random() * 0.2),
         radius: def.radius,
         baseRadius: def.radius,
         opacity: def.opacity,
         baseOpacity: def.opacity,
         pulse: Math.random() * Math.PI * 2,
         pulseSpeed: 0.3 + Math.random() * 0.3,
-        type: def.type,
       };
     });
+
+    const [r, g, b] = pRgb;
 
     const loop = (now: number) => {
       const dt = Math.min((now - lastTime) / 1000, 0.1);
@@ -182,8 +176,8 @@ const AmbientFloatingParticles: React.FC<{
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
 
-        // Calm, smooth Brownian wandering - very gentle angular variation
-        p.angle += (Math.random() - 0.5) * 0.9 * dt;
+        // Calm, smooth Brownian wandering
+        p.angle += (Math.random() - 0.5) * 0.8 * dt;
 
         // Advance position slowly
         p.x += Math.cos(p.angle) * p.speed * dt;
@@ -208,26 +202,15 @@ const AmbientFloatingParticles: React.FC<{
 
         // Very slow, peaceful breathing pulse
         p.pulse += p.pulseSpeed * dt;
-        const curRadius = p.radius * (1 + 0.10 * Math.sin(p.pulse));
-        const curOpacity = p.opacity * (1 + 0.12 * Math.cos(p.pulse));
+        const curRadius = p.radius * (1 + 0.08 * Math.sin(p.pulse));
+        const curOpacity = p.opacity * (1 + 0.10 * Math.cos(p.pulse));
 
-        // Draw broad, soft glowing radial light gradient
+        // Draw clean radial light gradient using strictly the dominant cover color
         const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, curRadius);
-
-        if (p.type === 'white') {
-          grad.addColorStop(0, `rgba(255, 255, 255, ${curOpacity * 0.90})`);
-          grad.addColorStop(0.25, `rgba(255, 255, 255, ${curOpacity * 0.60})`);
-          grad.addColorStop(0.55, `rgba(255, 255, 255, ${curOpacity * 0.25})`);
-          grad.addColorStop(0.80, `rgba(255, 255, 255, ${curOpacity * 0.08})`);
-          grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        } else {
-          const [r, g, b] = p.type === 'secondary' ? sRgb : p.type === 'accent' ? aRgb : pRgb;
-          grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.88})`);
-          grad.addColorStop(0.28, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.58})`);
-          grad.addColorStop(0.58, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.22})`);
-          grad.addColorStop(0.82, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.07})`);
-          grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-        }
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.90})`);
+        grad.addColorStop(0.32, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.60})`);
+        grad.addColorStop(0.68, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.20})`);
+        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
 
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -249,7 +232,7 @@ const AmbientFloatingParticles: React.FC<{
   return (
     <div
       ref={containerRef}
-      className="absolute inset-x-0 bottom-0 top-[48%] pointer-events-none overflow-hidden z-10 select-none filter blur-[18px] [mask-image:linear-gradient(to_bottom,transparent,black_50px,black)]"
+      className="absolute inset-x-0 bottom-0 top-[48%] pointer-events-none overflow-hidden z-10 select-none filter blur-[6px] [mask-image:linear-gradient(to_bottom,transparent,black_30px,black)]"
     >
       <canvas ref={canvasRef} className="w-full h-full block" />
     </div>
