@@ -29,7 +29,7 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
     setCoverError(false);
   }, [currentTrack?.coverUrl]);
 
-  // Subscribe to time updates for the thin progress indicator
+  // Subscribe to time updates
   useEffect(() => {
     const unsub = audioService.subscribe(() => {
       const cur = audioService.getCurrentTime();
@@ -61,10 +61,8 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
 
     if (Math.abs(deltaY) > Math.abs(deltaX)) {
       if (deltaY < -24 && onOpenPlayer) {
-        // Swipe up opens full player
         onOpenPlayer();
       } else if (deltaY > 30) {
-        // Swipe down dismisses mini player
         setIsDismissed(true);
       }
     } else {
@@ -78,47 +76,46 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="fixed sm:absolute bottom-[72px] sm:bottom-[82px] left-3.5 right-3.5 sm:left-4 sm:right-4 z-40 max-w-[392px] mx-auto select-none pointer-events-auto transition-transform duration-300 ease-out"
+      className="fixed sm:absolute bottom-[72px] sm:bottom-20 left-3.5 right-3.5 sm:left-4 sm:right-4 z-40 max-w-[384px] mx-auto select-none pointer-events-auto"
     >
-      {/* LastWave Floating Mini-Player Pill */}
       <div
         onClick={onOpenPlayer}
-        className="w-full h-[62px] rounded-full lastwave-glass px-2.5 pr-3.5 flex items-center justify-between gap-3 shadow-[0_16px_40px_rgba(0,0,0,0.6)] cursor-pointer group hover:border-white/20 transition-all duration-200 relative overflow-hidden active:scale-[0.99]"
+        className="w-full h-15 rounded-full lastwave-glass px-2.5 pr-3.5 flex items-center justify-between gap-3 shadow-xl cursor-pointer group hover:border-white/15 active:scale-[0.99] transition-[border-color,transform] duration-200 relative overflow-hidden"
         role="button"
-        aria-label="Open full player"
+        aria-label="Open playback controls"
       >
-        {/* Track Artwork */}
-        <div className="relative w-11 h-11 rounded-[14px] overflow-hidden bg-[#181a22] shrink-0 shadow-md border border-white/10">
+        {/* Track Artwork squircle */}
+        <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-[#181a24] shrink-0 border border-white/10 shadow-sm">
           {currentTrack.coverUrl && !coverError ? (
             <img
               src={currentTrack.coverUrl}
               alt={currentTrack.title}
               referrerPolicy="no-referrer"
               onError={() => setCoverError(true)}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="w-full h-full object-cover"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <Music className="w-5 h-5 text-white/50" />
+              <Music className="w-4 h-4 text-[#71717a]" />
             </div>
           )}
 
-          {/* Equalizer animation when playing */}
+          {/* Equalizer indicator */}
           {isPlaying && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-0.5">
-              <span className="w-0.5 h-3 bg-white rounded-full animate-[pulse_0.6s_infinite]" />
-              <span className="w-0.5 h-4 bg-white rounded-full animate-[pulse_0.4s_infinite]" />
-              <span className="w-0.5 h-2.5 bg-white rounded-full animate-[pulse_0.7s_infinite]" />
+            <div className="absolute inset-0 bg-black/40 flex items-end justify-center pb-2 gap-0.5">
+              <span className="w-0.5 h-2.5 bg-cyan-400 rounded-full" />
+              <span className="w-0.5 h-3.5 bg-cyan-400 rounded-full" />
+              <span className="w-0.5 h-2 bg-cyan-400 rounded-full" />
             </div>
           )}
         </div>
 
         {/* Track Title and Artist */}
         <div className="flex flex-col min-w-0 flex-1 justify-center pr-1">
-          <span className="text-[13px] font-bold text-white tracking-tight truncate leading-snug">
+          <span className="text-[13px] font-medium text-[#ededed] tracking-tight truncate leading-snug">
             {currentTrack.title}
           </span>
-          <span className="text-[11px] font-medium text-white/60 truncate leading-snug">
+          <span className="text-[11px] font-normal text-[#a1a1a6] truncate leading-snug">
             {currentTrack.artist}
           </span>
         </div>
@@ -128,35 +125,35 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
           className="flex items-center gap-1.5 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Main Play/Pause Button - Light/White Circular */}
+          {/* Main Play/Pause Button */}
           <button
             type="button"
             onClick={onTogglePlay}
-            className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-[0_4px_14px_rgba(255,255,255,0.25)] hover:bg-slate-100 active:scale-90 transition-all cursor-pointer"
+            className="w-9 h-9 rounded-full bg-[#ededed] text-[#090a0f] hover:bg-white flex items-center justify-center shadow-sm active:scale-95 transition-transform cursor-pointer"
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? (
-              <Pause className="w-4 h-4 fill-black text-black" />
+              <Pause className="w-3.5 h-3.5 fill-current" />
             ) : (
-              <Play className="w-4 h-4 fill-black text-black ml-0.5" />
+              <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
             )}
           </button>
 
-          {/* Next Track Button */}
+          {/* Next Button */}
           <button
             type="button"
             onClick={onNextTrack}
-            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/15 text-white/85 hover:text-white flex items-center justify-center active:scale-90 transition-all cursor-pointer"
+            className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-[#ededed] flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
             aria-label="Next track"
           >
-            <SkipForward className="w-4 h-4 fill-current" />
+            <SkipForward className="w-3.5 h-3.5 fill-current" />
           </button>
         </div>
 
-        {/* Mini Progress Line along the bottom of the capsule */}
-        <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-white/10 overflow-hidden rounded-full">
+        {/* Mini Progress Line along bottom */}
+        <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-white/10 overflow-hidden rounded-full">
           <div
-            className="h-full bg-cyan-400 transition-all duration-300"
+            className="h-full bg-cyan-400 transition-[width] duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>

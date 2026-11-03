@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search as SearchIcon,
-  Heart,
-  Bookmark,
-  Star,
-  Download,
   ArrowLeft,
   Plus,
   Play,
@@ -106,46 +102,46 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 sm:px-5 pt-[72px] sm:pt-[80px] pb-36 overflow-y-auto no-scrollbar select-none">
-      {/* ── Top Header matching screenshot_4.png ── */}
+    <div className="flex-1 flex flex-col px-4 sm:px-6 pt-18 sm:pt-20 pb-32 overflow-y-auto no-scrollbar select-none">
+      {/* ── Top Header ── */}
       <div className="flex items-center justify-between mb-4 px-1">
         {selectedCollection ? (
           <button
             type="button"
             onClick={() => setSelectedCollection(null)}
-            className="flex items-center gap-2 lastwave-glass-pill px-3 py-1.5 rounded-full text-xs font-semibold text-white/90 cursor-pointer active:scale-95 transition-all shadow-sm"
+            className="flex items-center gap-1.5 lastwave-glass-pill px-3 py-1 rounded-full text-xs font-medium text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 h-3.5 stroke-[1.8]" />
             <span>Playlists</span>
           </button>
         ) : (
           <div className="flex flex-col">
-            <h1 className="text-2xl font-black text-white tracking-tight leading-none">
+            <h1 className="text-xl font-bold text-[#ededed] tracking-tight leading-none">
               Playlists
             </h1>
-            <span className="text-xs font-medium text-white/50 mt-1">
-              {userLibraries.length} Playlists • {tracks.length} Tracks
+            <span className="text-xs font-normal text-[#a1a1a6] mt-1 tabular-nums">
+              {userLibraries.length} playlists • {tracks.length} tracks
             </span>
           </div>
         )}
 
-        {/* Action icons on right: Add + Sort / Search */}
-        <div className="flex items-center gap-2">
+        {/* Action icons on right */}
+        <div className="flex items-center gap-1.5">
           {!selectedCollection && (
             <>
               <button
                 type="button"
                 onClick={() => setShowAddModal(true)}
-                className="w-9 h-9 rounded-full lastwave-glass-pill flex items-center justify-center text-white/80 hover:text-white cursor-pointer active:scale-90 transition-all shadow-sm"
+                className="w-8 h-8 rounded-full lastwave-glass-pill flex items-center justify-center text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
                 title="Create new playlist"
               >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <Plus className="w-4 h-4 stroke-[2]" />
               </button>
               <button
                 type="button"
-                className="lastwave-glass-pill px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold text-white/80 hover:text-white cursor-pointer active:scale-95 transition-all shadow-sm"
+                className="lastwave-glass-pill px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-medium text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
               >
-                <ListFilter className="w-3.5 h-3.5 stroke-[2]" />
+                <ListFilter className="w-3.5 h-3.5 stroke-[1.8]" />
                 <span>Sort</span>
               </button>
             </>
@@ -154,17 +150,17 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
           <button
             type="button"
             onClick={onOpenLibrarySearch}
-            className="w-9 h-9 rounded-full lastwave-glass-pill flex items-center justify-center text-white/80 hover:text-white cursor-pointer active:scale-90 transition-all shadow-sm"
+            className="w-8 h-8 rounded-full lastwave-glass-pill flex items-center justify-center text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
             aria-label="Search within library"
           >
-            <SearchIcon className="w-4 h-4 stroke-[2]" />
+            <SearchIcon className="w-3.5 h-3.5 stroke-[1.8]" />
           </button>
         </div>
       </div>
 
       {selectedCollection === null ? (
-        /* ── Playlists List Cards (matching screenshot_4.png) ── */
-        <div className="flex flex-col gap-2.5">
+        /* ── Playlists List Cards ── */
+        <div className="flex flex-col gap-2">
           {userLibraries.map((libName) => {
             const colTracks = getTracksForCollection(libName);
             const cover = getCollectionArtwork(libName);
@@ -173,41 +169,41 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               <div
                 key={libName}
                 onClick={() => setSelectedCollection(libName)}
-                className="w-full h-[76px] rounded-[24px] bg-[#14151c] border border-white/5 p-3 flex items-center justify-between gap-3 shadow-md hover:bg-[#181a24] active:scale-[0.99] transition-all cursor-pointer group"
+                className="w-full h-16 rounded-2xl bg-[#12141c] border border-white/[0.06] p-2.5 flex items-center justify-between gap-3 shadow-sm hover:bg-[#161822] active:scale-[0.99] transition-colors cursor-pointer group"
               >
-                {/* Cover Preview squircle */}
-                <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                  <div className="relative w-13 h-13 rounded-[16px] overflow-hidden bg-[#1a1c26] shrink-0 border border-white/5 shadow-sm flex items-center justify-center">
+                {/* Cover Preview */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-[#181a24] shrink-0 border border-white/5 shadow-sm flex items-center justify-center">
                     {cover ? (
                       <img
                         src={cover}
                         alt={libName}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <Music className="w-6 h-6 text-white/40" />
+                      <Music className="w-5 h-5 text-[#71717a]" />
                     )}
                   </div>
 
                   {/* Title & Count */}
                   <div className="flex flex-col min-w-0 justify-center">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[15px] font-bold text-white truncate tracking-tight">
+                      <span className="text-sm font-semibold text-[#ededed] truncate tracking-tight">
                         {libName}
                       </span>
                       {libName.toLowerCase().includes('like') && (
                         <Pin className="w-3 h-3 text-cyan-400 rotate-45 shrink-0" />
                       )}
                     </div>
-                    <span className="text-xs text-white/50 font-medium">
+                    <span className="text-xs text-[#a1a1a6] font-normal tabular-nums">
                       {colTracks.length} tracks
                     </span>
                   </div>
                 </div>
 
-                {/* Right Actions: Play circular button & 3-dots */}
+                {/* Right Actions */}
                 <div
-                  className="flex items-center gap-2 shrink-0"
+                  className="flex items-center gap-1.5 shrink-0"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -217,18 +213,18 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                         onPlayTrack(colTracks[0], colTracks);
                       }
                     }}
-                    className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-slate-100 active:scale-90 transition-all cursor-pointer"
+                    className="w-9 h-9 rounded-full bg-[#ededed] text-[#090a0f] flex items-center justify-center shadow-sm hover:bg-white active:scale-95 transition-transform cursor-pointer"
                     aria-label={`Play ${libName}`}
                   >
-                    <Play className="w-4 h-4 fill-black text-black ml-0.5" />
+                    <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setSelectedCollection(libName)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white/40 hover:text-white"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[#71717a] hover:text-[#ededed]"
                   >
-                    <MoreVertical className="w-4 h-4" />
+                    <MoreVertical className="w-3.5 h-3.5 stroke-[1.8]" />
                   </button>
                 </div>
               </div>
@@ -238,24 +234,23 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
       ) : (
         /* ── Collection Tracks Detail View ── */
         <div className="flex flex-col gap-2">
-          {/* Header row with Play All button */}
-          <div className="flex items-center justify-between pb-2 px-1">
-            <span className="text-lg font-bold text-white">
+          <div className="flex items-center justify-between pb-1 px-1">
+            <span className="text-base font-semibold text-[#ededed]">
               {selectedCollection}
             </span>
             {activeTracks.length > 0 && (
               <button
                 type="button"
                 onClick={() => onPlayTrack(activeTracks[0], activeTracks)}
-                className="lastwave-glass-active px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold text-white shadow-md active:scale-95 transition-all cursor-pointer"
+                className="lastwave-glass-active px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-medium text-[#ededed] shadow-sm active:scale-95 transition-transform cursor-pointer"
               >
-                <Play className="w-3.5 h-3.5 fill-white text-white" />
-                <span>Play All</span>
+                <Play className="w-3 h-3 fill-current" />
+                <span>Play all</span>
               </button>
             )}
           </div>
 
-          <div className="rounded-[24px] bg-[#14161f] border border-white/5 p-3 flex flex-col gap-1.5 shadow-xl">
+          <div className="rounded-2xl bg-[#14161f] border border-white/[0.06] p-3 flex flex-col gap-1 shadow-xl">
             {activeTracks.length > 0 ? (
               activeTracks.map((track) => (
                 <MusicRow
@@ -276,13 +271,13 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                 />
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center text-white/50 px-4">
-                <Music className="w-10 h-10 mb-2 text-white/20" />
-                <p className="text-sm font-semibold text-white/80">
-                  این پلی‌لیست در حال حاضر خالی است
+              <div className="flex flex-col items-center justify-center py-16 text-center text-[#71717a] px-4">
+                <Music className="w-8 h-8 mb-2 text-[#71717a]/30" />
+                <p className="text-sm font-medium text-[#a1a1a6]">
+                  این پلی‌لیست خالی است
                 </p>
-                <p className="text-xs text-white/45 mt-1">
-                  می‌توانید آهنگ‌ها را هنگام پخش با کلیک روی افزودن به پلی‌لیست به اینجا اضافه کنید.
+                <p className="text-xs text-[#71717a] mt-1">
+                  می‌توانید آهنگ‌ها را هنگام پخش به این پلی‌لیست اضافه کنید.
                 </p>
               </div>
             )}
@@ -292,10 +287,10 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
       {/* ── New Playlist Modal ── */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
-          <div className="lastwave-card p-6 w-full max-w-sm border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold text-white mb-2">Create New Playlist</h3>
-            <p className="text-xs text-white/60 mb-4">Enter a name for your new playlist folder:</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="lastwave-card p-5 w-full max-w-xs border border-white/10 shadow-2xl animate-in zoom-in-95 duration-150">
+            <h3 className="text-base font-semibold text-[#ededed] mb-1">New playlist</h3>
+            <p className="text-xs text-[#a1a1a6] mb-3">Enter a name for the folder:</p>
 
             <form onSubmit={handleCreateFolder}>
               <input
@@ -304,21 +299,21 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 placeholder="Playlist name..."
-                className="w-full h-11 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 text-sm outline-none focus:border-cyan-400 mb-5"
+                className="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-[#ededed] placeholder-[#71717a] text-xs outline-none focus:border-cyan-400 mb-4"
               />
 
-              <div className="flex items-center justify-end gap-2.5">
+              <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-full text-xs font-medium text-white/60 hover:text-white cursor-pointer"
+                  className="px-3 py-1.5 rounded-full text-xs font-normal text-[#a1a1a6] hover:text-[#ededed] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!newFolderName.trim()}
-                  className="lastwave-glass-active px-5 py-2 rounded-full text-xs font-bold text-white disabled:opacity-40 cursor-pointer shadow-md"
+                  className="lastwave-glass-active px-4 py-1.5 rounded-full text-xs font-medium text-[#ededed] disabled:opacity-40 cursor-pointer shadow-sm"
                 >
                   Create
                 </button>

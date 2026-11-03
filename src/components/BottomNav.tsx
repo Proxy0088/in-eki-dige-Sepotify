@@ -22,9 +22,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       labelFa: 'خانه',
       icon: (
         <div className="relative">
-          <HomeIcon className="w-5 h-5 stroke-[2]" />
+          <HomeIcon className="w-[18px] h-[18px] stroke-[1.8]" />
           {isPlaying && (
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.8)] animate-pulse" />
+            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400" />
           )}
         </div>
       ),
@@ -33,23 +33,22 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       id: 'search',
       labelEn: 'Search',
       labelFa: 'جست‌وجو',
-      icon: <Search className="w-5 h-5 stroke-[2]" />,
+      icon: <Search className="w-[18px] h-[18px] stroke-[1.8]" />,
     },
     {
       id: 'library',
       labelEn: 'Playlists',
       labelFa: 'پلی‌لیست',
-      icon: <LibraryIcon className="w-5 h-5 stroke-[2]" />,
+      icon: <LibraryIcon className="w-[18px] h-[18px] stroke-[1.8]" />,
     },
   ];
 
   return (
     <nav
       aria-label="Floating Navigation Bar"
-      className="fixed sm:absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none pointer-events-auto"
+      className="fixed sm:absolute bottom-5 left-1/2 -translate-x-1/2 z-40 select-none pointer-events-auto"
     >
-      {/* LastWave Floating Dock Container (DockShape: RoundedCornerShape(32.dp)) */}
-      <div className="lastwave-glass-dock rounded-full p-1.5 flex items-center gap-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+      <div className="lastwave-glass-dock rounded-full p-1.5 flex items-center gap-1 shadow-2xl">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const label = language === 'fa' ? tab.labelFa : tab.labelEn;
@@ -59,16 +58,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               key={tab.id}
               type="button"
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center justify-center transition-all duration-300 ease-out cursor-pointer active:scale-95 ${
+              className={`flex items-center justify-center transition-[color,background-color,transform] duration-200 cursor-pointer active:scale-95 ${
                 isActive
-                  ? 'lastwave-glass-active rounded-full px-4 py-2 text-white font-semibold gap-2 shadow-md'
-                  : 'w-11 h-10 rounded-full text-white/55 hover:text-white/90 hover:bg-white/10'
+                  ? 'lastwave-glass-active rounded-full px-3.5 py-1.5 text-[#ededed] font-medium gap-2 shadow-sm'
+                  : 'w-10 h-9 rounded-full text-[#a1a1a6] hover:text-[#ededed] hover:bg-white/[0.06]'
               }`}
               aria-label={label}
             >
               {tab.icon}
               {isActive && (
-                <span className="text-xs tracking-tight font-medium whitespace-nowrap animate-in fade-in duration-200">
+                <span className="text-xs tracking-tight font-medium whitespace-nowrap">
                   {label}
                 </span>
               )}

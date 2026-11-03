@@ -14,48 +14,46 @@ export const TopCapsule: React.FC<TopCapsuleProps> = ({
 }) => {
   return (
     <header
-      aria-label="App Top Navigation"
-      className="absolute top-0 left-0 right-0 h-[64px] sm:h-[72px] px-5 sm:px-6 flex items-center justify-between z-30 select-none pointer-events-auto bg-gradient-to-b from-[#0a0b0e]/90 via-[#0a0b0e]/50 to-transparent backdrop-blur-md"
+      aria-label="Application Top Header"
+      className="absolute top-0 left-0 right-0 h-15 px-4 sm:px-6 flex items-center justify-between z-30 select-none pointer-events-auto bg-[#090a0f]/80 backdrop-blur-md border-b border-white/[0.04]"
     >
-      {/* Brand title on left matching LastWave ExpressiveHeader */}
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-400 via-sky-500 to-indigo-600 flex items-center justify-center shadow-[0_2px_12px_rgba(14,165,233,0.35)]">
-          <Radio className="w-4 h-4 text-white stroke-[2.2]" />
+      {/* Brand logo & screen context */}
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-cyan-400 shadow-sm">
+          <Radio className="w-4 h-4 stroke-[1.8]" />
         </div>
         <div className="flex flex-col">
-          <span className="font-sans text-[20px] sm:text-[22px] font-black tracking-tight text-white leading-none">
+          <span className="text-base font-semibold tracking-tight text-[#ededed] leading-none">
             Sepotify
           </span>
-          <span className="text-[10px] font-medium text-white/50 tracking-wider uppercase mt-0.5">
-            {title || 'LastWave'}
+          <span className="text-[11px] font-medium text-[#a1a1a6] mt-1 leading-none">
+            {title || 'Player'}
           </span>
         </div>
       </div>
 
-      {/* Action buttons on right: Group/Friends & Profile avatar */}
-      <div className="flex items-center gap-2.5">
-        {/* Listen with Friends button */}
+      {/* Action buttons on right */}
+      <div className="flex items-center gap-2">
+        {/* Listen with Friends */}
         <button
           type="button"
           onClick={onGroupClick}
-          className="w-10 h-10 rounded-full lastwave-glass-pill flex items-center justify-center text-white/80 hover:text-white cursor-pointer active:scale-90 transition-all"
-          aria-label="Friends and group"
+          className="w-9 h-9 rounded-full lastwave-glass-pill flex items-center justify-center text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform"
+          aria-label="Friends and group listening"
           title="گوش دادن با رفیق‌ها"
         >
-          <Users className="w-[18px] h-[18px] stroke-[1.8]" />
+          <Users className="w-4 h-4 stroke-[1.8]" />
         </button>
 
-        {/* Profile Avatar circle */}
+        {/* Profile and Settings */}
         <button
           type="button"
           onClick={onProfileClick}
-          className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 hover:brightness-110 active:scale-90 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.35)] cursor-pointer"
-          aria-label="User profile"
+          className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 flex items-center justify-center text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
+          aria-label="User profile and settings"
           title="پروفایل کاربری و تنظیمات"
         >
-          <div className="w-full h-full rounded-full bg-[#13151d] flex items-center justify-center overflow-hidden">
-            <User className="w-[18px] h-[18px] text-white/90 stroke-[2]" />
-          </div>
+          <User className="w-4 h-4 stroke-[1.8]" />
         </button>
       </div>
     </header>

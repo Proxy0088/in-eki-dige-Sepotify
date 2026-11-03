@@ -157,7 +157,7 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
     );
   }, [localCatalog, query]);
 
-  // Selected tracks for rendering with category filtering
+  // Selected tracks for rendering
   const displayRows = useMemo(() => {
     let list: Track[] = [];
     if (searchMode === 'online') {
@@ -199,30 +199,30 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 sm:px-5 pt-[72px] sm:pt-[80px] pb-36 overflow-y-auto no-scrollbar select-none">
-      {/* ── LastWave Search Input Bar ── */}
+    <div className="flex-1 flex flex-col px-4 sm:px-6 pt-18 sm:pt-20 pb-32 overflow-y-auto no-scrollbar select-none">
+      {/* ── Search Input Bar ── */}
       <div className="w-full relative mb-3">
-        <div className="w-full h-12 rounded-full lastwave-glass px-4 flex items-center gap-3 shadow-md border border-white/10">
-          <SearchIcon className="w-4 h-4 text-white/50 shrink-0" />
+        <div className="w-full h-12 rounded-full lastwave-glass px-4 flex items-center gap-3 shadow-sm border border-white/10">
+          <SearchIcon className="w-4 h-4 text-[#71717a] shrink-0" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
               searchMode === 'local'
-                ? (language === 'fa' ? 'جست‌وجو در دانلودها و پوشه‌ها...' : 'Search downloads & device files...')
+                ? (language === 'fa' ? 'جست‌وجو در فایل‌های دستگاه...' : 'Search downloads & device files...')
                 : isNationalNet
                 ? (language === 'fa' ? 'جست‌وجو در موزیکدل (نت ملی)...' : 'Search musicdel.ir (National Net)...')
-                : (language === 'fa' ? 'جست‌وجوی آنلاین نام آهنگ یا خواننده...' : 'Search artists, songs, albums...')
+                : (language === 'fa' ? 'جست‌وجوی آنلاین آهنگ یا خواننده...' : 'Search artists, songs, albums...')
             }
-            className="w-full bg-transparent text-sm text-white placeholder-white/45 outline-none font-medium"
+            className="w-full bg-transparent text-sm text-[#ededed] placeholder-[#71717a] outline-none font-normal"
           />
 
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="p-1 text-white/50 hover:text-white"
+              className="p-1 text-[#71717a] hover:text-[#ededed]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -231,26 +231,26 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
           <button
             type="button"
             onClick={toggleSearchMode}
-            className="flex items-center justify-center p-1.5 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer active:scale-90 shrink-0"
+            className="flex items-center justify-center p-1.5 rounded-full hover:bg-white/[0.06] text-[#a1a1a6] hover:text-[#ededed] transition-colors cursor-pointer active:scale-95 shrink-0"
             title={
               searchMode === 'online'
-                ? 'حالت آنلاین YouTube Music (کلیک برای سوئیچ به دانلودها)'
-                : 'حالت دانلودها (کلیک برای سوئیچ به آنلاین)'
+                ? 'حالت آنلاین YouTube Music'
+                : 'حالت دانلودها و فایل‌های محلی'
             }
           >
             {searchMode === 'local' ? (
-              <FolderDown className="w-4 h-4 text-cyan-400 stroke-[2]" />
+              <FolderDown className="w-4 h-4 text-cyan-400 stroke-[1.8]" />
             ) : isNationalNet ? (
-              <ShieldCheck className="w-4 h-4 text-emerald-400 stroke-[2.2]" />
+              <ShieldCheck className="w-4 h-4 text-emerald-400 stroke-[2]" />
             ) : (
-              <Globe className="w-4 h-4 text-white/70 stroke-[2]" />
+              <Globe className="w-4 h-4 text-[#a1a1a6] stroke-[1.8]" />
             )}
           </button>
         </div>
       </div>
 
       {/* ── Category Filter Chips ── */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mb-2">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mb-1">
         {CATEGORY_CHIPS.map((cat) => {
           const isSelected = selectedCategory === cat;
           return (
@@ -265,10 +265,10 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
                   setQuery('');
                 }
               }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer transition-all active:scale-95 ${
+              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap cursor-pointer transition-colors active:scale-95 ${
                 isSelected
-                  ? 'lastwave-glass-active text-white shadow-md'
-                  : 'lastwave-glass-pill text-white/60 hover:text-white'
+                  ? 'lastwave-glass-active text-[#ededed] shadow-sm'
+                  : 'lastwave-glass-pill text-[#a1a1a6] hover:text-[#ededed]'
               }`}
             >
               {cat}
@@ -278,11 +278,11 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
       </div>
 
       {/* ── Results Container ── */}
-      <div className="rounded-[24px] bg-[#14161f] border border-white/5 p-3 flex-1 flex flex-col gap-1.5 shadow-xl">
+      <div className="rounded-2xl bg-[#14161f] border border-white/[0.06] p-3 flex-1 flex flex-col gap-1 shadow-xl">
         {isSearching && displayRows.length === 0 ? (
-          <div className="py-14 text-center text-white/50 text-sm flex flex-col items-center justify-center gap-2">
-            <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            <span>{language === 'fa' ? 'در حال جستجو...' : 'Searching catalog...'}</span>
+          <div className="py-14 text-center text-[#a1a1a6] text-xs flex flex-col items-center justify-center gap-2">
+            <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            <span>{language === 'fa' ? 'در حال جستجو...' : 'Searching...'}</span>
           </div>
         ) : displayRows.length > 0 ? (
           displayRows.map((track) => (
@@ -303,9 +303,9 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
             />
           ))
         ) : (
-          <div className="py-16 text-center text-white/40 text-sm flex flex-col items-center justify-center gap-2">
-            <Sparkles className="w-8 h-8 text-white/20" />
-            <span>{language === 'fa' ? 'نتیجه‌ای یافت نشد.' : 'No tracks found.'}</span>
+          <div className="py-16 text-center text-[#71717a] text-xs flex flex-col items-center justify-center gap-2">
+            <Sparkles className="w-6 h-6 text-[#71717a]/40" />
+            <span>{language === 'fa' ? 'نتیجه‌ای یافت نشد' : 'No tracks found'}</span>
           </div>
         )}
       </div>

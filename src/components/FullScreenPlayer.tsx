@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ChevronDown,
   MoreVertical,
@@ -12,7 +12,6 @@ import {
   Repeat,
   Repeat1,
   FolderPlus,
-  SlidersHorizontal,
   Music,
 } from 'lucide-react';
 import { Track, NavTab } from '../types/music';
@@ -114,7 +113,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
     return 0;
   }, [currentTime, lyrics]);
 
-  // Auto-scroll lyrics to active line
+  // Auto-scroll lyrics
   useEffect(() => {
     if (showLyrics && activeLineIndex >= 0 && lyricsContainerRef.current) {
       const activeEl = lyricsContainerRef.current.children[activeLineIndex] as HTMLElement;
@@ -131,7 +130,6 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
     setCycleMode(next);
   };
 
-  // Next button pointer events for preview
   const handleNextPointerDown = () => {
     isLongPressRef.current = false;
     longPressTimerRef.current = window.setTimeout(() => {
@@ -228,67 +226,65 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   }
 
   return (
-    <div className="w-full h-full bg-[#0a0b0e] relative overflow-hidden select-none flex flex-col justify-between animate-in fade-in duration-300">
-      {/* ── Dynamic Ambient Artwork Backdrop (LastWave / Apple Music style) ── */}
+    <div className="w-full h-full bg-[#0a0b0e] relative overflow-hidden select-none flex flex-col justify-between animate-in fade-in duration-200">
+      {/* ── Calm Blurred Backdrop ── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {currentTrack.coverUrl && !coverError ? (
           <img
             src={currentTrack.coverUrl}
             alt=""
-            className="w-full h-full object-cover scale-150 blur-[70px] opacity-40 brightness-75 transition-opacity duration-700"
+            className="w-full h-full object-cover scale-125 blur-3xl opacity-30 brightness-75 transition-opacity duration-500"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-b from-[#181a24] to-[#0a0b0e]" />
+          <div className="w-full h-full bg-[#0d0f15]" />
         )}
-        {/* Darkening Scrims */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-[#0a0b0e]/70 to-[#0a0b0e]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-[#0a0b0e]/75 to-[#0a0b0e]" />
       </div>
 
       {/* ── Top Header Bar ── */}
-      <div className="relative z-30 w-full h-[64px] sm:h-[72px] px-5 sm:px-6 flex items-center justify-between pt-2">
-        {/* Collapse Button (Chevron Down) */}
+      <div className="relative z-30 w-full h-15 px-4 sm:px-6 flex items-center justify-between pt-2">
+        {/* Collapse Button */}
         <button
           type="button"
           onClick={onBack}
-          className="w-11 h-11 rounded-full lastwave-glass-pill flex items-center justify-center text-white/90 hover:text-white cursor-pointer active:scale-90 transition-all shadow-md"
+          className="w-10 h-10 rounded-full lastwave-glass-pill flex items-center justify-center text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
           aria-label="Collapse player"
         >
-          <ChevronDown className="w-6 h-6 stroke-[2.2]" />
+          <ChevronDown className="w-5 h-5 stroke-[2]" />
         </button>
 
-        {/* Center: "NOW PLAYING" & Source Title */}
+        {/* Center: Context & Playlist */}
         <div className="flex flex-col items-center justify-center max-w-[200px]">
-          <span className="text-[11px] font-bold tracking-[2px] text-white/90 uppercase leading-none">
-            {showLyrics ? 'LYRICS' : 'NOW PLAYING'}
+          <span className="text-[11px] font-semibold tracking-wider text-[#a1a1a6] uppercase leading-none">
+            {showLyrics ? 'Lyrics' : 'Now Playing'}
           </span>
-          <span className="text-xs text-white/60 font-medium truncate mt-1 leading-none">
+          <span className="text-xs text-[#71717a] font-normal truncate mt-1 leading-none">
             {currentTrack.collection || 'Sepotify'}
           </span>
         </div>
 
-        {/* Options Button (3-dots) */}
+        {/* Options Button */}
         <button
           type="button"
           onClick={() => setShowMatchModal(true)}
-          className="w-11 h-11 rounded-full lastwave-glass-pill flex items-center justify-center text-white/90 hover:text-white cursor-pointer active:scale-90 transition-all shadow-md"
-          aria-label="Song options & match"
+          className="w-10 h-10 rounded-full lastwave-glass-pill flex items-center justify-center text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform shadow-sm"
+          aria-label="Song options and match"
         >
-          <MoreVertical className="w-5 h-5 stroke-[2]" />
+          <MoreVertical className="w-4 h-4 stroke-[1.8]" />
         </button>
       </div>
 
-      {/* ── Center Content: Artwork or Lyrics ── */}
+      {/* ── Center Content: Squircle Artwork or Synced Lyrics ── */}
       <div className="relative z-20 flex-1 flex flex-col items-center justify-center px-6 min-h-0">
         {showLyrics ? (
-          /* Lyrics View */
           <div
             ref={lyricsContainerRef}
             className="w-full h-[min(48vh,420px)] overflow-y-auto no-scrollbar py-12 px-4 flex flex-col items-center gap-6 text-center select-none"
           >
             {loadingLyrics ? (
-              <div className="flex flex-col items-center justify-center h-full gap-3 text-white/60">
-                <span className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span className="text-sm">در حال بارگذاری متن ترانه...</span>
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-[#a1a1a6]">
+                <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <span className="text-xs">در حال بارگذاری متن ترانه...</span>
               </div>
             ) : lyrics?.lines && lyrics.lines.length > 0 ? (
               lyrics.lines.map((line, idx) => {
@@ -297,10 +293,10 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   <p
                     key={idx}
                     onClick={() => audioService.seek(line.time)}
-                    className={`cursor-pointer transition-all duration-300 font-bold leading-relaxed max-w-md ${
+                    className={`cursor-pointer transition-colors duration-200 font-semibold leading-relaxed max-w-md ${
                       isActive
-                        ? 'text-white text-2xl sm:text-3xl scale-105 filter drop-shadow-[0_4px_16px_rgba(255,255,255,0.4)]'
-                        : 'text-white/40 text-lg sm:text-xl hover:text-white/70'
+                        ? 'text-[#ededed] text-2xl sm:text-3xl'
+                        : 'text-[#71717a] text-lg sm:text-xl hover:text-[#a1a1a6]'
                     }`}
                   >
                     {line.text}
@@ -308,21 +304,15 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                 );
               })
             ) : (
-              <div className="flex flex-col items-center justify-center h-full gap-2 text-white/50">
-                <p className="text-base font-medium">متن ترانه برای این آهنگ یافت نشد.</p>
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-[#71717a]">
+                <p className="text-sm font-normal">متن ترانه برای این قطعه یافت نشد</p>
               </div>
             )}
           </div>
         ) : (
-          /* Main Squircle Artwork Hero */
           <div className="relative flex items-center justify-center my-auto">
-            {/* Ambient artwork glow behind squircle */}
-            {isPlaying && (
-              <div className="absolute inset-0 w-full h-full rounded-[36px] bg-cyan-500/25 blur-3xl scale-110 pointer-events-none transition-all duration-700" />
-            )}
-
             {/* Squircle Album Artwork Frame */}
-            <div className="relative w-[270px] h-[270px] sm:w-[310px] sm:h-[310px] rounded-[32px] sm:rounded-[38px] overflow-hidden bg-[#161822] shadow-[0_24px_60px_rgba(0,0,0,0.85)] border border-white/10 shrink-0">
+            <div className="relative w-64 h-64 sm:w-76 sm:h-76 rounded-3xl overflow-hidden bg-[#14161f] shadow-2xl border border-white/10 shrink-0">
               {currentTrack.coverUrl && !coverError ? (
                 <img
                   src={currentTrack.coverUrl}
@@ -332,8 +322,8 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   className="w-full h-full object-cover select-none"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[#151720]">
-                  <Music className="w-20 h-20 text-white/30" />
+                <div className="w-full h-full flex items-center justify-center bg-[#12141c]">
+                  <Music className="w-16 h-16 text-[#71717a]" />
                 </div>
               )}
             </div>
@@ -342,14 +332,14 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
       </div>
 
       {/* ── Bottom Controls Section ── */}
-      <div className="relative z-30 w-full px-6 sm:px-7 pb-8 flex flex-col gap-3">
+      <div className="relative z-30 w-full px-6 sm:px-8 pb-7 flex flex-col gap-3">
         {/* Track Title, Artist & Action Buttons */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col min-w-0 flex-1">
-            <h1 className="text-[21px] sm:text-[23px] font-black text-white tracking-tight truncate leading-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#ededed] tracking-tight truncate leading-tight">
               {currentTrack.title}
             </h1>
-            <span className="text-sm font-semibold text-white/65 truncate mt-0.5 leading-snug">
+            <span className="text-sm font-medium text-[#a1a1a6] truncate mt-0.5 leading-snug">
               {currentTrack.artist}
             </span>
           </div>
@@ -359,13 +349,13 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             <button
               type="button"
               onClick={() => onToggleLike(currentTrack)}
-              className={`w-11 h-11 rounded-full lastwave-glass-pill flex items-center justify-center cursor-pointer active:scale-90 transition-all ${
-                isLiked ? 'text-rose-400 bg-rose-500/15 border-rose-500/30' : 'text-white/80'
+              className={`w-10 h-10 rounded-full lastwave-glass-pill flex items-center justify-center cursor-pointer active:scale-95 transition-transform ${
+                isLiked ? 'text-rose-400' : 'text-[#a1a1a6] hover:text-[#ededed]'
               }`}
               aria-label={isLiked ? 'Unlike' : 'Like'}
             >
               <Heart
-                className={`w-5 h-5 ${isLiked ? 'fill-rose-400 text-rose-400' : 'stroke-[2]'}`}
+                className={`w-4 h-4 ${isLiked ? 'fill-rose-400 text-rose-400' : 'stroke-[1.8]'}`}
               />
             </button>
 
@@ -373,18 +363,18 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             <button
               type="button"
               onClick={() => setShowLyrics(!showLyrics)}
-              className={`w-11 h-11 rounded-full lastwave-glass-pill flex items-center justify-center cursor-pointer active:scale-90 transition-all ${
-                showLyrics ? 'text-cyan-400 bg-cyan-500/20 border-cyan-500/40' : 'text-white/80'
+              className={`w-10 h-10 rounded-full lastwave-glass-pill flex items-center justify-center cursor-pointer active:scale-95 transition-transform ${
+                showLyrics ? 'text-cyan-400 bg-white/10' : 'text-[#a1a1a6] hover:text-[#ededed]'
               }`}
               aria-label="Toggle Lyrics"
               title="Lyrics"
             >
-              <Quote className="w-5 h-5 stroke-[2]" />
+              <Quote className="w-4 h-4 stroke-[1.8]" />
             </button>
           </div>
         </div>
 
-        {/* ── LastWave Seekbar ── */}
+        {/* ── Seekbar ── */}
         <div className="w-full flex flex-col gap-1.5 pt-1">
           <div
             onPointerDown={handleSeekbarPointerDown}
@@ -392,139 +382,135 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             onPointerUp={handleSeekbarPointerUp}
             className="w-full h-4 flex items-center cursor-pointer relative group touch-none"
           >
-            <div className="w-full h-1.5 group-hover:h-2 rounded-full bg-white/15 overflow-hidden transition-all relative">
+            <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden relative">
               <div
-                className="h-full bg-gradient-to-r from-cyan-400 to-sky-300 rounded-full"
+                className="h-full bg-cyan-400 rounded-full"
                 style={{ width: `${effectiveRatio * 100}%` }}
               />
             </div>
             {/* Scrub thumb */}
             <div
-              className="absolute w-3.5 h-3.5 rounded-full bg-white shadow-lg pointer-events-none -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute w-3 h-3 rounded-full bg-white shadow-md pointer-events-none -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ left: `${effectiveRatio * 100}%` }}
             />
           </div>
 
-          <div className="flex items-center justify-between text-[11px] font-mono text-white/50 font-medium px-0.5">
+          <div className="flex items-center justify-between text-xs font-mono text-[#71717a] font-normal tabular-nums px-0.5">
             <span>{formatTime(currentTime)}</span>
             <span>{formatRemainingTime(currentTime, duration)}</span>
           </div>
         </div>
 
-        {/* ── Apple Music / LastWave Audio Quality Badge ── */}
+        {/* ── Audio Quality Badge ── */}
         <div className="flex items-center justify-center my-0.5">
           <div
             onClick={() => setShowMatchModal(true)}
-            className="lastwave-glass-pill px-3 py-1 rounded-full flex items-center gap-1.5 text-[10px] font-bold text-white/75 tracking-wider uppercase cursor-pointer hover:text-white"
+            className="lastwave-glass-pill px-3 py-1 rounded-full flex items-center gap-1.5 text-[10px] font-medium text-[#a1a1a6] tracking-wider uppercase cursor-pointer hover:text-[#ededed] tabular-nums"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-            <span>HQ 320 KBPS • LOSSLESS</span>
+            <span>HQ 320 KBPS • Lossless</span>
           </div>
         </div>
 
-        {/* ── Primary Controls Row (Prev, HUGE Play/Pause, Next) ── */}
-        <div className="flex items-center justify-center gap-7 pt-1">
-          {/* Previous Track Button */}
+        {/* ── Primary Playback Controls Row ── */}
+        <div className="flex items-center justify-center gap-6 pt-1">
+          {/* Previous Track */}
           <button
             type="button"
             onClick={onPreviousTrack}
-            className="w-14 h-14 rounded-full lastwave-glass-pill flex items-center justify-center text-white/90 hover:text-white cursor-pointer active:scale-90 transition-all shadow-md"
+            className="w-12 h-12 rounded-full lastwave-glass-pill flex items-center justify-center text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform"
             aria-label="Previous track"
           >
-            <SkipBack className="w-6 h-6 fill-current" />
+            <SkipBack className="w-5 h-5 fill-current" />
           </button>
 
-          {/* HUGE White Play/Pause Button */}
+          {/* Main Play/Pause Button */}
           <button
             type="button"
             onClick={onTogglePlay}
-            className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center shadow-[0_10px_35px_rgba(255,255,255,0.3)] hover:bg-slate-100 active:scale-90 transition-all cursor-pointer"
+            className="w-16 h-16 rounded-full bg-[#ededed] text-[#090a0f] hover:bg-white flex items-center justify-center shadow-md active:scale-95 transition-transform cursor-pointer"
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? (
-              <Pause className="w-8 h-8 fill-black text-black" />
+              <Pause className="w-7 h-7 fill-current" />
             ) : (
-              <Play className="w-8 h-8 fill-black text-black ml-1" />
+              <Play className="w-7 h-7 fill-current ml-0.5" />
             )}
           </button>
 
-          {/* Next Track Button with long-press preview */}
+          {/* Next Track Button */}
           <button
             type="button"
             onPointerDown={handleNextPointerDown}
             onPointerUp={handleNextPointerUp}
             onPointerLeave={handleNextPointerLeave}
-            className="w-14 h-14 rounded-full lastwave-glass-pill flex items-center justify-center text-white/90 hover:text-white cursor-pointer active:scale-90 transition-all shadow-md"
+            className="w-12 h-12 rounded-full lastwave-glass-pill flex items-center justify-center text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform"
             aria-label="Next track"
           >
-            <SkipForward className="w-6 h-6 fill-current" />
+            <SkipForward className="w-5 h-5 fill-current" />
           </button>
         </div>
 
-        {/* ── Secondary Bottom Row (3 Wide Frosted Glass Pills) ── */}
-        <div className="grid grid-cols-3 gap-2.5 pt-2">
-          {/* Shuffle Toggle Pill */}
+        {/* ── Secondary Controls Row (3 Wide Pills) ── */}
+        <div className="grid grid-cols-3 gap-2 pt-2">
+          {/* Shuffle Toggle */}
           <button
             type="button"
             onClick={handleCyclePlaybackMode}
-            className={`lastwave-glass-pill py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all text-xs font-semibold ${
+            className={`lastwave-glass-pill py-2 px-3 rounded-full flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform text-xs font-medium ${
               cycleMode === 'shuffle'
-                ? 'text-cyan-400 bg-cyan-500/15 border-cyan-500/30'
-                : 'text-white/70'
+                ? 'text-cyan-400 border-cyan-400/30'
+                : 'text-[#a1a1a6]'
             }`}
           >
-            <Shuffle className="w-3.5 h-3.5 stroke-[2.2]" />
+            <Shuffle className="w-3.5 h-3.5 stroke-[1.8]" />
             <span>Shuffle</span>
           </button>
 
-          {/* Add to Library Pill */}
+          {/* Add to Library */}
           <button
             type="button"
             onClick={() => setShowLibraryModal(true)}
-            className="lastwave-glass-pill py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 text-white/75 hover:text-white cursor-pointer active:scale-95 transition-all text-xs font-semibold"
+            className="lastwave-glass-pill py-2 px-3 rounded-full flex items-center justify-center gap-1.5 text-[#a1a1a6] hover:text-[#ededed] cursor-pointer active:scale-95 transition-transform text-xs font-medium"
           >
-            <FolderPlus className="w-3.5 h-3.5 stroke-[2.2]" />
+            <FolderPlus className="w-3.5 h-3.5 stroke-[1.8]" />
             <span>Library</span>
           </button>
 
-          {/* Repeat Mode Pill */}
+          {/* Repeat Mode */}
           <button
             type="button"
             onClick={handleCyclePlaybackMode}
-            className={`lastwave-glass-pill py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all text-xs font-semibold ${
+            className={`lastwave-glass-pill py-2 px-3 rounded-full flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform text-xs font-medium ${
               cycleMode === 'repeat_all' || cycleMode === 'repeat_one'
-                ? 'text-cyan-400 bg-cyan-500/15 border-cyan-500/30'
-                : 'text-white/70'
+                ? 'text-cyan-400 border-cyan-400/30'
+                : 'text-[#a1a1a6]'
             }`}
           >
             {cycleMode === 'repeat_one' ? (
-              <Repeat1 className="w-3.5 h-3.5 stroke-[2.2]" />
+              <Repeat1 className="w-3.5 h-3.5 stroke-[1.8]" />
             ) : (
-              <Repeat className="w-3.5 h-3.5 stroke-[2.2]" />
+              <Repeat className="w-3.5 h-3.5 stroke-[1.8]" />
             )}
             <span>{cycleMode === 'repeat_one' ? 'One' : 'Repeat'}</span>
           </button>
         </div>
       </div>
 
-      {/* Next Track Long-Press Preview Floating Overlay */}
+      {/* Overlays */}
       {showNextPreview && nextTrack && (
         <NextMusicPreview nextTrack={nextTrack} isVisible={showNextPreview} />
       )}
 
-      {/* Manual Match Modal for stream replacement */}
       {showMatchModal && (
         <ManualMatchModal
           track={currentTrack}
           isOpen={showMatchModal}
           onClose={() => setShowMatchModal(false)}
-          onMatched={() => {
-            setShowMatchModal(false);
-          }}
+          onMatched={() => setShowMatchModal(false)}
         />
       )}
 
-      {/* Add to Library Modal */}
       {showLibraryModal && (
         <AskListLibraryModal
           isOpen={showLibraryModal}

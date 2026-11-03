@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Globe, Sun, Moon, Info, Radio, Sparkles } from 'lucide-react';
+import { Shield, Globe, Sun, Moon, Radio } from 'lucide-react';
 import { AppTheme } from '../types/music';
 
 interface SettingScreenProps {
@@ -16,54 +16,51 @@ export const SettingScreen: React.FC<SettingScreenProps> = ({
   onThemeChange,
 }) => {
   return (
-    <div className="flex-1 flex flex-col items-center px-4 sm:px-5 pt-[72px] sm:pt-[80px] pb-32 overflow-y-auto no-scrollbar select-none">
-      <div className="w-full max-w-[390px] flex flex-col gap-3.5">
+    <div className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-18 sm:pt-20 pb-32 overflow-y-auto no-scrollbar select-none">
+      <div className="w-full max-w-[384px] flex flex-col gap-3">
         {/* Header Title */}
         <div className="flex items-center justify-between px-1 mb-1">
           <div className="flex flex-col">
-            <h1 className="text-2xl font-black text-white tracking-tight">Settings</h1>
-            <span className="text-xs text-white/50 font-medium">Preferences & network</span>
+            <h1 className="text-xl font-bold text-[#ededed] tracking-tight">Settings</h1>
+            <span className="text-xs text-[#a1a1a6] font-normal">Preferences and streaming</span>
           </div>
-          <span className="text-xs font-mono font-semibold text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-1 rounded-full">
+          <span className="text-xs font-mono font-normal text-cyan-400 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded-full tabular-nums">
             v2.4
           </span>
         </div>
 
-        {/* ── CARD 1: IR Net Mode (National Net Shield) ── */}
-        <div className="w-full rounded-[24px] bg-[#14151c] border border-white/5 p-4 flex items-center justify-between gap-3 shadow-md">
+        {/* ── CARD 1: IR Net Mode ── */}
+        <div className="w-full rounded-2xl bg-[#12141c] border border-white/[0.06] p-4 flex items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-3.5 min-w-0 flex-1">
-            <div className={`w-11 h-11 rounded-[16px] flex items-center justify-center shrink-0 border ${
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
               isNationalNet
-                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                : 'bg-white/5 border-white/10 text-white/60'
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                : 'bg-white/[0.04] border-white/10 text-[#a1a1a6]'
             }`}>
-              <Shield className="w-5 h-5 stroke-[2]" />
+              <Shield className="w-4 h-4 stroke-[1.8]" />
             </div>
 
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold text-white tracking-tight">
+              <span className="text-sm font-semibold text-[#ededed] tracking-tight">
                 IR Net Shield
               </span>
-              <span className="text-xs text-white/50 leading-relaxed mt-0.5">
+              <span className="text-xs text-[#71717a] leading-relaxed mt-0.5">
                 Stream via domestic servers (musicdel.ir) without VPN
               </span>
             </div>
           </div>
 
-          {/* iOS-style toggle */}
           <button
             type="button"
             role="switch"
             aria-checked={isNationalNet}
             onClick={() => onToggleNationalNet(!isNationalNet)}
-            className={`w-12 h-7 rounded-full transition-colors duration-300 relative shrink-0 cursor-pointer p-0.5 flex items-center ${
-              isNationalNet
-                ? 'bg-emerald-500'
-                : 'bg-white/20'
+            className={`w-11 h-6 rounded-full transition-colors duration-200 relative shrink-0 cursor-pointer p-0.5 flex items-center ${
+              isNationalNet ? 'bg-emerald-500' : 'bg-white/20'
             }`}
           >
             <div
-              className={`w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 ${
+              className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
                 isNationalNet ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
@@ -71,45 +68,44 @@ export const SettingScreen: React.FC<SettingScreenProps> = ({
         </div>
 
         {/* ── CARD 2: Language ── */}
-        <div className="w-full rounded-[24px] bg-[#14151c] border border-white/5 p-4 flex items-center justify-between gap-3 shadow-md">
+        <div className="w-full rounded-2xl bg-[#12141c] border border-white/[0.06] p-4 flex items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-3.5 min-w-0 flex-1">
-            <div className="w-11 h-11 rounded-[16px] bg-white/5 border border-white/10 text-cyan-400 flex items-center justify-center shrink-0">
-              <Globe className="w-5 h-5 stroke-[2]" />
+            <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 text-cyan-400 flex items-center justify-center shrink-0">
+              <Globe className="w-4 h-4 stroke-[1.8]" />
             </div>
 
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold text-white tracking-tight">
+              <span className="text-sm font-semibold text-[#ededed] tracking-tight">
                 Language
               </span>
-              <span className="text-xs text-white/50 mt-0.5">
-                Default display language
+              <span className="text-xs text-[#71717a] mt-0.5">
+                Default interface language
               </span>
             </div>
           </div>
 
-          {/* En fixed badge (per user specification) */}
-          <div className="lastwave-glass-pill px-3 py-1.5 rounded-full text-xs font-bold text-white/80">
+          <div className="lastwave-glass-pill px-3 py-1 rounded-full text-xs font-normal text-[#ededed]">
             English
           </div>
         </div>
 
         {/* ── CARD 3: Theme Toggle ── */}
-        <div className="w-full rounded-[24px] bg-[#14151c] border border-white/5 p-4 flex items-center justify-between gap-3 shadow-md">
+        <div className="w-full rounded-2xl bg-[#12141c] border border-white/[0.06] p-4 flex items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-3.5 min-w-0 flex-1">
-            <div className="w-11 h-11 rounded-[16px] bg-white/5 border border-white/10 text-amber-400 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 text-amber-400 flex items-center justify-center shrink-0">
               {theme === 'light' ? (
-                <Sun className="w-5 h-5 stroke-[2]" />
+                <Sun className="w-4 h-4 stroke-[1.8]" />
               ) : (
-                <Moon className="w-5 h-5 stroke-[2]" />
+                <Moon className="w-4 h-4 stroke-[1.8]" />
               )}
             </div>
 
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold text-white tracking-tight">
+              <span className="text-sm font-semibold text-[#ededed] tracking-tight">
                 Theme
               </span>
-              <span className="text-xs text-white/50 mt-0.5">
-                {theme === 'light' ? 'Light Theme (Clean Frost)' : 'Dark Theme (OLED Black)'}
+              <span className="text-xs text-[#71717a] mt-0.5">
+                {theme === 'light' ? 'Light mode (Clean frost)' : 'Dark mode (OLED)'}
               </span>
             </div>
           </div>
@@ -119,14 +115,12 @@ export const SettingScreen: React.FC<SettingScreenProps> = ({
             role="switch"
             aria-checked={theme === 'light'}
             onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
-            className={`w-12 h-7 rounded-full transition-colors duration-300 relative shrink-0 cursor-pointer p-0.5 flex items-center ${
-              theme === 'light'
-                ? 'bg-amber-400'
-                : 'bg-white/20'
+            className={`w-11 h-6 rounded-full transition-colors duration-200 relative shrink-0 cursor-pointer p-0.5 flex items-center ${
+              theme === 'light' ? 'bg-amber-400' : 'bg-white/20'
             }`}
           >
             <div
-              className={`w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 ${
+              className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
                 theme === 'light' ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
@@ -134,12 +128,12 @@ export const SettingScreen: React.FC<SettingScreenProps> = ({
         </div>
 
         {/* ── App Info Card ── */}
-        <div className="w-full rounded-[24px] bg-[#14151c]/60 border border-white/5 p-4 flex flex-col gap-2 mt-2">
-          <div className="flex items-center gap-2 text-white/70">
-            <Radio className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs font-bold text-white">Sepotify x LastWave Native</span>
+        <div className="w-full rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4 flex flex-col gap-1.5 mt-2">
+          <div className="flex items-center gap-2 text-[#a1a1a6]">
+            <Radio className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-xs font-semibold text-[#ededed]">Sepotify x LastWave</span>
           </div>
-          <p className="text-[11px] text-white/40 leading-relaxed">
+          <p className="text-[11px] text-[#71717a] leading-relaxed">
             High-fidelity audio streaming client inspired by LastWave Native with Liquid Glass materials and verified YouTube Music streaming.
           </p>
         </div>

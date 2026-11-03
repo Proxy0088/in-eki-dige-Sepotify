@@ -2,22 +2,27 @@
 
 :root {
   --bg-outer: #090a0f;
-  --bg-app: #0e1017;
-  --bg-card: #13151d;
-  --text-main: #ffffff;
-  --text-dim: #94a3b8;
-  --border-color: rgba(255, 255, 255, 0.07);
-  --lw-glass-bg: rgba(20, 23, 31, 0.72);
-  --lw-glass-border: rgba(255, 255, 255, 0.09);
-  --lw-glass-highlight: rgba(255, 255, 255, 0.12);
+  --bg-app: #0d0f15;
+  --bg-card: #12141c;
+  --bg-raised: #181b24;
+  --text-main: #ededed;
+  --text-dim: #a1a1a6;
+  --text-muted: #71717a;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --lw-glass-bg: rgba(18, 20, 28, 0.72);
+  --lw-glass-border: rgba(255, 255, 255, 0.08);
+  --lw-glass-highlight: rgba(255, 255, 255, 0.10);
+  --ease-unslop: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html.light {
-  --bg-outer: #e2e8f0;
-  --bg-app: #f1f5f9;
+  --bg-outer: #f1f5f9;
+  --bg-app: #f8fafc;
   --bg-card: #ffffff;
-  --text-main: #0f172a;
-  --text-dim: #64748b;
+  --bg-raised: #f1f5f9;
+  --text-main: #171717;
+  --text-dim: #525252;
+  --text-muted: #737373;
   --border-color: rgba(0, 0, 0, 0.08);
   --lw-glass-bg: rgba(255, 255, 255, 0.75);
   --lw-glass-border: rgba(0, 0, 0, 0.08);
