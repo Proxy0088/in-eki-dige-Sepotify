@@ -21,6 +21,7 @@ import { DeviceAudioScanner } from './services/deviceAudioScanner';
 import { IndexedDbAudioService } from './services/indexedDbAudio';
 import { StreamResolverService } from './services/streamResolverService';
 import { MusicDelService } from './services/musicDelService';
+import { NetworkStatusToast } from './components/NetworkStatusToast';
 
 export default function App() {
   const [screenState, setScreenState] = useState<ScreenState>('home');
@@ -56,6 +57,19 @@ export default function App() {
     setSettings((prev) => ({ ...prev, theme }));
   }, []);
   const previousScreenRef = useRef<ScreenState>('home');
+  const lastBrowseScreenRef = useRef<ScreenState>('home');
+
+  // Persistent Search State (Keeps query & results intact when opening player or switching tabs)
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<Track[]>([]);
+  const [searchMode, setSearchMode] = useState<'online' | 'local'>('online');
+  const [searchCategory, setSearchCategory] = useState<string>('All');
+
+  useEffect(() => {
+    if (screenState !== 'player' && screenState !== 'setting') {
+      lastBrowseScreenRef.current = screenState;
+    }
+  }, [screenState]);
 
   // Audio Player state
   const [currentTrack, setCurrentTrack] = useState<Track | null>(() => {
@@ -455,6 +469,9 @@ export default function App() {
     <div className="h-[100dvh] min-h-[100dvh] sm:min-h-screen w-full bg-[var(--bg-outer)] flex items-center justify-center sm:py-6 select-none font-sans overflow-hidden transition-colors duration-300">
       {/* 412 x 917 Android Compact - 1 root container matching Figma exact composition */}
       <div className="w-full sm:max-w-[412px] h-[100dvh] sm:h-[917px] max-h-[100dvh] sm:max-h-[917px] bg-[var(--bg-app)] sm:rounded-[44px] sm:border sm:border-white/5 sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] relative overflow-hidden transition-colors duration-300">
+        {/* Liquid Glass Network Status Alert (Red when disconnected, Green when restored) */}
+        <NetworkStatusToast language={settings.language} />
+
         {/* Dynamic Screen Content strictly aligned with the 4 screen states - takes full screen from top 0 to bottom */}
         <div className="w-full h-full flex flex-col overflow-hidden relative">
                     {screenState === 'setting' && (
@@ -508,6 +525,14 @@ export default function App() {
               downloadingIds={downloadingIds}
               isNationalNet={settings.isNationalNet}
               language={settings.language}
+              query={searchQuery}
+              onQueryChange={setSearchQuery}
+              onlineResults={searchResults}
+              onOnlineResultsChange={setSearchResults}
+              searchMode={searchMode}
+              onSearchModeChange={setSearchMode}
+              selectedCategory={searchCategory}
+              onCategoryChange={setSearchCategory}
             />
           )}
 
@@ -546,7 +571,7 @@ export default function App() {
               currentTime={currentTime}
               duration={duration}
               likedIds={likedIds}
-              onBack={() => setScreenState(previousScreenRef.current || 'home')}
+              onBack={() => setScreenState(previousScreenRef.current || lastBrowseScreenRef.current || 'online_search')}
               onTogglePlay={handleTogglePlay}
               onNextTrack={handleNextTrack}
               onPreviousTrack={handlePreviousTrack}

@@ -90,16 +90,22 @@ class AudioService {
       });
 
       this.audio.addEventListener('error', (err) => {
-        console.warn('Audio playback error:', err);
+        console.warn('Audio playback error (keeping current track):', err);
         this.isPlaying = false;
         this.updateMediaSessionPlaybackState('paused');
         this.notify();
-        // Requirement 5: A failed track does not break automatic next-track playback
-        if (this.queue.length > 1 && this.failedSkipCount < this.queue.length) {
-          this.failedSkipCount++;
-          setTimeout(() => this.playNext(), 300);
-        }
+        // Do NOT loop-skip to next track on network interruption!
+        // Stay on current track so user can resume when internet returns.
       });
+
+      if (typeof window !== 'undefined') {
+        window.addEventListener('offline', () => {
+          console.log('Network offline detected in AudioService: pausing playback');
+          if (this.isPlaying) {
+            this.pause();
+          }
+        });
+      }
 
       this.setupMediaSessionHandlers();
       this.initYouTubePlayer();
@@ -335,25 +341,12 @@ class AudioService {
           this.queue = this.queue.map((t) => (t.id === playableTrack.id ? playableTrack : t));
         } else {
           console.warn('Queue track resolution failed for:', playableTrack.title);
-          // Advance to next track without breaking queue playback
-          if (this.queue.length > 1 && this.failedSkipCount < this.queue.length) {
-            this.failedSkipCount++;
-            setTimeout(() => this.playNext(), 300);
-            return;
-          }
-          this.failedSkipCount = 0;
           this.isPlaying = false;
           this.notify();
           return;
         }
       } catch (err) {
-        console.warn('Queue track resolution error:', err);
-        if (this.queue.length > 1 && this.failedSkipCount < this.queue.length) {
-          this.failedSkipCount++;
-          setTimeout(() => this.playNext(), 300);
-          return;
-        }
-        this.failedSkipCount = 0;
+        console.warn('Queue track resolution error (keeping track):', err);
         this.isPlaying = false;
         this.notify();
         return;
@@ -393,15 +386,11 @@ class AudioService {
         await this.audio.play();
         this.isPlaying = true;
       } catch (err) {
-        console.warn('Direct audio play failed:', err);
+        console.warn('Direct audio play failed (keeping current track):', err);
         this.isPlaying = false;
         this.updateMediaSessionPlaybackState('paused');
         this.notify();
-        if (this.queue.length > 1 && this.failedSkipCount < this.queue.length) {
-          this.failedSkipCount++;
-          setTimeout(() => this.playNext(), 300);
-          return;
-        }
+        return;
       }
     } else {
       this.startSynthPlayback();

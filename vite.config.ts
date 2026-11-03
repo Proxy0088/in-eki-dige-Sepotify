@@ -41,7 +41,12 @@ function streamResolutionPlugin() {
 
     const { Readable } = await import('stream');
     if (upstream.body) {
-      Readable.fromWeb(upstream.body as any).pipe(res);
+      const nodeStream = Readable.fromWeb(upstream.body as any);
+      nodeStream.on('error', () => {
+        // Suppress client abort / socket reset errors
+      });
+      res.on('error', () => {});
+      nodeStream.pipe(res);
     } else {
       res.end();
     }

@@ -22,6 +22,14 @@ interface OnlineSearchScreenProps {
   downloadingIds?: Set<string>;
   isNationalNet?: boolean;
   language?: AppLanguage;
+  query?: string;
+  onQueryChange?: (q: string) => void;
+  onlineResults?: Track[];
+  onOnlineResultsChange?: (res: Track[]) => void;
+  searchMode?: 'online' | 'local';
+  onSearchModeChange?: (mode: 'online' | 'local') => void;
+  selectedCategory?: string;
+  onCategoryChange?: (cat: string) => void;
 }
 
 const CATEGORY_CHIPS = ['All', 'Ambient', 'Electronic', 'Pop', 'Rock', 'Classical', 'Lo-Fi'];
@@ -38,16 +46,38 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
   downloadingIds = new Set(),
   isNationalNet = false,
   language = 'en',
+  query: propQuery,
+  onQueryChange,
+  onlineResults: propOnlineResults,
+  onOnlineResultsChange,
+  searchMode: propSearchMode,
+  onSearchModeChange,
+  selectedCategory: propCategory,
+  onCategoryChange,
 }) => {
-  const [searchMode, setSearchMode] = useState<'online' | 'local'>('online');
-  const [query, setQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [onlineResults, setOnlineResults] = useState<Track[]>([]);
+  const [localSearchMode, setLocalSearchMode] = useState<'online' | 'local'>('online');
+  const [localQuery, setLocalQuery] = useState('');
+  const [localSelectedCategory, setLocalSelectedCategory] = useState<string>('All');
+  const [localOnlineResults, setLocalOnlineResults] = useState<Track[]>([]);
+
+  const searchMode = propSearchMode !== undefined ? propSearchMode : localSearchMode;
+  const setSearchMode = onSearchModeChange || setLocalSearchMode;
+
+  const query = propQuery !== undefined ? propQuery : localQuery;
+  const setQuery = onQueryChange || setLocalQuery;
+
+  const selectedCategory = propCategory !== undefined ? propCategory : localSelectedCategory;
+  const setSelectedCategory = onCategoryChange || setLocalSelectedCategory;
+
+  const onlineResults = propOnlineResults !== undefined ? propOnlineResults : localOnlineResults;
+  const setOnlineResults = onOnlineResultsChange || setLocalOnlineResults;
+
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [matchingTrack, setMatchingTrack] = useState<Track | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchedQueryRef = useRef<string>(query && onlineResults.length > 0 ? query.trim() : '');
 
   // 350ms debounced search
   useEffect(() => {
@@ -59,11 +89,22 @@ export const OnlineSearchScreen: React.FC<OnlineSearchScreenProps> = ({
 
     const trimmed = query.trim();
     if (!trimmed) {
-      setOnlineResults([]);
+      if (onlineResults.length > 0) {
+        setOnlineResults([]);
+      }
       setIsSearching(false);
       setSearchError(null);
+      lastFetchedQueryRef.current = '';
       return;
     }
+
+    // If we already have results for this query (e.g. returning from player screen or switching tabs), preserve them
+    if (trimmed === lastFetchedQueryRef.current && onlineResults.length > 0) {
+      setIsSearching(false);
+      return;
+    }
+
+    lastFetchedQueryRef.current = trimmed;
 
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
