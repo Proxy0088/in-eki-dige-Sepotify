@@ -37,4 +37,6 @@ export interface Track {
   isStreamable?: boolean;
   isDownloadable?: boolean;
   downloadUrl?: string;
+  previewUrl?: string;
+  streamSource?: 'youtube' | 'musicdel' | 'local' | 'preview' | 'error';
 }

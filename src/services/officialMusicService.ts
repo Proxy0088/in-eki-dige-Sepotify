@@ -75,14 +75,15 @@ export const OfficialMusicService = {
           artist: item.artistName,
           album: item.collectionName || 'Single',
           duration: durationSec,
-          url: item.previewUrl || '',
+          url: '', // Unresolved until genuine full-length stream is matched
+          previewUrl: item.previewUrl || undefined,
           mood,
           coverUrl: cover,
           isFullLength: false,
-          isStreamable: Boolean(item.previewUrl),
-          isDownloadable: Boolean(item.previewUrl),
-          downloadUrl: item.previewUrl,
-          collection: 'آهنگ اورجینال',
+          isStreamable: true,
+          isDownloadable: false, // Previews must NOT be marked downloadable as full-length music
+          downloadUrl: undefined,
+          collection: 'Original Track',
         };
       });
 

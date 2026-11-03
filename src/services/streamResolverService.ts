@@ -9,9 +9,65 @@ export interface ResolvedStream {
   url: string;
   youtubeId?: string;
   duration?: number;
-  source: 'youtube' | 'archive' | 'musicdel' | 'preview' | 'error';
+  source: 'youtube' | 'musicdel' | 'preview' | 'error';
   isPlayable: boolean;
   error?: string;
+}
+
+const DURATION_PENALTY_KEYWORDS = [
+  'remix',
+  'live',
+  'concert',
+  'acoustic',
+  'cover',
+  'karaoke',
+  'instrumental',
+  '1 hour',
+  'loop',
+  'slowed',
+  'reverb',
+  'speed up',
+];
+
+/**
+ * Validates actual stream metadata from the server to guarantee
+ * genuine, full-length audio and reject short clips, teasers, or wrong versions.
+ */
+export function verifyVideoMetadata(
+  canonical: { title: string; artist: string; duration?: number },
+  info: { title?: string; artist?: string; duration?: number }
+): { valid: boolean; reason?: string } {
+  const videoDuration = Number(info.duration || 0);
+  const expectedDuration = Number(canonical.duration || 0);
+
+  // 1. Reject clips shorter than 40s (30s previews, teasers, memes)
+  if (videoDuration > 0 && videoDuration < 40) {
+    return { valid: false, reason: 'Video too short (clip/preview)' };
+  }
+
+  // 2. Duration tolerance check against canonical album duration
+  if (expectedDuration >= 45 && videoDuration > 0) {
+    // A full album song should not be shorter by > 35s
+    if (videoDuration < expectedDuration - 35) {
+      return { valid: false, reason: 'Video significantly shorter than expected duration' };
+    }
+    // Allow intro/outro on music videos up to 100s, or audio tracks up to 60s
+    const maxLonger = (info.title || '').toLowerCase().includes('video') ? 100 : 60;
+    if (videoDuration > expectedDuration + maxLonger) {
+      return { valid: false, reason: 'Video significantly longer than expected duration' };
+    }
+  }
+
+  // 3. Reject unwanted remixes/live/loop keywords unless requested in canonical title
+  const lowerCand = (info.title || '').toLowerCase();
+  const lowerCan = canonical.title.toLowerCase();
+  for (const kw of DURATION_PENALTY_KEYWORDS) {
+    if (lowerCand.includes(kw) && !lowerCan.includes(kw)) {
+      return { valid: false, reason: `Unwanted version keyword "${kw}"` };
+    }
+  }
+
+  return { valid: true };
 }
 
 const resolvedMemoryCache = new Map<string, ResolvedStream>();
@@ -22,134 +78,172 @@ function getCacheKey(artist: string, title: string): string {
 
 export const StreamResolverService = {
   /**
-   * Resolves a 100% full-length audio stream for a given song and artist using Meld-inspired matching.
+   * Resolves a verified full-length audio stream for a given song and artist.
+   * Priority:
+   *  1. Resolve correct full-length YouTube Music recording.
+   *  2. Verify actual video's title, artist, and duration.
+   *  3. Resolve a playable audio stream for that exact video ID.
+   *  4. If YouTube resolution fails, report that full track is unavailable.
+   *  NEVER silently substitute a 30-second preview.
    */
   async resolveFullStream(
     artist: string,
     title: string,
     expectedDuration?: number,
-    fallbackUrl?: string,
     signal?: AbortSignal
   ): Promise<ResolvedStream> {
     const key = getCacheKey(artist, title);
     const inMem = resolvedMemoryCache.get(key);
-    if (inMem && inMem.isPlayable) {
+    if (inMem && inMem.isPlayable && inMem.source === 'youtube') {
       return inMem;
     }
 
-    // 1. Check persistent match cache (including user manual overrides)
-    const cachedMatch = TrackMatchCache.getMatch(artist, title);
-    let targetVideoId = cachedMatch?.videoId;
-
-    // 2. If not cached, query YouTube Music InnerTube and run Meld track matching
-    if (!targetVideoId) {
+    // Helper to verify a candidate videoId against /api/stream-info
+    const verifyAndBuildStream = async (videoId: string): Promise<ResolvedStream | null> => {
       try {
-        const query = `${artist} ${title}`.trim();
-        const candidates = await YouTubeMusicProvider.searchCandidates(query, signal, 10);
-        let best = TrackMatcher.findBestMatch(
+        const streamEndpoint = apiUrl(`/api/stream?v=${encodeURIComponent(videoId)}`);
+        const infoEndpoint = apiUrl(`/api/stream-info?v=${encodeURIComponent(videoId)}`);
+
+        // Generous 15s timeout to allow ytdl getInfo to complete under latency
+        const timeoutSignal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(15000) : undefined;
+        const effectiveSignal =
+          signal && timeoutSignal && typeof (AbortSignal as any).any === 'function'
+            ? (AbortSignal as any).any([signal, timeoutSignal])
+            : signal || timeoutSignal;
+
+        const infoRes = await fetch(infoEndpoint, { signal: effectiveSignal });
+        if (!infoRes.ok) return null;
+
+        const info = await infoRes.json();
+        if (!info.url) return null;
+
+        // Verify metadata (duration and version)
+        const check = verifyVideoMetadata(
           { title, artist, duration: expectedDuration },
-          candidates,
-          65
+          { title: info.title, artist: info.artist, duration: info.duration }
         );
 
-        if (!best) {
-          const altCandidates = await YouTubeMusicProvider.searchCandidates(
-            `${title} ${artist} official audio`,
-            signal,
-            8
-          );
-          best = TrackMatcher.findBestMatch(
-            { title, artist, duration: expectedDuration },
-            altCandidates,
-            65
-          );
+        if (!check.valid) {
+          console.warn(`Video ${videoId} failed metadata verification:`, check.reason);
+          return null;
         }
 
-        if (best && best.candidate.videoId) {
-          targetVideoId = best.candidate.videoId;
+        const resolved: ResolvedStream = {
+          url: streamEndpoint,
+          youtubeId: videoId,
+          duration: info.duration || expectedDuration,
+          source: 'youtube',
+          isPlayable: true,
+        };
+
+        resolvedMemoryCache.set(key, resolved);
+        return resolved;
+      } catch (e: unknown) {
+        if ((e as Error)?.name === 'AbortError') throw e;
+        console.warn('Stream endpoint verification error:', e);
+        return null;
+      }
+    };
+
+    // 1. Check persistent match cache (including user manual overrides)
+    const cachedMatch = TrackMatchCache.getMatch(artist, title);
+    if (cachedMatch?.videoId) {
+      const verified = await verifyAndBuildStream(cachedMatch.videoId);
+      if (verified) return verified;
+      // If cached match failed verification, remove it from cache
+      TrackMatchCache.removeMatch(artist, title);
+    }
+
+    // 2. Query YouTube Music InnerTube for verified candidate tracks
+    try {
+      const query = `${artist} ${title}`.trim();
+      const candidates = await YouTubeMusicProvider.searchCandidates(query, signal, 10);
+      let best = TrackMatcher.findBestMatch(
+        { title, artist, duration: expectedDuration },
+        candidates,
+        65
+      );
+
+      if (best?.candidate.videoId) {
+        const verified = await verifyAndBuildStream(best.candidate.videoId);
+        if (verified) {
           TrackMatchCache.saveMatch(
             artist,
             title,
             {
-              videoId: targetVideoId,
+              videoId: best.candidate.videoId,
               title: best.candidate.title,
               artist: best.candidate.artist,
-              duration: best.candidate.duration,
+              duration: verified.duration,
               thumbnailUrl: best.candidate.thumbnailUrl,
             },
             best.score,
             false
           );
+          return verified;
         }
-      } catch (err: unknown) {
-        if ((err as Error)?.name === 'AbortError') throw err;
-        console.warn('Track matching error for', artist, title, err);
       }
-    }
 
-    // 3. If a YouTube videoId was matched, verify and resolve stream via stream endpoint
-    if (targetVideoId) {
-      try {
-        const streamEndpoint = apiUrl(`/api/stream?v=${encodeURIComponent(targetVideoId)}`);
-        const infoEndpoint = apiUrl(`/api/stream-info?v=${encodeURIComponent(targetVideoId)}`);
+      // Try alternative query with "official audio"
+      const altCandidates = await YouTubeMusicProvider.searchCandidates(
+        `${title} ${artist} official audio`,
+        signal,
+        8
+      );
+      best = TrackMatcher.findBestMatch(
+        { title, artist, duration: expectedDuration },
+        altCandidates,
+        65
+      );
 
-        const timeoutSignal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(5000) : undefined;
-        const effectiveSignal = signal && timeoutSignal && typeof (AbortSignal as any).any === 'function'
-          ? (AbortSignal as any).any([signal, timeoutSignal])
-          : signal || timeoutSignal;
-
-        const infoRes = await fetch(infoEndpoint, {
-          signal: effectiveSignal,
-        });
-
-        if (infoRes.ok) {
-          const info = await infoRes.json();
-          if (info.url) {
-            const resolved: ResolvedStream = {
-              url: streamEndpoint,
-              youtubeId: targetVideoId,
-              duration: info.duration || expectedDuration,
-              source: 'youtube',
-              isPlayable: true,
-            };
-            resolvedMemoryCache.set(key, resolved);
-            return resolved;
-          }
+      if (best?.candidate.videoId) {
+        const verified = await verifyAndBuildStream(best.candidate.videoId);
+        if (verified) {
+          TrackMatchCache.saveMatch(
+            artist,
+            title,
+            {
+              videoId: best.candidate.videoId,
+              title: best.candidate.title,
+              artist: best.candidate.artist,
+              duration: verified.duration,
+              thumbnailUrl: best.candidate.thumbnailUrl,
+            },
+            best.score,
+            false
+          );
+          return verified;
         }
-      } catch (e: unknown) {
-        if ((e as Error)?.name === 'AbortError') throw e;
-        console.warn('Stream endpoint verification error:', e);
       }
+    } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError') throw err;
+      console.warn('Track matching error for', artist, title, err);
     }
 
-    // 4. Fallback to authentic iTunes preview or original recording
-    // NEVER fall back to random Archive.org podcasts/audio
-    if (fallbackUrl && (fallbackUrl.startsWith('http://') || fallbackUrl.startsWith('https://') || fallbackUrl.startsWith('blob:'))) {
-      return {
-        url: fallbackUrl,
-        source: 'preview',
-        isPlayable: true,
-      };
-    }
-
+    // 3. Fallback: Report full track is unavailable
+    // NEVER fall back to 30-second previews for full playback
     return {
       url: '',
       source: 'error',
       isPlayable: false,
-      error: 'جریان صوتی معتبر برای این قطعه یافت نشد.',
+      error: 'نسخه کامل این آهنگ در حال حاضر در دسترس نیست.',
     };
   },
 
   /**
-   * Upgrades a Track by resolving its stream URL into a genuine, full-length audio stream.
+   * Upgrades a Track by resolving its stream URL into a genuine, verified full-length audio stream.
+   * If resolution fails, marks isFullLength: false and isStreamable: false.
    */
   async resolveTrack(track: Track, signal?: AbortSignal): Promise<Track> {
     if (track.id.startsWith('musicdel-')) {
       return await MusicDelService.resolveTrack(track, signal);
     }
 
-    // If track already has an active stream endpoint or direct stream
-    if (track.url.includes('/api/stream') || track.url.includes('googlevideo.com')) {
+    // If track already has an active verified full-length stream
+    if (
+      track.isFullLength &&
+      (track.url.includes('/api/stream') || track.url.includes('googlevideo.com') || track.url.startsWith('blob:'))
+    ) {
       return { ...track, isFullLength: true, isStreamable: true };
     }
 
@@ -158,11 +252,14 @@ export const StreamResolverService = {
       track.artist,
       track.title,
       track.duration,
-      track.url,
       signal
     );
 
-    if (resolved.isPlayable && resolved.url) {
+    if (
+      resolved.isPlayable &&
+      resolved.url &&
+      (resolved.source === 'youtube' || resolved.source === 'musicdel')
+    ) {
       return {
         ...track,
         url: resolved.url,
@@ -171,9 +268,21 @@ export const StreamResolverService = {
         isYouTube: resolved.source === 'youtube',
         isFullLength: true,
         isStreamable: true,
+        isDownloadable: true,
+        downloadUrl: resolved.url,
+        streamSource: resolved.source,
       };
     }
 
-    return track;
+    // Explicitly mark full version unavailable — NEVER pretend a preview is full length
+    return {
+      ...track,
+      url: '',
+      isFullLength: false,
+      isStreamable: false,
+      isDownloadable: false,
+      downloadUrl: undefined,
+      streamSource: 'error',
+    };
   },
 };

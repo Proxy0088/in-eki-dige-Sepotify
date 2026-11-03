@@ -18,6 +18,8 @@ class AudioService {
   private queue: Track[] = [];
   private isShuffle: boolean = false;
   private repeatMode: RepeatMode = 'all';
+  private trackResolver: ((track: Track) => Promise<Track | null>) | null = null;
+  private failedSkipCount: number = 0;
 
   // Web Audio synth fallback (for corrupted files or test files)
   private audioCtx: AudioContext | null = null;
@@ -92,6 +94,11 @@ class AudioService {
         this.isPlaying = false;
         this.updateMediaSessionPlaybackState('paused');
         this.notify();
+        // Requirement 5: A failed track does not break automatic next-track playback
+        if (this.queue.length > 1 && this.failedSkipCount < this.queue.length) {
+          this.failedSkipCount++;
+          setTimeout(() => this.playNext(), 300);
+        }
       });
 
       this.setupMediaSessionHandlers();
@@ -237,6 +244,10 @@ class AudioService {
     this.notify();
   }
 
+  public setTrackResolver(resolver: (track: Track) => Promise<Track | null>) {
+    this.trackResolver = resolver;
+  }
+
   public getIsMuted(): boolean {
     return this.isMuted;
   }
@@ -308,7 +319,50 @@ class AudioService {
       this.queue.push(track);
     }
 
-    if (this.currentTrack?.id === track.id && this.audio) {
+    let playableTrack = track;
+
+    // Resolve unplayable / unresolved track via registered trackResolver (e.g. during queue playback)
+    if (
+      !playableTrack.isDownloaded &&
+      !playableTrack.isFullLength &&
+      (!playableTrack.url || (!playableTrack.url.includes('/api/stream') && !playableTrack.url.includes('googlevideo.com') && !playableTrack.url.startsWith('blob:'))) &&
+      this.trackResolver
+    ) {
+      try {
+        const resolved = await this.trackResolver(playableTrack);
+        if (resolved && resolved.isFullLength && resolved.url) {
+          playableTrack = resolved;
+          this.queue = this.queue.map((t) => (t.id === playableTrack.id ? playableTrack : t));
+        } else {
+          console.warn('Queue track resolution failed for:', playableTrack.title);
+          // Advance to next track without breaking queue playback
+          if (this.queue.length > 1 && this.failedSkipCount < this.queue.length) {
+            this.failedSkipCount++;
+            setTimeout(() => this.playNext(), 300);
+            return;
+          }
+          this.failedSkipCount = 0;
+          this.isPlaying = false;
+          this.notify();
+          return;
+        }
+      } catch (err) {
+        console.warn('Queue track resolution error:', err);
+        if (this.queue.length > 1 && this.failedSkipCount < this.queue.length) {
+          this.failedSkipCount++;
+          setTimeout(() => this.playNext(), 300);
+          return;
+        }
+        this.failedSkipCount = 0;
+        this.isPlaying = false;
+        this.notify();
+        return;
+      }
+    }
+
+    this.failedSkipCount = 0;
+
+    if (this.currentTrack?.id === playableTrack.id && this.audio) {
       if (this.isPlaying) {
         this.pause();
         return;
@@ -326,13 +380,13 @@ class AudioService {
       }
     }
 
-    this.currentTrack = track;
+    this.currentTrack = playableTrack;
     this.currentTime = 0;
-    this.duration = track.duration || 0;
+    this.duration = playableTrack.duration || 0;
 
     if (this.audio) {
       try {
-        this.audio.src = track.url;
+        this.audio.src = playableTrack.url;
         this.audio.muted = this.isMuted;
         this.audio.volume = this.isMuted ? 0 : 1;
         this.audio.load();
@@ -343,12 +397,17 @@ class AudioService {
         this.isPlaying = false;
         this.updateMediaSessionPlaybackState('paused');
         this.notify();
+        if (this.queue.length > 1 && this.failedSkipCount < this.queue.length) {
+          this.failedSkipCount++;
+          setTimeout(() => this.playNext(), 300);
+          return;
+        }
       }
     } else {
       this.startSynthPlayback();
     }
 
-    this.updateMediaSessionMetadata(track);
+    this.updateMediaSessionMetadata(playableTrack);
     this.updateMediaSessionPlaybackState(this.isPlaying ? 'playing' : 'paused');
     this.notify();
   }

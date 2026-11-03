@@ -5,7 +5,10 @@ import { defineConfig } from 'vite';
 
 function streamResolutionPlugin() {
   let ytdlInstance: any = null;
-  const streamCache = new Map<string, { url: string; mimeType: string; expires: number }>();
+  const streamCache = new Map<
+    string,
+    { url: string; mimeType: string; expires: number; duration?: number; title?: string; artist?: string }
+  >();
 
   async function proxyAudioStream(
     audioUrl: string,
@@ -118,6 +121,9 @@ function streamResolutionPlugin() {
               res.end(
                 JSON.stringify({
                   videoId,
+                  title: cached.title,
+                  artist: cached.artist,
+                  duration: cached.duration,
                   url: cached.url,
                   mimeType: cached.mimeType,
                 })
@@ -128,12 +134,18 @@ function streamResolutionPlugin() {
             const { chooseFormat } = await import('@distube/ytdl-core');
             const info = await ytdlInstance.getInfo(videoId);
             const format = chooseFormat(info.formats, { quality: 'highestaudio' });
+            const duration = parseInt(info.videoDetails.lengthSeconds, 10);
+            const title = info.videoDetails.title;
+            const artist = info.videoDetails.author?.name;
 
             if (format && format.url) {
               streamCache.set(videoId, {
                 url: format.url,
                 mimeType: format.mimeType || 'audio/webm',
                 expires: Date.now() + 4 * 60 * 60 * 1000,
+                duration,
+                title,
+                artist,
               });
             }
 
@@ -142,9 +154,9 @@ function streamResolutionPlugin() {
             res.end(
               JSON.stringify({
                 videoId,
-                title: info.videoDetails.title,
-                artist: info.videoDetails.author?.name,
-                duration: parseInt(info.videoDetails.lengthSeconds, 10),
+                title,
+                artist,
+                duration,
                 url: format?.url || null,
                 mimeType: format?.mimeType || null,
               })

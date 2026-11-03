@@ -130,6 +130,19 @@ export default function App() {
 
     // Auto discover upon startup
     handleScanDeviceAudio();
+
+    // Register full-stream resolver for audio engine queue playback
+    audioService.setTrackResolver(async (t: Track) => {
+      try {
+        const resolved = await StreamResolverService.resolveTrack(t);
+        if (resolved.isFullLength && resolved.url) {
+          return resolved;
+        }
+      } catch (err) {
+        console.warn('Queue track resolution error:', err);
+      }
+      return null;
+    });
   }, [handleScanDeviceAudio]);
 
   // Handle Playback with Queue - Keep queue and tracks array stable!
@@ -149,9 +162,10 @@ export default function App() {
       console.warn('Offline blob check error:', e);
     }
 
-    // Resolve full stream if track is not yet a direct stream
+    // Resolve full stream if track is not yet a verified direct stream
     if (
       !playableTrack.isDownloaded &&
+      !playableTrack.isFullLength &&
       !playableTrack.url.includes('/api/stream') &&
       !playableTrack.url.includes('googlevideo.com') &&
       !playableTrack.url.startsWith('blob:') &&
@@ -174,8 +188,9 @@ export default function App() {
       }
     }
 
-    if (playableTrack.isStreamable === false && !playableTrack.isDownloaded) {
-      alert('پخش آنلاین این قطعه در دسترس نیست.');
+    // Requirement 6: If full-length version cannot be resolved, show clear feedback and do not play 30s preview
+    if (!playableTrack.isDownloaded && (!playableTrack.isFullLength || !playableTrack.url || playableTrack.isStreamable === false)) {
+      alert('نسخه کامل این آهنگ در حال حاضر در دسترس نیست.');
       return;
     }
 
@@ -272,17 +287,29 @@ export default function App() {
       return;
     }
 
-    if (track.isDownloadable !== false && (track.downloadUrl || track.url.includes('.mp3'))) {
-      if (!track.isDownloadable && !track.downloadUrl) {
-        alert('این قطعه توسط هنرمند اجازه دانلود داده نشده است.');
-        return;
+    let trackToDownload = track;
+    if (!trackToDownload.isDownloaded && !trackToDownload.isFullLength) {
+      try {
+        trackToDownload = await StreamResolverService.resolveTrack(trackToDownload);
+      } catch (e) {
+        console.warn('Resolution before download failed:', e);
       }
+    }
 
-      setDownloadingIds((prev) => new Set(prev).add(track.id));
-      const res = await IndexedDbAudioService.downloadAndSaveAudiusTrack(track);
+    if (
+      !trackToDownload.isDownloaded &&
+      (!trackToDownload.isFullLength || !trackToDownload.url || trackToDownload.url.includes('itunes.apple.com'))
+    ) {
+      alert('نسخه کامل این آهنگ برای دانلود در دسترس نیست.');
+      return;
+    }
+
+    if (trackToDownload.isDownloadable !== false && (trackToDownload.downloadUrl || trackToDownload.url)) {
+      setDownloadingIds((prev) => new Set(prev).add(trackToDownload.id));
+      const res = await IndexedDbAudioService.downloadAndSaveAudiusTrack(trackToDownload);
       setDownloadingIds((prev) => {
         const next = new Set(prev);
-        next.delete(track.id);
+        next.delete(trackToDownload.id);
         return next;
       });
 
@@ -292,8 +319,8 @@ export default function App() {
       }
 
       const updatedTrack: Track = {
-        ...track,
-        url: res.localUrl || track.url,
+        ...trackToDownload,
+        url: res.localUrl || trackToDownload.url,
         isDownloaded: true,
         collection: 'Downloads',
       };
