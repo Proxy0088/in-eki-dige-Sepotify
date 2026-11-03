@@ -93,9 +93,32 @@ const ButtonGlassTint: React.FC<{ coverUrl?: string; hasError?: boolean }> = ({
   );
 };
 
+interface AmbientParticle {
+  x: number;
+  y: number;
+  angle: number;
+  speed: number;
+  radius: number;
+  baseRadius: number;
+  opacity: number;
+  baseOpacity: number;
+  pulse: number;
+  pulseSpeed: number;
+  type: 'white' | 'primary' | 'secondary' | 'accent';
+}
+
+function parseRgbNumbers(str: string): [number, number, number] {
+  const m = str.match(/\d+/g);
+  if (m && m.length >= 3) {
+    return [parseInt(m[0], 10), parseInt(m[1], 10), parseInt(m[2], 10)];
+  }
+  return [34, 197, 94];
+}
+
 /**
- * Organic glowing light dots (tinted with track cover palette) that slowly drift
- * randomly left/right/up/down in the bottom region behind the liquid glass controls.
+ * High-fidelity HTML5 Canvas Random Ambient Light Particle System:
+ * Generates organic glowing light halos (tinted with track cover palette: greens & glowing whites)
+ * that smoothly, continuously, and randomly drift left/right/up/down behind the liquid glass buttons.
  */
 const AmbientFloatingParticles: React.FC<{
   coverUrl?: string;
@@ -103,80 +126,149 @@ const AmbientFloatingParticles: React.FC<{
   artist?: string;
 }> = ({ coverUrl, title, artist }) => {
   const palette = useCoverPalette(coverUrl, title, artist);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let width = 0;
+    let height = 0;
+    let lastTime = performance.now();
+
+    const pRgb = parseRgbNumbers(palette.primary);
+    const sRgb = parseRgbNumbers(palette.secondary);
+    const aRgb = parseRgbNumbers(palette.accent);
+
+    const resize = () => {
+      const rect = container.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Initial 6 large, serene wandering halos (much larger & very calm motion)
+    const particleDefs: Array<{ type: AmbientParticle['type']; radius: number; speed: number; opacity: number }> = [
+      { type: 'primary', radius: 155, speed: 7.5, opacity: 0.48 },
+      { type: 'white', radius: 120, speed: 8.5, opacity: 0.52 },
+      { type: 'secondary', radius: 175, speed: 6.5, opacity: 0.44 },
+      { type: 'white', radius: 110, speed: 9.0, opacity: 0.50 },
+      { type: 'accent', radius: 160, speed: 7.0, opacity: 0.46 },
+      { type: 'primary', radius: 185, speed: 5.5, opacity: 0.40 },
+    ];
+
+    const particles: AmbientParticle[] = particleDefs.map((def, i) => {
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const initX = (width || 360) * (0.2 + 0.3 * col) + (Math.random() - 0.5) * 60;
+      const initY = (height || 400) * (0.25 + 0.35 * row) + (Math.random() - 0.5) * 60;
+
+      return {
+        x: Math.max(def.radius * 0.4, Math.min(width - def.radius * 0.4, initX)),
+        y: Math.max(def.radius * 0.4, Math.min(height - def.radius * 0.4, initY)),
+        angle: Math.random() * Math.PI * 2,
+        speed: def.speed * (0.85 + Math.random() * 0.3),
+        radius: def.radius,
+        baseRadius: def.radius,
+        opacity: def.opacity,
+        baseOpacity: def.opacity,
+        pulse: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.3 + Math.random() * 0.3,
+        type: def.type,
+      };
+    });
+
+    const loop = (now: number) => {
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+
+      ctx.clearRect(0, 0, width, height);
+
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+
+        // Calm, smooth Brownian wandering - very gentle angular variation
+        p.angle += (Math.random() - 0.5) * 0.9 * dt;
+
+        // Advance position slowly
+        p.x += Math.cos(p.angle) * p.speed * dt;
+        p.y += Math.sin(p.angle) * p.speed * dt;
+
+        // Boundary reflection with soft deflection
+        const margin = p.radius * 0.2;
+        if (p.x < margin) {
+          p.x = margin;
+          p.angle = Math.PI - p.angle + (Math.random() - 0.5) * 0.3;
+        } else if (p.x > width - margin) {
+          p.x = width - margin;
+          p.angle = Math.PI - p.angle + (Math.random() - 0.5) * 0.3;
+        }
+        if (p.y < margin) {
+          p.y = margin;
+          p.angle = -p.angle + (Math.random() - 0.5) * 0.3;
+        } else if (p.y > height - margin) {
+          p.y = height - margin;
+          p.angle = -p.angle + (Math.random() - 0.5) * 0.3;
+        }
+
+        // Very slow, peaceful breathing pulse
+        p.pulse += p.pulseSpeed * dt;
+        const curRadius = p.radius * (1 + 0.10 * Math.sin(p.pulse));
+        const curOpacity = p.opacity * (1 + 0.12 * Math.cos(p.pulse));
+
+        // Draw broad, soft glowing radial light gradient
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, curRadius);
+
+        if (p.type === 'white') {
+          grad.addColorStop(0, `rgba(255, 255, 255, ${curOpacity * 0.90})`);
+          grad.addColorStop(0.25, `rgba(255, 255, 255, ${curOpacity * 0.60})`);
+          grad.addColorStop(0.55, `rgba(255, 255, 255, ${curOpacity * 0.25})`);
+          grad.addColorStop(0.80, `rgba(255, 255, 255, ${curOpacity * 0.08})`);
+          grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        } else {
+          const [r, g, b] = p.type === 'secondary' ? sRgb : p.type === 'accent' ? aRgb : pRgb;
+          grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.88})`);
+          grad.addColorStop(0.28, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.58})`);
+          grad.addColorStop(0.58, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.22})`);
+          grad.addColorStop(0.82, `rgba(${r}, ${g}, ${b}, ${curOpacity * 0.07})`);
+          grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+        }
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, curRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, [palette]);
 
   return (
-    <div className="absolute inset-x-0 bottom-0 top-[38%] pointer-events-none overflow-hidden z-10 select-none">
-      {/* Dot 1: Dominant Hue (e.g. green/amber/accent) */}
-      <div
-        className="absolute w-16 h-16 sm:w-20 sm:h-20 rounded-full animate-orb-drift-1"
-        style={{
-          left: '12%',
-          top: '22%',
-          background: `radial-gradient(circle, ${palette.primary} 0%, ${palette.glow} 45%, transparent 70%)`,
-          filter: 'blur(16px)',
-          opacity: 0.50,
-        }}
-      />
-
-      {/* Dot 2: Soft White Highlight Point */}
-      <div
-        className="absolute w-10 h-10 sm:w-12 sm:h-12 rounded-full animate-orb-drift-2"
-        style={{
-          right: '20%',
-          top: '16%',
-          background: 'radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.35) 45%, transparent 70%)',
-          filter: 'blur(11px)',
-          opacity: 0.55,
-        }}
-      />
-
-      {/* Dot 3: Secondary Hue (Lime / Vibrant Accent) drifting behind the main Play pill */}
-      <div
-        className="absolute w-22 h-22 sm:w-28 sm:h-28 rounded-full animate-orb-drift-3"
-        style={{
-          left: '40%',
-          top: '46%',
-          background: `radial-gradient(circle, ${palette.secondary} 0%, ${palette.glow} 40%, transparent 70%)`,
-          filter: 'blur(22px)',
-          opacity: 0.44,
-        }}
-      />
-
-      {/* Dot 4: Soft White/Lime Glimmer drifting behind left controls */}
-      <div
-        className="absolute w-9 h-9 sm:w-11 sm:h-11 rounded-full animate-orb-drift-4"
-        style={{
-          left: '24%',
-          bottom: '20%',
-          background: 'radial-gradient(circle, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.25) 50%, transparent 70%)',
-          filter: 'blur(10px)',
-          opacity: 0.50,
-        }}
-      />
-
-      {/* Dot 5: Accent Hue drifting behind right controls */}
-      <div
-        className="absolute w-18 h-18 sm:w-22 sm:h-22 rounded-full animate-orb-drift-5"
-        style={{
-          right: '14%',
-          bottom: '22%',
-          background: `radial-gradient(circle, ${palette.accent} 0%, ${palette.glow} 45%, transparent 70%)`,
-          filter: 'blur(18px)',
-          opacity: 0.46,
-        }}
-      />
-
-      {/* Dot 6: Small Crisp White Glimmer near center */}
-      <div
-        className="absolute w-8 h-8 sm:w-10 sm:h-10 rounded-full animate-orb-drift-1"
-        style={{
-          left: '58%',
-          top: '26%',
-          background: 'radial-gradient(circle, rgba(255, 255, 255, 0.82) 0%, transparent 70%)',
-          filter: 'blur(9px)',
-          opacity: 0.45,
-        }}
-      />
+    <div
+      ref={containerRef}
+      className="absolute inset-x-0 bottom-0 top-[36%] pointer-events-none overflow-hidden z-10 select-none filter blur-[14px]"
+    >
+      <canvas ref={canvasRef} className="w-full h-full block" />
     </div>
   );
 };
