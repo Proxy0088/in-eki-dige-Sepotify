@@ -169,7 +169,7 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
           <button
             type="button"
             onClick={handleNextClick}
-            className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-[#ededed] flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+            className="lastwave-player-btn w-8 h-8 rounded-full text-[#ededed] flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
             aria-label="Next track"
           >
             <SkipForward className="w-3.5 h-3.5 fill-current" />
