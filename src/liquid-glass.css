@@ -1,0 +1,122 @@
+/* =========================================================
+   LIQUID GLASS OVERRIDE LAYER (iOS 26 style)
+   - Android/Chromium compatible: standard blur/saturate/brightness only.
+   - No SVG filters (unsupported in Chromium backdrop-filter).
+   - Loaded after index.css, so these values win for the same classes.
+   ========================================================= */
+
+/* --- Main dock material: top navbar, bottom navbar, mini player --- */
+.lastwave-glass-dock {
+  background: rgba(22, 26, 38, 0.42) !important;
+  backdrop-filter: blur(22px) saturate(185%) brightness(1.12) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(185%) brightness(1.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -1px 1px 0 rgba(255, 255, 255, 0.07),
+    inset 1px 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset -1px 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 14px 44px -8px rgba(0, 0, 0, 0.62) !important;
+}
+
+html.light .lastwave-glass-dock {
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(22px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.75) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.04),
+    0 12px 36px -10px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* --- General glass panels --- */
+.lastwave-glass {
+  background: rgba(20, 23, 34, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(180%) brightness(1.10) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) brightness(1.10) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.28),
+    0 14px 44px -8px rgba(0, 0, 0, 0.60) !important;
+}
+
+html.light .lastwave-glass {
+  background: rgba(255, 255, 255, 0.58) !important;
+  border: 1px solid rgba(255, 255, 255, 0.80) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.95),
+    0 12px 36px -10px rgba(0, 0, 0, 0.20) !important;
+}
+
+/* --- Active tab pill in the bottom navbar (beats inline styles via !important) --- */
+.lastwave-glass-active {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  color: #ffffff !important;
+  backdrop-filter: blur(10px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(200%) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.15),
+    0 4px 14px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.light .lastwave-glass-active {
+  background: rgba(15, 23, 42, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.92) !important;
+  color: #ffffff !important;
+}
+
+/* --- Player control buttons (full-screen player, mini player, etc.) --- */
+.lastwave-player-btn {
+  background: rgba(255, 255, 255, 0.10) !important;
+  backdrop-filter: blur(16px) saturate(200%) brightness(1.10) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(200%) brightness(1.10) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.22),
+    0 6px 18px -4px rgba(0, 0, 0, 0.45) !important;
+}
+
+.lastwave-player-btn:hover {
+  background: rgba(255, 255, 255, 0.17) !important;
+  border-color: rgba(255, 255, 255, 0.30) !important;
+}
+
+.lastwave-player-btn:active {
+  background: rgba(255, 255, 255, 0.22) !important;
+}
+
+html.light .lastwave-player-btn {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.80) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.95),
+    0 6px 18px -6px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* --- Small glass pills --- */
+.lastwave-glass-pill {
+  background: rgba(255, 255, 255, 0.10) !important;
+  backdrop-filter: blur(16px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.28),
+    0 6px 18px -6px rgba(0, 0, 0, 0.40) !important;
+}
+
+.lastwave-glass-pill:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+}
+
+html.light .lastwave-glass-pill {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.80) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.95),
+    0 6px 16px -8px rgba(0, 0, 0, 0.12) !important;
+}
