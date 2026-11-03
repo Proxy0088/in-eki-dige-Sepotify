@@ -294,19 +294,32 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 
   return (
     <div className="w-full h-full bg-[#07080b] relative overflow-hidden select-none flex flex-col justify-between animate-in fade-in duration-200">
-      {/* ── Background Artwork / 3D Visualizer Glow ── */}
+      {/* ── Full-Size Crisp Artwork Background (Matching reference image) ── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
+        {/* Crisp full-bleed artwork taking the entire upper screen */}
         {currentTrack.coverUrl && !coverError ? (
           <img
             src={currentTrack.coverUrl}
-            alt=""
-            className="w-full h-full object-cover scale-110 blur-2xl opacity-45 brightness-90 transition-opacity duration-500"
+            alt={currentTrack.title}
+            referrerPolicy="no-referrer"
+            onError={() => setCoverError(true)}
+            className="w-full h-[64%] sm:h-[68%] object-cover object-center select-none"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-b from-[#18110b] via-[#0e0906] to-[#07080b]" />
+          <div className="w-full h-[64%] sm:h-[68%] bg-gradient-to-b from-[#1f1610] via-[#120d09] to-[#07080b]" />
         )}
-        {/* Soft vignette gradients to ensure buttons and labels pop clearly */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#07080b] pointer-events-none" />
+
+        {/* Ambient atmospheric backlight glow into bottom area */}
+        {currentTrack.coverUrl && !coverError && (
+          <img
+            src={currentTrack.coverUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-30 scale-125 -z-10"
+          />
+        )}
+
+        {/* Subtle top gradient for header clarity and smooth bottom fade into pitch-black controls */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent via-25% via-black/20 via-48% to-[#07080b] to-64% pointer-events-none" />
       </div>
 
       {/* ── Top Header Bar ── */}
@@ -383,24 +396,12 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             )}
           </div>
         ) : (
-          <div className="relative flex items-center justify-center my-auto">
-            {/* Smooth rounded artwork showcase matching reference visualizer */}
-            <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-[32px] overflow-hidden bg-[#11131a] shadow-2xl border border-white/10 shrink-0">
-              {currentTrack.coverUrl && !coverError ? (
-                <img
-                  src={currentTrack.coverUrl}
-                  alt={currentTrack.title}
-                  referrerPolicy="no-referrer"
-                  onError={() => setCoverError(true)}
-                  className="w-full h-full object-cover select-none"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[#11131a]">
-                  <Music className="w-16 h-16 text-[#71717a]" />
-                </div>
-              )}
-            </div>
-          </div>
+          /* Open center stage allowing the full-size artwork to shine through edge-to-edge */
+          <div
+            onClick={handleLyricsClick}
+            className="w-full flex-1 flex items-center justify-center cursor-pointer"
+            title="برای مشاهده متن آهنگ کلیک کنید"
+          />
         )}
       </div>
 
