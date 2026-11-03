@@ -100,22 +100,22 @@ void main() {
   // 1. Directional Overhead Light (top glass rim catch-light)
   vec3 L_over = normalize(vec3(0.0, -1.0, 0.65));
   vec3 H_over = normalize(L_over + V);
-  float specOver = pow(max(dot(N, H_over), 0.0), 32.0) * 0.40;
+  float specOver = pow(max(dot(N, H_over), 0.0), 32.0) * 0.25;
 
-  // 2. Calm, refined interactive pointer light (toned down intensity as requested)
+  // 2. Calm, refined interactive pointer light (whisper-soft hover effect)
   vec2 defaultLight = vec2(center.x, center.y - 10.0);
   vec2 lightPos = mix(defaultLight, u_pointer, u_pointer_active);
   vec2 lightDir2D = (lightPos - p) / max(size.x, size.y);
   vec3 L_ptr = normalize(vec3(lightDir2D * 2.2, 0.55));
   vec3 H_ptr = normalize(L_ptr + V);
   
-  // Toned down from 0.95 to 0.35 sharp and 0.18 soft
-  float specPtrSharp = pow(max(dot(N, H_ptr), 0.0), 48.0) * 0.35;
-  float specPtrSoft = pow(max(dot(N, H_ptr), 0.0), 16.0) * 0.18;
-  float specPtr = (specPtrSharp + specPtrSoft) * (0.28 + 0.35 * u_pointer_active);
+  // Whisper-soft specular highlight: subtle glint without harshness
+  float specPtrSharp = pow(max(dot(N, H_ptr), 0.0), 36.0) * 0.10;
+  float specPtrSoft = pow(max(dot(N, H_ptr), 0.0), 12.0) * 0.05;
+  float specPtr = (specPtrSharp + specPtrSoft) * (0.15 + 0.08 * u_pointer_active);
 
   // 3. Fresnel reflection (glass edge rim)
-  float fresnel = pow(1.0 - max(N.z, 0.0), 3.0) * 0.36;
+  float fresnel = pow(1.0 - max(N.z, 0.0), 3.0) * 0.22;
 
   // 4. Optical chromatic dispersion along curved boundaries
   vec3 dispersion = vec3(
@@ -125,22 +125,22 @@ void main() {
   );
 
   // 5. Subtle ambient liquid shimmer
-  float shimmer = sin(p.x * 0.05 + u_time * 0.7) * cos(p.y * 0.07 + u_time * 0.4) * 0.02;
+  float shimmer = sin(p.x * 0.05 + u_time * 0.7) * cos(p.y * 0.07 + u_time * 0.4) * 0.01;
 
   // 6. Bottom ambient inner depth / soft occlusion
-  float bottomEdge = smoothstep(size.y - bevelWidth * 1.4, size.y, p.y) * 0.20;
+  float bottomEdge = smoothstep(size.y - bevelWidth * 1.4, size.y, p.y) * 0.10;
 
   // Combine specular and edge reflections
-  vec3 highlights = vec3(specPtr) + dispersion * 0.55 + shimmer;
+  vec3 highlights = vec3(specPtr) + dispersion * 0.35 + shimmer;
 
   // Output: strictly preserve underlying dock color, overlaying refined liquid glass optics
   if (u_is_light > 0.5) {
-    vec3 col = vec3(1.0) + highlights * 0.40 - bottomEdge * 0.25;
-    float alpha = clamp((specOver + specPtr) * 0.35 + fresnel * 0.30, 0.0, 0.65);
+    vec3 col = vec3(1.0) + highlights * 0.22 - bottomEdge * 0.12;
+    float alpha = clamp((specOver + specPtr) * 0.18 + fresnel * 0.16, 0.0, 0.36);
     gl_FragColor = vec4(col, alpha * dockAlpha);
   } else {
-    vec3 col = vec3(1.0) + highlights * 0.60 - vec3(bottomEdge);
-    float alpha = clamp((specOver + specPtr) * 0.42 + fresnel * 0.38, 0.0, 0.70);
+    vec3 col = vec3(1.0) + highlights * 0.35 - vec3(bottomEdge);
+    float alpha = clamp((specOver + specPtr) * 0.22 + fresnel * 0.18, 0.0, 0.38);
     gl_FragColor = vec4(col, alpha * dockAlpha);
   }
 }

@@ -126,7 +126,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               className={`relative z-10 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
                 isActive
                   ? 'rounded-full px-3.5 py-1.5 text-white font-medium gap-2 shadow-sm'
-                  : 'w-10 h-9 rounded-full text-[#a1a1a6] hover:text-[#ededed] hover:bg-white/[0.04]'
+                  : 'w-10 h-9 rounded-full text-[#a1a1a6] hover:text-[#ededed] hover:bg-white/[0.015]'
               }`}
               aria-label={label}
               aria-current={isActive ? 'page' : undefined}
@@ -144,16 +144,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                   }}
                   style={{
                     background:
-                      'linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.08) 100%)',
+                      'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%)',
                     boxShadow:
-                      'inset 0 1px 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.25)',
-                    border: '1px solid rgba(255, 255, 255, 0.22)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
+                      'inset 0 1px 1px 0 rgba(255, 255, 255, 0.20), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.18)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    backdropFilter: 'blur(6px)',
+                    WebkitBackdropFilter: 'blur(6px)',
                   }}
                 >
                   {/* Internal meniscus specular reflection */}
-                  <div className="absolute inset-x-2 top-0.5 h-1.5 rounded-full bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
+                  <div className="absolute inset-x-2 top-0.5 h-1.5 rounded-full bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
                 </motion.div>
               )}
 
