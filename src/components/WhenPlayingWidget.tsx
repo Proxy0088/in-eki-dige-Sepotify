@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, Music } from 'lucide-react';
 import { Track } from '../types/music';
 import { audioService } from '../services/audioPlayer';
+import { LiquidGlassCanvas } from './LiquidGlassCanvas';
+import { triggerHaptic } from '../utils/haptics';
 
 interface WhenPlayingWidgetProps {
   currentTrack: Track | null;
@@ -61,14 +63,36 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
 
     if (Math.abs(deltaY) > Math.abs(deltaX)) {
       if (deltaY < -24 && onOpenPlayer) {
+        triggerHaptic('medium');
         onOpenPlayer();
       } else if (deltaY > 30) {
+        triggerHaptic('light');
         setIsDismissed(true);
       }
     } else {
       if (deltaX < -40) {
+        triggerHaptic('light');
         onNextTrack();
       }
+    }
+  };
+
+  const handlePlayToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerHaptic('medium');
+    onTogglePlay();
+  };
+
+  const handleNextClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerHaptic('light');
+    onNextTrack();
+  };
+
+  const handleWidgetClick = () => {
+    triggerHaptic('light');
+    if (onOpenPlayer) {
+      onOpenPlayer();
     }
   };
 
@@ -79,13 +103,22 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
       className="fixed sm:absolute bottom-[72px] sm:bottom-20 left-3.5 right-3.5 sm:left-4 sm:right-4 z-40 max-w-[384px] mx-auto select-none pointer-events-auto"
     >
       <div
-        onClick={onOpenPlayer}
-        className="w-full h-15 rounded-full lastwave-glass px-2.5 pr-3.5 flex items-center justify-between gap-3 shadow-xl cursor-pointer group hover:border-white/15 active:scale-[0.99] transition-[border-color,transform] duration-200 relative overflow-hidden"
+        onClick={handleWidgetClick}
+        className="w-full h-15 rounded-full lastwave-glass-dock px-2.5 pr-3.5 flex items-center justify-between gap-3 shadow-xl cursor-pointer group active:scale-[0.99] transition-[border-color,transform,box-shadow] duration-200 relative overflow-hidden"
         role="button"
         aria-label="Open playback controls"
       >
+        {/* Interactive Liquid Glass Shader Canvas with calmed hover intensity */}
+        <LiquidGlassCanvas />
+
+        {/* Top edge physical specular highlight catch-light */}
+        <div
+          className="absolute inset-x-5 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full"
+          style={{ zIndex: 2 }}
+        />
+
         {/* Track Artwork squircle */}
-        <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-[#181a24] shrink-0 border border-white/10 shadow-sm">
+        <div className="relative z-10 w-10 h-10 rounded-xl overflow-hidden bg-[#181a24] shrink-0 border border-white/10 shadow-sm">
           {currentTrack.coverUrl && !coverError ? (
             <img
               src={currentTrack.coverUrl}
@@ -111,7 +144,7 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
         </div>
 
         {/* Track Title and Artist */}
-        <div className="flex flex-col min-w-0 flex-1 justify-center pr-1">
+        <div className="relative z-10 flex flex-col min-w-0 flex-1 justify-center pr-1">
           <span className="text-[13px] font-medium text-[#ededed] tracking-tight truncate leading-snug">
             {currentTrack.title}
           </span>
@@ -121,14 +154,11 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div
-          className="flex items-center gap-1.5 shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="relative z-10 flex items-center gap-1.5 shrink-0">
           {/* Main Play/Pause Button */}
           <button
             type="button"
-            onClick={onTogglePlay}
+            onClick={handlePlayToggle}
             className="w-9 h-9 rounded-full bg-[#ededed] text-[#090a0f] hover:bg-white flex items-center justify-center shadow-sm active:scale-95 transition-transform cursor-pointer"
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
@@ -142,7 +172,7 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
           {/* Next Button */}
           <button
             type="button"
-            onClick={onNextTrack}
+            onClick={handleNextClick}
             className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-[#ededed] flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
             aria-label="Next track"
           >
@@ -151,7 +181,10 @@ export const WhenPlayingWidget: React.FC<WhenPlayingWidgetProps> = ({
         </div>
 
         {/* Mini Progress Line along bottom */}
-        <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-white/10 overflow-hidden rounded-full">
+        <div
+          className="absolute bottom-0 left-4 right-4 h-0.5 bg-white/10 overflow-hidden rounded-full"
+          style={{ zIndex: 10 }}
+        >
           <div
             className="h-full bg-cyan-400 transition-[width] duration-300 ease-out"
             style={{ width: `${progress}%` }}
