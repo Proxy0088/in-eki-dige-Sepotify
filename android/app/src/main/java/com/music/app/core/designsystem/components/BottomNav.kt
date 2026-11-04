@@ -76,11 +76,11 @@ fun BottomNav(
     Box(
         modifier = modifier
             .navigationBarsPadding()
-            .padding(bottom = 20.dp),
+            .padding(bottom = 22.dp),
         contentAlignment = Alignment.Center
     ) {
         LiquidGlassSurface(
-            modifier = Modifier.height(52.dp),
+            modifier = Modifier.height(58.dp),
             hazeState = hazeState,
             shape = CircleShape,
             variant = LiquidGlassVariant.Dock,
@@ -90,7 +90,7 @@ fun BottomNav(
             Row(
                 modifier = Modifier
                     .padding(horizontal = 7.dp, vertical = 7.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 NavTab.entries.forEach { tab ->
@@ -165,8 +165,8 @@ fun BottomNav(
 
                     Box(
                         modifier = Modifier
-                            .height(38.dp)
-                            .defaultMinSize(minWidth = 38.dp)
+                            .height(44.dp)
+                            .defaultMinSize(minWidth = 44.dp)
                             .graphicsLayer {
                                 scaleX = tabScale
                                 scaleY = tabScale
@@ -185,7 +185,7 @@ fun BottomNav(
                                 )
                             )
                             .padding(
-                                horizontal = if (isActive) 13.dp else 9.5.dp,
+                                horizontal = if (isActive) 15.dp else 11.5.dp,
                                 vertical = 4.dp
                             ),
                         contentAlignment = Alignment.Center
@@ -202,12 +202,12 @@ fun BottomNav(
                                                 imageVector = Icons.Rounded.Home,
                                                 contentDescription = label,
                                                 tint = iconTint,
-                                                modifier = Modifier.size(19.dp)
+                                                modifier = Modifier.size(21.dp)
                                             )
                                             if (isPlaying) {
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(6.dp)
+                                                        .size(7.dp)
                                                         .align(Alignment.TopEnd)
                                                         .offset(x = 2.dp, y = (-2).dp)
                                                         .shadow(
@@ -224,19 +224,22 @@ fun BottomNav(
                                                 imageVector = Icons.Rounded.Search,
                                                 contentDescription = label,
                                                 tint = iconTint,
-                                                modifier = Modifier.size(19.dp)
+                                                modifier = Modifier.size(21.dp)
                                             )
                                         }
                                         NavTab.LIBRARY -> {
                                             LucideLibraryIcon(
                                                 tint = iconTint,
-                                                modifier = Modifier.size(19.dp)
+                                                modifier = Modifier.size(21.dp)
                                             )
                                         }
                                     }
                                 }
 
                                 // Animated Label for Active Tab
+                                val enterExpandFrom = if (tab == NavTab.SEARCH) Alignment.CenterHorizontally else Alignment.Start
+                                val exitShrinkTowards = if (tab == NavTab.SEARCH) Alignment.CenterHorizontally else Alignment.Start
+
                                 AnimatedVisibility(
                                     visible = isActive,
                                     enter = fadeIn(animationSpec = tween(140)) + expandHorizontally(
@@ -244,24 +247,27 @@ fun BottomNav(
                                             stiffness = 450f,
                                             dampingRatio = 0.78f
                                         ),
-                                        expandFrom = Alignment.Start
+                                        expandFrom = enterExpandFrom
                                     ),
                                     exit = fadeOut(animationSpec = tween(100)) + shrinkHorizontally(
                                         animationSpec = spring(
                                             stiffness = 450f,
                                             dampingRatio = 0.78f
                                         ),
-                                        shrinkTowards = Alignment.Start
+                                        shrinkTowards = exitShrinkTowards
                                     )
                                 ) {
                                     Row(
-                                        modifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true),
+                                        modifier = Modifier.wrapContentWidth(
+                                            align = if (tab == NavTab.SEARCH) Alignment.CenterHorizontally else Alignment.Start,
+                                            unbounded = true
+                                        ),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Spacer(modifier = Modifier.width(7.dp))
                                         Text(
                                             text = label,
-                                            fontSize = 12.sp,
+                                            fontSize = 13.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = if (isDark) Color.White else Color(0xFF0F172A),
                                             letterSpacing = (-0.2).sp,
@@ -287,7 +293,7 @@ private fun LucideLibraryIcon(
     modifier: Modifier = Modifier
 ) {
     androidx.compose.foundation.Canvas(modifier = modifier) {
-        val strokeWidth = 1.8.dp.toPx()
+        val strokeWidth = 2.0.dp.toPx()
         val w = size.width
         val h = size.height
 

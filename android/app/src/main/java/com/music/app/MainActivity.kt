@@ -24,6 +24,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -41,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
@@ -252,15 +255,43 @@ fun MainAppScreen(
             AnimatedContent(
                 targetState = activeTab,
                 transitionSpec = {
-                    val forward = targetState.ordinal > initialState.ordinal
-                    (slideInHorizontally(
-                        initialOffsetX = { (if (forward) 1 else -1) * 80 },
-                        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
-                    ) + fadeIn(animationSpec = tween(200))) togetherWith
-                    (slideOutHorizontally(
-                        targetOffsetX = { (if (forward) -1 else 1) * 80 },
-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-                    ) + fadeOut(animationSpec = tween(160)))
+                    when (targetState) {
+                        NavTab.SEARCH -> {
+                            // Search page expands from center
+                            (scaleIn(
+                                initialScale = 0.90f,
+                                transformOrigin = TransformOrigin.Center,
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.78f)
+                            ) + fadeIn(animationSpec = tween(220))) togetherWith
+                            (scaleOut(
+                                targetScale = 0.96f,
+                                transformOrigin = TransformOrigin.Center,
+                                animationSpec = tween(180)
+                            ) + fadeOut(animationSpec = tween(160)))
+                        }
+                        NavTab.HOME -> {
+                            // Home expands/slides from left to right
+                            (slideInHorizontally(
+                                initialOffsetX = { -100 },
+                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                            ) + fadeIn(animationSpec = tween(220))) togetherWith
+                            (slideOutHorizontally(
+                                targetOffsetX = { 100 },
+                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                            ) + fadeOut(animationSpec = tween(160)))
+                        }
+                        NavTab.LIBRARY -> {
+                            // Playlists expands/slides from right to left
+                            (slideInHorizontally(
+                                initialOffsetX = { 100 },
+                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                            ) + fadeIn(animationSpec = tween(220))) togetherWith
+                            (slideOutHorizontally(
+                                targetOffsetX = { -100 },
+                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                            ) + fadeOut(animationSpec = tween(160)))
+                        }
+                    }
                 },
                 label = "screen_tab_switch",
                 modifier = Modifier.fillMaxSize()
