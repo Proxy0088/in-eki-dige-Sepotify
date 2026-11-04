@@ -56,8 +56,6 @@ import coil.compose.AsyncImage
 import com.music.app.core.designsystem.components.MusicRow
 import com.music.app.core.designsystem.theme.AudexFontFamily
 import com.music.app.core.model.Track
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.haze
 
 data class LibraryCollection(
     val id: String,
@@ -74,7 +72,6 @@ fun LibraryScreen(
     onPlayTrack: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
     onToggleDownload: (Track) -> Unit,
-    hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
     val collections = remember {
@@ -116,9 +113,7 @@ fun LibraryScreen(
         if (activeCol == null) {
             // ── Main Playlists List View ──
             LazyColumn(
-                modifier = modifier
-                    .fillMaxSize()
-                    .haze(state = hazeState),
+                modifier = modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -254,14 +249,20 @@ fun LibraryScreen(
                                     .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
+                                var hasFirstCover by remember(col.id) { mutableStateOf(false) }
+
                                 if (!firstCover.isNullOrEmpty()) {
                                     AsyncImage(
                                         model = firstCover,
                                         contentDescription = col.name,
                                         contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
+                                        modifier = Modifier.fillMaxSize(),
+                                        onSuccess = { hasFirstCover = true },
+                                        onError = { hasFirstCover = false }
                                     )
-                                } else {
+                                }
+
+                                if (!hasFirstCover) {
                                     Icon(
                                         imageVector = Icons.Default.MusicNote,
                                         contentDescription = null,
@@ -350,9 +351,7 @@ fun LibraryScreen(
             val colTracks = getTracksForCollection(activeCol)
 
             LazyColumn(
-                modifier = modifier
-                    .fillMaxSize()
-                    .haze(state = hazeState),
+                modifier = modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {

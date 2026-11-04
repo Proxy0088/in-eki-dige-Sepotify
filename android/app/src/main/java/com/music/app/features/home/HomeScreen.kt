@@ -50,8 +50,6 @@ import com.music.app.core.designsystem.components.MusicRow
 import com.music.app.core.designsystem.theme.AudexFontFamily
 import com.music.app.core.model.SAMPLE_PLAYLISTS
 import com.music.app.core.model.Track
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.haze
 
 @Composable
 fun HomeScreen(
@@ -61,7 +59,6 @@ fun HomeScreen(
     onPlayTrack: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
     onToggleDownload: (Track) -> Unit,
-    hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
     var selectedGenre by remember { mutableStateOf<String?>(null) }
@@ -88,9 +85,7 @@ fun HomeScreen(
     }
 
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .haze(state = hazeState),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -257,14 +252,20 @@ fun HomeScreen(
                                     .border(1.dp, Color.White.copy(alpha = 0.1f), albumCardShape),
                                 contentAlignment = Alignment.Center
                             ) {
+                                var hasImg by remember(track.id) { mutableStateOf(false) }
+
                                 if (!track.coverUrl.isNullOrEmpty()) {
                                     AsyncImage(
                                         model = track.coverUrl,
                                         contentDescription = track.album,
                                         contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
+                                        modifier = Modifier.fillMaxSize(),
+                                        onSuccess = { hasImg = true },
+                                        onError = { hasImg = false }
                                     )
-                                } else {
+                                }
+
+                                if (!hasImg) {
                                     Icon(
                                         imageVector = Icons.Outlined.Album,
                                         contentDescription = null,
@@ -465,14 +466,20 @@ fun HomeScreen(
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
+                            var hasTrackImg by remember(currentTrack.id) { mutableStateOf(false) }
+
                             if (!currentTrack.coverUrl.isNullOrEmpty()) {
                                 AsyncImage(
                                     model = currentTrack.coverUrl,
                                     contentDescription = currentTrack.title,
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillMaxSize(),
+                                    onSuccess = { hasTrackImg = true },
+                                    onError = { hasTrackImg = false }
                                 )
-                            } else {
+                            }
+
+                            if (!hasTrackImg) {
                                 Icon(
                                     imageVector = Icons.Default.MusicNote,
                                     contentDescription = null,

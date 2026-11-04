@@ -82,7 +82,7 @@ object MediaStoreScanner {
                             album = album,
                             duration = (durationMs / 1000).toInt(),
                             url = contentUri.toString(),
-                            coverUrl = null, // Safe null so Coil doesn't hammer broken albumart URIs
+                            coverUrl = contentUri.toString(), // Handled via AudioCoverFetcher with automatic caching
                             gradientColors = gradient,
                             mood = MoodType.CHILL,
                             isLiked = false,

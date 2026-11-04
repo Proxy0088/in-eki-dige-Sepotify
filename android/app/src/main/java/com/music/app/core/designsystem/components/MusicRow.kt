@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,9 +36,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -103,14 +110,20 @@ fun MusicRow(
                     ),
                 contentAlignment = Alignment.Center
             ) {
+                var hasValidImage by remember(track.id) { mutableStateOf(false) }
+
                 if (!track.coverUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model = track.coverUrl,
                         contentDescription = track.title,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        onSuccess = { hasValidImage = true },
+                        onError = { hasValidImage = false }
                     )
-                } else {
+                }
+
+                if (!hasValidImage) {
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = null,
@@ -173,7 +186,7 @@ fun MusicRow(
                                 .clip(CircleShape)
                                 .background(Color(0xFF064E3B).copy(alpha = 0.8f))
                                 .border(0.5.dp, Color(0xFF10B981).copy(alpha = 0.4f), CircleShape)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "نت ملی",
@@ -264,8 +277,12 @@ fun MusicRow(
     }
 }
 
+/**
+ * High-performance Canvas Equalizer Bars.
+ * Runs strictly in Compose draw phase - ZERO re-measurement, ZERO re-layout, 120 FPS smooth.
+ */
 @Composable
-private fun AnimatedEqualizerBars() {
+fun AnimatedEqualizerBars(modifier: Modifier = Modifier) {
     val infiniteTransition = rememberInfiniteTransition(label = "row_equalizer")
 
     val h1 by infiniteTransition.animateFloat(
@@ -298,33 +315,40 @@ private fun AnimatedEqualizerBars() {
         label = "eq_bar3"
     )
 
-    Row(
-        modifier = Modifier
-            .height(14.dp)
-            .padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.Bottom
+    Canvas(
+        modifier = modifier.size(width = 15.dp, height = 14.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .width(2.5.dp)
-                .height(14.dp * h1)
-                .clip(CircleShape)
-                .background(Color(0xFF22D3EE))
+        val barW = 2.5.dp.toPx()
+        val corner = CornerRadius(barW / 2f, barW / 2f)
+        val maxH = size.height
+        val color = Color(0xFF22D3EE)
+        val spacing = 2.dp.toPx()
+
+        // Bar 1
+        val h1Px = maxH * h1
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(0f, maxH - h1Px),
+            size = Size(barW, h1Px),
+            cornerRadius = corner
         )
-        Box(
-            modifier = Modifier
-                .width(2.5.dp)
-                .height(14.dp * h2)
-                .clip(CircleShape)
-                .background(Color(0xFF22D3EE))
+
+        // Bar 2
+        val h2Px = maxH * h2
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(barW + spacing, maxH - h2Px),
+            size = Size(barW, h2Px),
+            cornerRadius = corner
         )
-        Box(
-            modifier = Modifier
-                .width(2.5.dp)
-                .height(14.dp * h3)
-                .clip(CircleShape)
-                .background(Color(0xFF22D3EE))
+
+        // Bar 3
+        val h3Px = maxH * h3
+        drawRoundRect(
+            color = color,
+            topLeft = Offset((barW + spacing) * 2f, maxH - h3Px),
+            size = Size(barW, h3Px),
+            cornerRadius = corner
         )
     }
 }

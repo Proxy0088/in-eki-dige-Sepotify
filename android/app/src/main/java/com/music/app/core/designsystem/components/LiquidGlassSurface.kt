@@ -3,7 +3,6 @@ package com.music.app.core.designsystem.components
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,7 +35,8 @@ enum class LiquidGlassVariant {
     Dock,
     Button,
     ActivePill,
-    Card
+    Card,
+    ClearGlass // Uncolored, transparent liquid glass showing moving ambient halos underneath
 }
 
 /**
@@ -77,13 +77,30 @@ fun LiquidGlassSurface(
         } else {
             if (isApi31Plus) Color(0xA6FFFFFF) else Color(0xF8FFFFFF)
         }
+        LiquidGlassVariant.ClearGlass -> if (isDark) {
+            Color.White.copy(alpha = 0.05f) // Pure transparent glass, zero dark fill
+        } else {
+            Color.White.copy(alpha = 0.18f)
+        }
     }
 
     // Border Colors
-    val borderColor = if (isDark) GlassBorderDark else GlassBorderLight
+    val borderColor = if (variant == LiquidGlassVariant.ClearGlass) {
+        Color.White.copy(alpha = 0.28f)
+    } else if (isDark) {
+        GlassBorderDark
+    } else {
+        GlassBorderLight
+    }
 
-    // Top catch-light color
-    val highlightColor = if (isDark) GlassHighlightDark else Color(0x80FFFFFF)
+    // Top catch-light specular color
+    val highlightColor = if (variant == LiquidGlassVariant.ClearGlass) {
+        Color.White.copy(alpha = 0.50f)
+    } else if (isDark) {
+        GlassHighlightDark
+    } else {
+        Color(0x80FFFFFF)
+    }
 
     // Shadow setup
     val shadowElevation = when (variant) {
@@ -91,9 +108,10 @@ fun LiquidGlassSurface(
         LiquidGlassVariant.Button -> 8.dp
         LiquidGlassVariant.ActivePill -> 4.dp
         LiquidGlassVariant.Card -> 20.dp
+        LiquidGlassVariant.ClearGlass -> 0.dp // No shadow blocking the vibrant halos below
     }
 
-    val shadowModifier = if (variant != LiquidGlassVariant.ActivePill) {
+    val shadowModifier = if (variant != LiquidGlassVariant.ActivePill && variant != LiquidGlassVariant.ClearGlass) {
         Modifier.shadow(
             elevation = shadowElevation,
             shape = shape,
@@ -108,9 +126,9 @@ fun LiquidGlassSurface(
         Modifier.hazeChild(
             state = hazeState,
             style = HazeStyle(
-                backgroundColor = if (isDark) Color(0xFF07080B) else Color(0xFFF8F9FA),
+                backgroundColor = if (variant == LiquidGlassVariant.ClearGlass) Color.Transparent else if (isDark) Color(0xFF07080B) else Color(0xFFF8F9FA),
                 tint = null,
-                blurRadius = 24.dp
+                blurRadius = 20.dp
             )
         )
     } else {
@@ -125,9 +143,9 @@ fun LiquidGlassSurface(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        baseColor.copy(alpha = (baseColor.alpha * 1.15f).coerceAtMost(1f)),
+                        baseColor.copy(alpha = (baseColor.alpha * 1.2f).coerceAtMost(1f)),
                         baseColor,
-                        baseColor.copy(alpha = (baseColor.alpha * 0.90f).coerceAtMost(1f))
+                        baseColor.copy(alpha = (baseColor.alpha * 0.85f).coerceAtMost(1f))
                     )
                 ),
                 shape = shape
@@ -135,7 +153,7 @@ fun LiquidGlassSurface(
             .drawBehind {
                 if (showTopHighlight) {
                     val strokeW = 1.dp.toPx()
-                    // Top physical specular highlight line (exact match to reference-web via-white/35)
+                    // Top physical specular highlight line
                     drawLine(
                         brush = Brush.horizontalGradient(
                             colors = listOf(

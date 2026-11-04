@@ -43,13 +43,10 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,6 +70,7 @@ import com.music.app.core.designsystem.components.LiquidGlassVariant
 import com.music.app.core.designsystem.theme.AudexFontFamily
 import com.music.app.core.model.Track
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
 
 enum class RepeatModeState {
     OFF, ALL, ONE
@@ -92,7 +90,9 @@ val SampleLyrics = listOf(
 )
 
 /**
- * Native FullScreen Player matching reference-web/src/components/FullScreenPlayer.tsx
+ * Native FullScreen Player.
+ * - Dedicated HazeState over background artwork & animated ambient light halos.
+ * - 100% ClearGlass uncolored buttons allowing moving halos underneath to refract and glow.
  */
 @Composable
 fun FullScreenPlayer(
@@ -105,9 +105,10 @@ fun FullScreenPlayer(
     onNextTrack: () -> Unit,
     onPreviousTrack: () -> Unit,
     onSeek: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-    hazeState: HazeState? = null
+    modifier: Modifier = Modifier
 ) {
+    val playerHazeState = remember { HazeState() }
+
     var isLiked by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
     var isShuffle by remember { mutableStateOf(false) }
@@ -134,52 +135,59 @@ fun FullScreenPlayer(
                 }
             }
     ) {
-        // ── 1. Upper Artwork Area fading into pitch black ──
+        // ── 1. Background Blur Source: Artwork + Drifting Ambient Halos ──
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.64f)
+                .fillMaxSize()
+                .haze(state = playerHazeState)
         ) {
+            // Upper Artwork Area with cinematic bottom fade
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.linearGradient(track.gradientColors)
-                    )
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.68f)
             ) {
-                if (!track.coverUrl.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = track.coverUrl,
-                        contentDescription = track.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(track.gradientColors)
+                        )
+                ) {
+                    if (!track.coverUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = track.coverUrl,
+                            contentDescription = track.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
+
+                // Gradient overlay fading from dark-transparent to pitch-black #07080B
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0.0f to Color(0x66000000),
+                                0.20f to Color.Transparent,
+                                0.45f to Color(0x3007080B),
+                                0.75f to Color(0xCC07080B),
+                                1.0f to Color(0xFF07080B)
+                            )
+                        )
+                )
             }
 
-            // Gradient overlay fading from dark-transparent to pitch-black #07080B
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0.0f to Color(0x80000000),
-                            0.20f to Color.Transparent,
-                            0.50f to Color(0x4007080B),
-                            0.80f to Color(0xCC07080B),
-                            1.0f to Color(0xFF07080B)
-                        )
-                    )
+            // Ambient Floating Light Halos (Drifting across lower region)
+            AmbientHalos(
+                dominantColor = dominantColor,
+                modifier = Modifier.fillMaxSize()
             )
         }
 
-        // ── 2. Ambient Floating Light Halos (Elevated to artwork fade line) ──
-        AmbientHalos(
-            dominantColor = dominantColor,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // ── 3. Foreground Content Column ──
+        // ── 2. Foreground Content Column (Clear Liquid Glass Buttons) ──
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -188,7 +196,7 @@ fun FullScreenPlayer(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Bar
+            // Top Bar: Uncolored ClearGlass buttons showing artwork colors underneath
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -202,7 +210,9 @@ fun FullScreenPlayer(
                     size = 44.dp,
                     icon = Icons.Filled.KeyboardArrowDown,
                     iconSize = 24.dp,
-                    hazeState = hazeState,
+                    hazeState = playerHazeState,
+                    variant = LiquidGlassVariant.ClearGlass,
+                    tint = Color.White,
                     contentDescription = "Collapse"
                 )
 
@@ -232,7 +242,9 @@ fun FullScreenPlayer(
                     size = 44.dp,
                     icon = Icons.Filled.MoreVert,
                     iconSize = 20.dp,
-                    hazeState = hazeState,
+                    hazeState = playerHazeState,
+                    variant = LiquidGlassVariant.ClearGlass,
+                    tint = Color.White,
                     contentDescription = "Options"
                 )
             }
@@ -259,8 +271,8 @@ fun FullScreenPlayer(
                             .fillMaxWidth()
                             .fillMaxHeight(0.75f),
                         shape = RoundedCornerShape(24.dp),
-                        variant = LiquidGlassVariant.Card,
-                        hazeState = hazeState
+                        variant = LiquidGlassVariant.ClearGlass,
+                        hazeState = playerHazeState
                     ) {
                         val listState = rememberLazyListState()
                         LazyColumn(
@@ -322,23 +334,25 @@ fun FullScreenPlayer(
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // Like Button (rose fill when active)
+                        // Like Button (ClearGlass)
                         LiquidGlassButton(
                             onClick = { isLiked = !isLiked },
                             size = 44.dp,
                             icon = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                             tint = if (isLiked) Color(0xFFF43F5E) else Color.White,
-                            hazeState = hazeState,
+                            hazeState = playerHazeState,
+                            variant = LiquidGlassVariant.ClearGlass,
                             contentDescription = "Like"
                         )
 
-                        // Lyrics Toggle Button (amber tint when active)
+                        // Lyrics Toggle Button (ClearGlass)
                         LiquidGlassButton(
                             onClick = { showLyrics = !showLyrics },
                             size = 44.dp,
                             icon = Icons.Filled.ChatBubbleOutline,
                             tint = if (showLyrics) Color(0xFFF59E0B) else Color.White,
-                            hazeState = hazeState,
+                            hazeState = playerHazeState,
+                            variant = LiquidGlassVariant.ClearGlass,
                             contentDescription = "Lyrics"
                         )
                     }
@@ -454,23 +468,25 @@ fun FullScreenPlayer(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // ── Primary Playback Row: Prev, Translucent Glass Play Pill, Next ──
+                // ── Primary Playback Row: Prev, ClearGlass Play Pill, Next ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Previous Track (Circular Glass 56dp)
+                    // Previous Track (Circular ClearGlass 56dp)
                     LiquidGlassButton(
                         onClick = onPreviousTrack,
                         size = 56.dp,
                         icon = Icons.Filled.SkipPrevious,
                         iconSize = 28.dp,
-                        hazeState = hazeState,
+                        hazeState = playerHazeState,
+                        variant = LiquidGlassVariant.ClearGlass,
+                        tint = Color.White,
                         contentDescription = "Previous"
                     )
 
-                    // Main Play/Pause Capsule Pill (Translucent Glass with Play/Pause icon + Text)
+                    // Main Play/Pause Capsule Pill (ClearGlass - Halos shine through!)
                     LiquidGlassSurface(
                         modifier = Modifier
                             .weight(1f)
@@ -480,9 +496,9 @@ fun FullScreenPlayer(
                                 indication = null,
                                 onClick = onTogglePlay
                             ),
-                        hazeState = hazeState,
+                        hazeState = playerHazeState,
                         shape = CircleShape,
-                        variant = LiquidGlassVariant.Button,
+                        variant = LiquidGlassVariant.ClearGlass,
                         borderWidth = 1.dp,
                         showTopHighlight = true
                     ) {
@@ -508,25 +524,27 @@ fun FullScreenPlayer(
                         }
                     }
 
-                    // Next Track (Circular Glass 56dp)
+                    // Next Track (Circular ClearGlass 56dp)
                     LiquidGlassButton(
                         onClick = onNextTrack,
                         size = 56.dp,
                         icon = Icons.Filled.SkipNext,
                         iconSize = 28.dp,
-                        hazeState = hazeState,
+                        hazeState = playerHazeState,
+                        variant = LiquidGlassVariant.ClearGlass,
+                        tint = Color.White,
                         contentDescription = "Next"
                     )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // ── Secondary Controls Row: Shuffle, Audio, Repeat ──
+                // ── Secondary Controls Row: Shuffle, Audio, Repeat (All ClearGlass) ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Shuffle
+                    // Shuffle (ClearGlass)
                     LiquidGlassSurface(
                         modifier = Modifier
                             .weight(1f)
@@ -536,21 +554,21 @@ fun FullScreenPlayer(
                                 indication = null,
                                 onClick = { isShuffle = !isShuffle }
                             ),
-                        hazeState = hazeState,
+                        hazeState = playerHazeState,
                         shape = CircleShape,
-                        variant = LiquidGlassVariant.Button
+                        variant = LiquidGlassVariant.ClearGlass
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Filled.Shuffle,
                                 contentDescription = "Shuffle",
-                                tint = if (isShuffle) Color(0xFFF59E0B) else Color.White.copy(alpha = 0.8f),
+                                tint = if (isShuffle) Color(0xFFF59E0B) else Color.White.copy(alpha = 0.9f),
                                 modifier = Modifier.size(19.dp)
                             )
                         }
                     }
 
-                    // Audio Mode
+                    // Audio Mode (ClearGlass)
                     LiquidGlassSurface(
                         modifier = Modifier
                             .weight(1.3f)
@@ -560,9 +578,9 @@ fun FullScreenPlayer(
                                 indication = null,
                                 onClick = { /* audio mode */ }
                             ),
-                        hazeState = hazeState,
+                        hazeState = playerHazeState,
                         shape = CircleShape,
-                        variant = LiquidGlassVariant.Button
+                        variant = LiquidGlassVariant.ClearGlass
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize(),
@@ -572,7 +590,7 @@ fun FullScreenPlayer(
                             Icon(
                                 imageVector = Icons.Filled.Headphones,
                                 contentDescription = "Audio Output",
-                                tint = Color.White.copy(alpha = 0.8f),
+                                tint = Color.White.copy(alpha = 0.9f),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -580,13 +598,13 @@ fun FullScreenPlayer(
                                 text = "AUDIO",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White.copy(alpha = 0.85f),
+                                color = Color.White.copy(alpha = 0.9f),
                                 letterSpacing = 1.sp
                             )
                         }
                     }
 
-                    // Repeat Cycle
+                    // Repeat Cycle (ClearGlass)
                     LiquidGlassSurface(
                         modifier = Modifier
                             .weight(1f)
@@ -602,9 +620,9 @@ fun FullScreenPlayer(
                                     }
                                 }
                             ),
-                        hazeState = hazeState,
+                        hazeState = playerHazeState,
                         shape = CircleShape,
-                        variant = LiquidGlassVariant.Button
+                        variant = LiquidGlassVariant.ClearGlass
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Icon(
@@ -613,7 +631,7 @@ fun FullScreenPlayer(
                                     else -> Icons.Filled.Repeat
                                 },
                                 contentDescription = "Repeat",
-                                tint = if (repeatMode != RepeatModeState.OFF) Color(0xFFF59E0B) else Color.White.copy(alpha = 0.8f),
+                                tint = if (repeatMode != RepeatModeState.OFF) Color(0xFFF59E0B) else Color.White.copy(alpha = 0.9f),
                                 modifier = Modifier.size(19.dp)
                             )
                         }

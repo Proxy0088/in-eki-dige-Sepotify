@@ -47,8 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.music.app.core.designsystem.components.MusicRow
 import com.music.app.core.model.Track
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.haze
 
 private val CATEGORY_CHIPS = listOf("All", "Ambient", "Electronic", "Pop", "Rock", "Classical", "Lo-Fi")
 
@@ -66,7 +64,6 @@ fun SearchScreen(
     onPlayTrack: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
     onToggleDownload: (Track) -> Unit,
-    hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
     var query by remember { mutableStateOf("") }
@@ -100,9 +97,7 @@ fun SearchScreen(
     }
 
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .haze(state = hazeState),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {

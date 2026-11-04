@@ -18,11 +18,8 @@ import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 
 /**
- * Reusable Player Glass Button matching reference-web token .lastwave-player-btn:
- * - background: rgba(22, 25, 36, 0.32)
- * - border: 1px solid rgba(255, 255, 255, 0.18)
- * - top specular catch-light line: via-white/25
- * - real-time backdrop blur
+ * Reusable Player Glass Button.
+ * Supports standard Button variant and ClearGlass (uncolored transparent) variant.
  */
 @Composable
 fun LiquidGlassButton(
@@ -31,6 +28,7 @@ fun LiquidGlassButton(
     size: Dp = 44.dp,
     shape: Shape = CircleShape,
     hazeState: HazeState? = null,
+    variant: LiquidGlassVariant = LiquidGlassVariant.Button,
     icon: ImageVector? = null,
     iconSize: Dp = 20.dp,
     tint: Color = Color.White,
@@ -49,7 +47,7 @@ fun LiquidGlassButton(
             ),
         hazeState = hazeState,
         shape = shape,
-        variant = LiquidGlassVariant.Button,
+        variant = variant,
         borderWidth = 1.dp,
         showTopHighlight = true
     ) {

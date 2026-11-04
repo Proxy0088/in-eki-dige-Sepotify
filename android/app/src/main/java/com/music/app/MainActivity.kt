@@ -60,6 +60,7 @@ import com.music.app.features.search.SearchScreen
 import com.music.app.features.settings.SettingsModal
 import com.music.app.features.social.SocialAccountModal
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -138,7 +139,8 @@ fun MainAppScreen(
     var showSocialModal by remember { mutableStateOf(false) }
     var showAskListModal by remember { mutableStateOf(false) }
 
-    val hazeState = remember { HazeState() }
+    // Single stable Root HazeState covering the entire screen content
+    val rootHazeState = remember { HazeState() }
 
     // Dynamic track list allowing like, download, and local MediaStore additions
     val tracksList = remember { mutableStateListOf<Track>().apply { addAll(SAMPLE_TRACKS) } }
@@ -224,78 +226,82 @@ fun MainAppScreen(
             .fillMaxSize()
             .background(if (isDarkTheme) Color(0xFF07080B) else Color(0xFFF3F4F6))
     ) {
-        // ── Active Screen Content (Animated Crossfade / Slide) ──
-        AnimatedContent(
-            targetState = activeTab,
-            transitionSpec = {
-                fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) togetherWith
-                fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
-            },
-            label = "screen_tab_switch",
-            modifier = Modifier.fillMaxSize()
-        ) { tab ->
-            when (tab) {
-                NavTab.HOME -> {
-                    HomeScreen(
-                        tracks = syncedTracksList,
-                        currentTrack = displayCurrentTrack,
-                        isPlaying = isPlaying,
-                        onPlayTrack = { track ->
-                            playerManager.playTrack(track, syncedTracksList)
-                        },
-                        onToggleLike = { track ->
-                            scope.launch { prefsRepo.toggleLike(track.id) }
-                        },
-                        onToggleDownload = { track ->
-                            val idx = tracksList.indexOfFirst { it.id == track.id }
-                            if (idx >= 0) {
-                                tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
+        // ── Single Permanent Full-Screen Haze Source ──
+        // Placing haze here ensures that tab transitions, scrolling, or modal opens NEVER unregister or freeze blur!
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .haze(state = rootHazeState)
+        ) {
+            AnimatedContent(
+                targetState = activeTab,
+                transitionSpec = {
+                    fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) togetherWith
+                    fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                },
+                label = "screen_tab_switch",
+                modifier = Modifier.fillMaxSize()
+            ) { tab ->
+                when (tab) {
+                    NavTab.HOME -> {
+                        HomeScreen(
+                            tracks = syncedTracksList,
+                            currentTrack = displayCurrentTrack,
+                            isPlaying = isPlaying,
+                            onPlayTrack = { track ->
+                                playerManager.playTrack(track, syncedTracksList)
+                            },
+                            onToggleLike = { track ->
+                                scope.launch { prefsRepo.toggleLike(track.id) }
+                            },
+                            onToggleDownload = { track ->
+                                val idx = tracksList.indexOfFirst { it.id == track.id }
+                                if (idx >= 0) {
+                                    tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
+                                }
                             }
-                        },
-                        hazeState = hazeState
-                    )
-                }
+                        )
+                    }
 
-                NavTab.SEARCH -> {
-                    SearchScreen(
-                        tracks = syncedTracksList,
-                        currentTrack = displayCurrentTrack,
-                        isPlaying = isPlaying,
-                        onPlayTrack = { track ->
-                            playerManager.playTrack(track, syncedTracksList)
-                        },
-                        onToggleLike = { track ->
-                            scope.launch { prefsRepo.toggleLike(track.id) }
-                        },
-                        onToggleDownload = { track ->
-                            val idx = tracksList.indexOfFirst { it.id == track.id }
-                            if (idx >= 0) {
-                                tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
+                    NavTab.SEARCH -> {
+                        SearchScreen(
+                            tracks = syncedTracksList,
+                            currentTrack = displayCurrentTrack,
+                            isPlaying = isPlaying,
+                            onPlayTrack = { track ->
+                                playerManager.playTrack(track, syncedTracksList)
+                            },
+                            onToggleLike = { track ->
+                                scope.launch { prefsRepo.toggleLike(track.id) }
+                            },
+                            onToggleDownload = { track ->
+                                val idx = tracksList.indexOfFirst { it.id == track.id }
+                                if (idx >= 0) {
+                                    tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
+                                }
                             }
-                        },
-                        hazeState = hazeState
-                    )
-                }
+                        )
+                    }
 
-                NavTab.LIBRARY -> {
-                    LibraryScreen(
-                        tracks = syncedTracksList,
-                        currentTrack = displayCurrentTrack,
-                        isPlaying = isPlaying,
-                        onPlayTrack = { track ->
-                            playerManager.playTrack(track, syncedTracksList)
-                        },
-                        onToggleLike = { track ->
-                            scope.launch { prefsRepo.toggleLike(track.id) }
-                        },
-                        onToggleDownload = { track ->
-                            val idx = tracksList.indexOfFirst { it.id == track.id }
-                            if (idx >= 0) {
-                                tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
+                    NavTab.LIBRARY -> {
+                        LibraryScreen(
+                            tracks = syncedTracksList,
+                            currentTrack = displayCurrentTrack,
+                            isPlaying = isPlaying,
+                            onPlayTrack = { track ->
+                                playerManager.playTrack(track, syncedTracksList)
+                            },
+                            onToggleLike = { track ->
+                                scope.launch { prefsRepo.toggleLike(track.id) }
+                            },
+                            onToggleDownload = { track ->
+                                val idx = tracksList.indexOfFirst { it.id == track.id }
+                                if (idx >= 0) {
+                                    tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
+                                }
                             }
-                        },
-                        hazeState = hazeState
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -307,7 +313,7 @@ fun MainAppScreen(
                 NavTab.SEARCH -> "Search"
                 NavTab.LIBRARY -> "Library"
             },
-            hazeState = hazeState,
+            hazeState = rootHazeState,
             onProfileClick = { showSocialModal = true },
             modifier = Modifier.align(Alignment.TopCenter)
         )
@@ -328,7 +334,7 @@ fun MainAppScreen(
             onTogglePlay = { playerManager.togglePlay() },
             onNextTrack = { playerManager.skipToNext() },
             onOpenPlayer = { isPlayerExpanded = true },
-            hazeState = hazeState,
+            hazeState = rootHazeState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
@@ -340,11 +346,11 @@ fun MainAppScreen(
             activeTab = activeTab,
             onTabSelected = { activeTab = it },
             isPlaying = isPlaying,
-            hazeState = hazeState,
+            hazeState = rootHazeState,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
-        // ── FullScreen Player (Animated Slide-up overlay) ──
+        // ── FullScreen Player (Animated Slide-up overlay with dedicated Haze) ──
         AnimatedVisibility(
             visible = isPlayerExpanded,
             enter = slideInVertically(
@@ -366,8 +372,7 @@ fun MainAppScreen(
                     onTogglePlay = { playerManager.togglePlay() },
                     onNextTrack = { playerManager.skipToNext() },
                     onPreviousTrack = { playerManager.skipToPrevious() },
-                    onSeek = { playerManager.seekToProgress(it) },
-                    hazeState = hazeState
+                    onSeek = { playerManager.seekToProgress(it) }
                 )
             }
         }

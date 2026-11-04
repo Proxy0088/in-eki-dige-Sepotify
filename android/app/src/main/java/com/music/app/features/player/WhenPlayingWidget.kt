@@ -1,11 +1,6 @@
 package com.music.app.features.player
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -33,7 +28,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.music.app.core.designsystem.components.AnimatedEqualizerBars
 import com.music.app.core.designsystem.components.LiquidGlassSurface
 import com.music.app.core.designsystem.components.LiquidGlassVariant
 import com.music.app.core.model.Track
@@ -113,12 +111,16 @@ fun WhenPlayingWidget(
                             ),
                         contentAlignment = Alignment.BottomCenter
                     ) {
+                        var hasImage by remember(currentTrack.id) { mutableStateOf(false) }
+
                         if (!currentTrack.coverUrl.isNullOrEmpty()) {
                             AsyncImage(
                                 model = currentTrack.coverUrl,
                                 contentDescription = currentTrack.title,
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                onSuccess = { hasImage = true },
+                                onError = { hasImage = false }
                             )
                         }
 
@@ -215,65 +217,5 @@ fun WhenPlayingWidget(
                 }
             }
         }
-    }
-}
-
-/**
- * 3 rhythmic cyan equalizer bars matching reference-web
- */
-@Composable
-private fun AnimatedEqualizerBars(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "equalizer")
-
-    val bar1Height by infiniteTransition.animateFloat(
-        initialValue = 4f,
-        targetValue = 12f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 400),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bar1"
-    )
-
-    val bar2Height by infiniteTransition.animateFloat(
-        initialValue = 12f,
-        targetValue = 6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 550),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bar2"
-    )
-
-    val bar3Height by infiniteTransition.animateFloat(
-        initialValue = 6f,
-        targetValue = 14f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 450),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bar3"
-    )
-
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        Box(
-            modifier = Modifier
-                .size(width = 2.dp, height = bar1Height.dp)
-                .background(Color(0xFF22D3EE), CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .size(width = 2.dp, height = bar2Height.dp)
-                .background(Color(0xFF22D3EE), CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .size(width = 2.dp, height = bar3Height.dp)
-                .background(Color(0xFF22D3EE), CircleShape)
-        )
     }
 }
