@@ -2,10 +2,18 @@ package com.music.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +34,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,6 +53,8 @@ import com.music.app.core.designsystem.components.NavTab
 import com.music.app.core.designsystem.components.TopCapsule
 import com.music.app.core.designsystem.theme.AudexFontFamily
 import com.music.app.core.designsystem.theme.SepotifyTheme
+import com.music.app.features.player.FullScreenPlayer
+import com.music.app.features.player.WhenPlayingWidget
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 
@@ -67,7 +80,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Dummy track model for Phase 1 visual verification
+// Dummy track model for visual verification
 data class DummyTrack(
     val id: String,
     val title: String,
@@ -138,7 +151,17 @@ val SampleTracks = listOf(
 @Composable
 fun MainAppScreen() {
     var activeTab by remember { mutableStateOf(NavTab.HOME) }
+    var currentTrackIndex by remember { mutableIntStateOf(0) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var isPlayerExpanded by remember { mutableStateOf(false) }
+    var playbackProgress by remember { mutableFloatStateOf(0.28f) }
+
     val hazeState = remember { HazeState() }
+    val currentTrack = SampleTracks.getOrNull(currentTrackIndex)
+
+    BackHandler(enabled = isPlayerExpanded) {
+        isPlayerExpanded = false
+    }
 
     Box(
         modifier = Modifier
@@ -150,7 +173,7 @@ fun MainAppScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .haze(state = hazeState),
-            contentPadding = PaddingValues(top = 135.dp, bottom = 120.dp, start = 16.dp, end = 16.dp),
+            contentPadding = PaddingValues(top = 135.dp, bottom = 150.dp, start = 16.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
@@ -181,6 +204,11 @@ fun MainAppScreen() {
                                 .background(
                                     brush = Brush.linearGradient(track.gradientColors)
                                 )
+                                .clickable {
+                                    currentTrackIndex = SampleTracks.indexOf(track)
+                                    isPlaying = true
+                                    isPlayerExpanded = true
+                                }
                                 .padding(12.dp),
                             contentAlignment = Alignment.BottomStart
                         ) {
@@ -223,6 +251,10 @@ fun MainAppScreen() {
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(Color(0xFF13151D).copy(alpha = 0.6f))
+                        .clickable {
+                            currentTrackIndex = SampleTracks.indexOf(track)
+                            isPlaying = true
+                        }
                         .padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -268,13 +300,62 @@ fun MainAppScreen() {
             modifier = Modifier.align(Alignment.TopCenter)
         )
 
+        // Floating Mini Player Widget (Docked directly above BottomNav)
+        WhenPlayingWidget(
+            currentTrack = currentTrack,
+            isPlaying = isPlaying,
+            progress = playbackProgress,
+            onTogglePlay = { isPlaying = !isPlaying },
+            onNextTrack = {
+                currentTrackIndex = (currentTrackIndex + 1) % SampleTracks.size
+            },
+            onOpenPlayer = { isPlayerExpanded = true },
+            hazeState = hazeState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+        )
+
         // Bottom Glass Navigation Dock
         BottomNav(
             activeTab = activeTab,
             onTabSelected = { activeTab = it },
-            isPlaying = true,
+            isPlaying = isPlaying,
             hazeState = hazeState,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+
+        // ── FullScreen Player (Animated Slide-up overlay) ──
+        AnimatedVisibility(
+            visible = isPlayerExpanded,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f)
+            ) + fadeIn(),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f)
+            ) + fadeOut()
+        ) {
+            if (currentTrack != null) {
+                FullScreenPlayer(
+                    track = currentTrack,
+                    isPlaying = isPlaying,
+                    currentTimeSec = (playbackProgress * 297).toInt(),
+                    durationSec = 297,
+                    onBack = { isPlayerExpanded = false },
+                    onTogglePlay = { isPlaying = !isPlaying },
+                    onNextTrack = {
+                        currentTrackIndex = (currentTrackIndex + 1) % SampleTracks.size
+                    },
+                    onPreviousTrack = {
+                        currentTrackIndex = if (currentTrackIndex > 0) currentTrackIndex - 1 else SampleTracks.size - 1
+                    },
+                    onSeek = { playbackProgress = it },
+                    hazeState = hazeState
+                )
+            }
+        }
     }
 }
