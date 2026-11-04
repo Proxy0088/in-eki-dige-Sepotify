@@ -150,7 +150,7 @@ fun MainAppScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .haze(state = hazeState),
-            contentPadding = PaddingValues(top = 110.dp, bottom = 120.dp, start = 16.dp, end = 16.dp),
+            contentPadding = PaddingValues(top = 135.dp, bottom = 120.dp, start = 16.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {

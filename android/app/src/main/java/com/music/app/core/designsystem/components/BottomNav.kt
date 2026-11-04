@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.music.app.core.designsystem.theme.LocalIsDarkTheme
 import dev.chrisbanes.haze.HazeState
 
 enum class NavTab(val titleEn: String, val titleFa: String) {
@@ -68,7 +69,7 @@ fun BottomNav(
     isPlaying: Boolean = false,
     isPersian: Boolean = false
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDarkTheme.current
 
     Box(
         modifier = modifier

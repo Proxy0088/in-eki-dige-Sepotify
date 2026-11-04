@@ -27,7 +27,9 @@ import com.music.app.core.designsystem.theme.GlassButtonLight
 import com.music.app.core.designsystem.theme.GlassDockDark
 import com.music.app.core.designsystem.theme.GlassDockLight
 import com.music.app.core.designsystem.theme.GlassHighlightDark
+import com.music.app.core.designsystem.theme.LocalIsDarkTheme
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.hazeChild
 
 enum class LiquidGlassVariant {
@@ -54,7 +56,7 @@ fun LiquidGlassSurface(
     showTopHighlight: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalIsDarkTheme.current
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     // Glass Background Color depending on Variant & Theme
@@ -103,7 +105,14 @@ fun LiquidGlassSurface(
     }
 
     val hazeModifier = if (hazeState != null && isApi31Plus) {
-        Modifier.hazeChild(state = hazeState)
+        Modifier.hazeChild(
+            state = hazeState,
+            style = HazeStyle(
+                backgroundColor = if (isDark) Color(0xFF07080B) else Color(0xFFF8F9FA),
+                tint = null,
+                blurRadius = 24.dp
+            )
+        )
     } else {
         Modifier
     }
