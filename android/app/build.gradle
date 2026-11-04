@@ -65,6 +65,9 @@ dependencies {
     implementation 'androidx.media3:media3-session:1.5.0'
     implementation 'androidx.media3:media3-common:1.5.0'
 
+    // Networking
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+
     // DataStore (Persistence)
     implementation 'androidx.datastore:datastore-preferences:1.1.1'
 

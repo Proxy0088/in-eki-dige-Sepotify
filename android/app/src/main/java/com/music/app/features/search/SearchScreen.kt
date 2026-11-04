@@ -1,8 +1,23 @@
 package com.music.app.features.search
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,10 +43,12 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,14 +56,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.music.app.core.designsystem.components.MusicRow
 import com.music.app.core.model.Track
+import com.music.app.core.network.OnlineMusicService
+import kotlinx.coroutines.delay
 
 private val CATEGORY_CHIPS = listOf("All", "Ambient", "Electronic", "Pop", "Rock", "Classical", "Lo-Fi")
 
@@ -70,30 +91,76 @@ fun SearchScreen(
     var selectedCategory by remember { mutableStateOf("All") }
     var searchMode by remember { mutableStateOf(SearchMode.ONLINE) }
 
-    val filteredTracks = remember(tracks, query, selectedCategory, searchMode) {
-        var list = when (searchMode) {
-            SearchMode.LOCAL -> tracks.filter { it.isDownloaded }
-            SearchMode.NATIONAL_NET -> tracks.filter { it.isNationalNet }
-            SearchMode.ONLINE -> tracks
+    var isSearching by remember { mutableStateOf(false) }
+    var onlineResults by remember { mutableStateOf<List<Track>>(emptyList()) }
+
+    // ── Debounced Online Search (350ms) ──
+    LaunchedEffect(query, searchMode) {
+        if (searchMode == SearchMode.LOCAL) {
+            isSearching = false
+            return@LaunchedEffect
+        }
+
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            onlineResults = emptyList()
+            isSearching = false
+            return@LaunchedEffect
+        }
+
+        isSearching = true
+        delay(350)
+
+        val results = try {
+            OnlineMusicService.search(trimmed, searchMode == SearchMode.NATIONAL_NET)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+
+        onlineResults = results
+        isSearching = false
+    }
+
+    // Filtered tracks to display
+    val displayTracks = remember(tracks, onlineResults, query, selectedCategory, searchMode) {
+        val baseList = when (searchMode) {
+            SearchMode.LOCAL -> {
+                val downloaded = tracks.filter { it.isDownloaded }
+                if (query.isNotBlank()) {
+                    val q = query.trim().lowercase()
+                    downloaded.filter {
+                        it.title.lowercase().contains(q) ||
+                        it.artist.lowercase().contains(q) ||
+                        it.album.lowercase().contains(q)
+                    }
+                } else {
+                    downloaded
+                }
+            }
+            SearchMode.ONLINE, SearchMode.NATIONAL_NET -> {
+                if (query.isNotBlank()) {
+                    onlineResults
+                } else {
+                    // Default online suggestions when query is empty
+                    if (searchMode == SearchMode.NATIONAL_NET) {
+                        OnlineMusicService.VERIFIED_IRAN_TRACKS
+                    } else {
+                        tracks.take(10)
+                    }
+                }
+            }
         }
 
         if (selectedCategory != "All") {
             val catLower = selectedCategory.lowercase()
-            list = list.filter {
+            baseList.filter {
                 it.mood.displayName.lowercase().contains(catLower) ||
                 it.album.lowercase().contains(catLower)
             }
+        } else {
+            baseList
         }
-
-        if (query.isNotBlank()) {
-            val q = query.trim().lowercase()
-            list = list.filter {
-                it.title.lowercase().contains(q) ||
-                it.artist.lowercase().contains(q) ||
-                it.album.lowercase().contains(q)
-            }
-        }
-        list
     }
 
     LazyColumn(
@@ -129,9 +196,9 @@ fun SearchScreen(
                         if (query.isEmpty()) {
                             Text(
                                 text = when (searchMode) {
-                                    SearchMode.LOCAL -> "Search local & downloaded files..."
-                                    SearchMode.NATIONAL_NET -> "Search musicdel (National Net)..."
-                                    SearchMode.ONLINE -> "Search artists, songs, albums..."
+                                    SearchMode.LOCAL -> "جست‌وجو در فایل‌های دانلود شده..."
+                                    SearchMode.NATIONAL_NET -> "جست‌وجو در موزیکدل (نت ملی)..."
+                                    SearchMode.ONLINE -> "جست‌وجوی آنلاین آهنگ یا خواننده..."
                                 },
                                 fontSize = 13.sp,
                                 color = Color(0xFF71717A)
@@ -165,16 +232,30 @@ fun SearchScreen(
                         }
                     }
 
-                    // Mode Toggle Icon
+                    // Mode Toggle Icon with tactile bounce
+                    val toggleInteraction = remember { MutableInteractionSource() }
+                    val isTogglePressed by toggleInteraction.collectIsPressedAsState()
+                    val toggleScale by animateFloatAsState(
+                        targetValue = if (isTogglePressed) 0.85f else 1f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.6f),
+                        label = "toggle_scale"
+                    )
+
                     IconButton(
                         onClick = {
                             searchMode = when (searchMode) {
-                                SearchMode.ONLINE -> SearchMode.LOCAL
-                                SearchMode.LOCAL -> SearchMode.NATIONAL_NET
-                                SearchMode.NATIONAL_NET -> SearchMode.ONLINE
+                                SearchMode.ONLINE -> SearchMode.NATIONAL_NET
+                                SearchMode.NATIONAL_NET -> SearchMode.LOCAL
+                                SearchMode.LOCAL -> SearchMode.ONLINE
                             }
                         },
-                        modifier = Modifier.size(32.dp)
+                        interactionSource = toggleInteraction,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .graphicsLayer {
+                                scaleX = toggleScale
+                                scaleY = toggleScale
+                            }
                     ) {
                         when (searchMode) {
                             SearchMode.ONLINE -> Icon(
@@ -183,38 +264,69 @@ fun SearchScreen(
                                 tint = Color(0xFFA1A1A6),
                                 modifier = Modifier.size(18.dp)
                             )
-                            SearchMode.LOCAL -> Icon(
-                                imageVector = Icons.Default.Folder,
-                                contentDescription = "Local",
-                                tint = Color(0xFF22D3EE),
-                                modifier = Modifier.size(18.dp)
-                            )
                             SearchMode.NATIONAL_NET -> Icon(
                                 imageVector = Icons.Default.Security,
                                 contentDescription = "National Net",
                                 tint = Color(0xFF34D399),
                                 modifier = Modifier.size(18.dp)
                             )
+                            SearchMode.LOCAL -> Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = "Local",
+                                tint = Color(0xFF22D3EE),
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
 
-                // Category Chips
+                // ── Animated Category Chips ──
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(CATEGORY_CHIPS) { cat ->
                         val isSelected = selectedCategory == cat
-                        val chipShape = CircleShape
-                        val bg = if (isSelected) Color.White.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.05f)
-                        val border = if (isSelected) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f)
+                        val chipInteraction = remember { MutableInteractionSource() }
+                        val isChipPressed by chipInteraction.collectIsPressedAsState()
+
+                        val chipScale by animateFloatAsState(
+                            targetValue = if (isChipPressed) 0.92f else 1f,
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.65f),
+                            label = "chip_scale"
+                        )
+
+                        val bg by animateColorAsState(
+                            targetValue = if (isSelected) Color.White.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.05f),
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                            label = "chip_bg"
+                        )
+                        val border by animateColorAsState(
+                            targetValue = if (isSelected) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f),
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                            label = "chip_border"
+                        )
 
                         Box(
                             modifier = Modifier
-                                .clip(chipShape)
+                                .graphicsLayer {
+                                    scaleX = chipScale
+                                    scaleY = chipScale
+                                }
+                                .clip(CircleShape)
                                 .background(bg)
-                                .border(1.dp, border, chipShape)
-                                .clickable { selectedCategory = cat }
+                                .border(1.dp, border, CircleShape)
+                                .clickable(
+                                    interactionSource = chipInteraction,
+                                    indication = null,
+                                    onClick = {
+                                        selectedCategory = cat
+                                        if (cat != "All") {
+                                            query = cat.lowercase()
+                                        } else if (query.lowercase() in CATEGORY_CHIPS.map { it.lowercase() }) {
+                                            query = ""
+                                        }
+                                    }
+                                )
                                 .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
@@ -229,10 +341,37 @@ fun SearchScreen(
             }
         }
 
-        // ── Fully Virtualized Search Results ──
-        if (filteredTracks.isNotEmpty()) {
+        // ── Search State (Loading / Results / Empty) ──
+        if (isSearching && displayTracks.isEmpty()) {
+            item(key = "loading_search") {
+                val containerShape = RoundedCornerShape(24.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(containerShape)
+                        .background(Color(0xFF14161F))
+                        .border(1.dp, Color.White.copy(alpha = 0.06f), containerShape)
+                        .padding(vertical = 48.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        color = Color(0xFF22D3EE),
+                        strokeWidth = 2.5.dp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "در حال جستجوی آنلاین موزیک...",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFA1A1A6)
+                    )
+                }
+            }
+        } else if (displayTracks.isNotEmpty()) {
             items(
-                items = filteredTracks,
+                items = displayTracks,
                 key = { it.id }
             ) { track ->
                 MusicRow(

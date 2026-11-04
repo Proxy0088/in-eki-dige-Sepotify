@@ -18,6 +18,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -236,8 +239,15 @@ fun MainAppScreen(
             AnimatedContent(
                 targetState = activeTab,
                 transitionSpec = {
-                    fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) togetherWith
-                    fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                    val forward = targetState.ordinal > initialState.ordinal
+                    (slideInHorizontally(
+                        initialOffsetX = { fullWidth -> if (forward) fullWidth / 3 else -fullWidth / 3 },
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.82f)
+                    ) + fadeIn(animationSpec = tween(220))) togetherWith
+                    (slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> if (forward) -fullWidth / 3 else fullWidth / 3 },
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.82f)
+                    ) + fadeOut(animationSpec = tween(180)))
                 },
                 label = "screen_tab_switch",
                 modifier = Modifier.fillMaxSize()
@@ -269,7 +279,10 @@ fun MainAppScreen(
                             currentTrack = displayCurrentTrack,
                             isPlaying = isPlaying,
                             onPlayTrack = { track ->
-                                playerManager.playTrack(track, syncedTracksList)
+                                if (!tracksList.any { it.id == track.id }) {
+                                    tracksList.add(0, track)
+                                }
+                                playerManager.playTrack(track, listOf(track) + syncedTracksList)
                             },
                             onToggleLike = { track ->
                                 scope.launch { prefsRepo.toggleLike(track.id) }
@@ -307,16 +320,22 @@ fun MainAppScreen(
         }
 
         // ── Top Glass Capsule (Dock) ──
-        TopCapsule(
-            title = when (activeTab) {
-                NavTab.HOME -> "Home"
-                NavTab.SEARCH -> "Search"
-                NavTab.LIBRARY -> "Library"
-            },
-            hazeState = rootHazeState,
-            onProfileClick = { showSocialModal = true },
+        AnimatedVisibility(
+            visible = !isPlayerExpanded,
+            enter = fadeIn(animationSpec = tween(180)),
+            exit = fadeOut(animationSpec = tween(140)),
             modifier = Modifier.align(Alignment.TopCenter)
-        )
+        ) {
+            TopCapsule(
+                title = when (activeTab) {
+                    NavTab.HOME -> "Home"
+                    NavTab.SEARCH -> "Search"
+                    NavTab.LIBRARY -> "Library"
+                },
+                hazeState = rootHazeState,
+                onProfileClick = { showSocialModal = true }
+            )
+        }
 
         // ── Network Status Toast ──
         NetworkStatusToast(
@@ -327,28 +346,46 @@ fun MainAppScreen(
         )
 
         // ── Floating Mini Player Widget (Docked directly above BottomNav) ──
-        WhenPlayingWidget(
-            currentTrack = displayCurrentTrack,
-            isPlaying = isPlaying,
-            progress = playbackProgress,
-            onTogglePlay = { playerManager.togglePlay() },
-            onNextTrack = { playerManager.skipToNext() },
-            onOpenPlayer = { isPlayerExpanded = true },
-            hazeState = rootHazeState,
+        AnimatedVisibility(
+            visible = !isPlayerExpanded && displayCurrentTrack != null,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f)
+            ) + fadeIn(),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f)
+            ) + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(bottom = 80.dp)
-        )
+        ) {
+            WhenPlayingWidget(
+                currentTrack = displayCurrentTrack,
+                isPlaying = isPlaying,
+                progress = playbackProgress,
+                onTogglePlay = { playerManager.togglePlay() },
+                onNextTrack = { playerManager.skipToNext() },
+                onOpenPlayer = { isPlayerExpanded = true },
+                hazeState = rootHazeState
+            )
+        }
 
         // ── Bottom Glass Navigation Dock ──
-        BottomNav(
-            activeTab = activeTab,
-            onTabSelected = { activeTab = it },
-            isPlaying = isPlaying,
-            hazeState = rootHazeState,
+        AnimatedVisibility(
+            visible = !isPlayerExpanded,
+            enter = fadeIn(animationSpec = tween(180)),
+            exit = fadeOut(animationSpec = tween(140)),
             modifier = Modifier.align(Alignment.BottomCenter)
-        )
+        ) {
+            BottomNav(
+                activeTab = activeTab,
+                onTabSelected = { activeTab = it },
+                isPlaying = isPlaying,
+                hazeState = rootHazeState
+            )
+        }
 
         // ── FullScreen Player (Animated Slide-up overlay with dedicated Haze) ──
         AnimatedVisibility(

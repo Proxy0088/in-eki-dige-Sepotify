@@ -11,6 +11,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.music.app.core.model.Track
+import com.music.app.core.network.OnlineMusicService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -119,31 +120,44 @@ class MusicPlayerManager(private val context: Context) {
             return
         }
 
-        player.clearMediaItems()
-        val mediaItems = playlistQueue.map { t ->
-            val metadata = MediaMetadata.Builder()
-                .setTitle(t.title)
-                .setArtist(t.artist)
-                .setAlbumTitle(t.album)
-                .apply {
-                    if (!t.coverUrl.isNullOrEmpty()) {
-                        setArtworkUri(Uri.parse(t.coverUrl))
+        scope.launch {
+            val resolvedTrack = try {
+                OnlineMusicService.resolveTrackAudio(track)
+            } catch (e: Exception) {
+                track
+            }
+            _currentTrack.value = resolvedTrack
+
+            val currentQ = playlistQueue
+            val updatedQueue = currentQ.map { if (it.id == track.id) resolvedTrack else it }
+            playlistQueue = updatedQueue
+
+            player.clearMediaItems()
+            val mediaItems = updatedQueue.map { t ->
+                val metadata = MediaMetadata.Builder()
+                    .setTitle(t.title)
+                    .setArtist(t.artist)
+                    .setAlbumTitle(t.album)
+                    .apply {
+                        if (!t.coverUrl.isNullOrEmpty()) {
+                            setArtworkUri(Uri.parse(t.coverUrl))
+                        }
                     }
-                }
-                .build()
+                    .build()
 
-            MediaItem.Builder()
-                .setMediaId(t.id)
-                .setUri(Uri.parse(t.url))
-                .setMediaMetadata(metadata)
-                .build()
+                MediaItem.Builder()
+                    .setMediaId(t.id)
+                    .setUri(Uri.parse(t.url))
+                    .setMediaMetadata(metadata)
+                    .build()
+            }
+
+            player.setMediaItems(mediaItems)
+            val startIndex = updatedQueue.indexOfFirst { it.id == resolvedTrack.id }.coerceAtLeast(0)
+            player.seekTo(startIndex, 0L)
+            player.prepare()
+            player.play()
         }
-
-        player.setMediaItems(mediaItems)
-        val startIndex = playlistQueue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-        player.seekTo(startIndex, 0L)
-        player.prepare()
-        player.play()
     }
 
     fun togglePlay() {
