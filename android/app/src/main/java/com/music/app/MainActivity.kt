@@ -1,10 +1,14 @@
 package com.music.app
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -20,26 +24,32 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.music.app.core.data.UserPreferencesRepository
 import com.music.app.core.designsystem.components.BottomNav
 import com.music.app.core.designsystem.components.NavTab
 import com.music.app.core.designsystem.components.NetworkStatus
 import com.music.app.core.designsystem.components.NetworkStatusToast
 import com.music.app.core.designsystem.components.TopCapsule
 import com.music.app.core.designsystem.theme.SepotifyTheme
+import com.music.app.core.media.MediaStoreScanner
 import com.music.app.core.model.SAMPLE_TRACKS
 import com.music.app.core.model.Track
+import com.music.app.core.playback.MusicPlayerManager
 import com.music.app.features.home.HomeScreen
 import com.music.app.features.library.AskListLibraryModal
 import com.music.app.features.library.LibraryScreen
@@ -49,8 +59,12 @@ import com.music.app.features.search.SearchScreen
 import com.music.app.features.settings.SettingsModal
 import com.music.app.features.social.SocialAccountModal
 import dev.chrisbanes.haze.HazeState
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    private var playerManager: MusicPlayerManager? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -64,33 +78,57 @@ class MainActivity : ComponentActivity() {
         insetsController.isAppearanceLightStatusBars = false
         insetsController.isAppearanceLightNavigationBars = false
 
+        playerManager = MusicPlayerManager(this)
+
         setContent {
-            var isDarkTheme by remember { mutableStateOf(true) }
+            val context = LocalContext.current
+            val prefsRepo = remember { UserPreferencesRepository(context) }
+            val isDarkTheme by prefsRepo.isDarkTheme.collectAsStateWithLifecycle(initialValue = true)
+            val scope = rememberCoroutineScope()
 
             SepotifyTheme(darkTheme = isDarkTheme) {
                 MainAppScreen(
+                    playerManager = playerManager!!,
+                    prefsRepo = prefsRepo,
                     isDarkTheme = isDarkTheme,
-                    onToggleTheme = { isDarkTheme = it }
+                    onToggleTheme = { dark ->
+                        scope.launch { prefsRepo.setDarkTheme(dark) }
+                    }
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        playerManager?.release()
+        playerManager = null
+        super.onDestroy()
     }
 }
 
 @Composable
 fun MainAppScreen(
+    playerManager: MusicPlayerManager,
+    prefsRepo: UserPreferencesRepository,
     isDarkTheme: Boolean,
     onToggleTheme: (Boolean) -> Unit
 ) {
-    var activeTab by remember { mutableStateOf(NavTab.HOME) }
-    var currentTrackIndex by remember { mutableIntStateOf(0) }
-    var isPlaying by remember { mutableStateOf(true) }
-    var isPlayerExpanded by remember { mutableStateOf(false) }
-    var playbackProgress by remember { mutableFloatStateOf(0.35f) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    // Settings & Network states
-    var isNationalNet by remember { mutableStateOf(false) }
-    var networkStatus by remember { mutableStateOf(NetworkStatus.IDLE) }
+    var activeTab by remember { mutableStateOf(NavTab.HOME) }
+    var isPlayerExpanded by remember { mutableStateOf(false) }
+
+    // Collect states from ExoPlayer / MusicPlayerManager
+    val isPlaying by playerManager.isPlaying.collectAsStateWithLifecycle()
+    val activePlayingTrack by playerManager.currentTrack.collectAsStateWithLifecycle()
+    val playbackProgress by playerManager.progress.collectAsStateWithLifecycle()
+    val currentPositionMs by playerManager.currentPositionMs.collectAsStateWithLifecycle()
+
+    // Collect preferences from DataStore
+    val likedIds by prefsRepo.likedTrackIds.collectAsStateWithLifecycle(initialValue = emptySet())
+    val isNationalNet by prefsRepo.isNationalNet.collectAsStateWithLifecycle(initialValue = false)
+    val networkStatus by remember { mutableStateOf(NetworkStatus.IDLE) }
 
     // Modals visibility
     var showSettingsModal by remember { mutableStateOf(false) }
@@ -99,12 +137,61 @@ fun MainAppScreen(
 
     val hazeState = remember { HazeState() }
 
-    // Dynamic track list allowing like and download mutations
+    // Dynamic track list allowing like, download, and local MediaStore additions
     val tracksList = remember { mutableStateListOf<Track>().apply { addAll(SAMPLE_TRACKS) } }
-    val currentTrack = tracksList.getOrNull(currentTrackIndex)
+    val displayCurrentTrack = activePlayingTrack ?: tracksList.firstOrNull()
 
-    val likedCount = tracksList.count { it.isLiked }
-    val downloadedCount = tracksList.count { it.isDownloaded }
+    // Permission launcher for MediaStore and Notifications
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val audioGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions[Manifest.permission.READ_MEDIA_AUDIO] == true
+        } else {
+            permissions[Manifest.permission.READ_EXTERNAL_STORAGE] == true
+        }
+
+        if (audioGranted) {
+            scope.launch {
+                val localTracks = MediaStoreScanner.scanDeviceAudio(context)
+                if (localTracks.isNotEmpty()) {
+                    val existingIds = tracksList.map { it.id }.toSet()
+                    val newTracks = localTracks.filterNot { existingIds.contains(it.id) }
+                    tracksList.addAll(newTracks)
+                }
+            }
+        }
+    }
+
+    // Launch permission request & local media scan on start
+    LaunchedEffect(Unit) {
+        val permissions = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.READ_MEDIA_AUDIO)
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        permissionLauncher.launch(permissions.toTypedArray())
+
+        // Initial scan in case permission already granted
+        val localTracks = MediaStoreScanner.scanDeviceAudio(context)
+        if (localTracks.isNotEmpty()) {
+            val existingIds = tracksList.map { it.id }.toSet()
+            val newTracks = localTracks.filterNot { existingIds.contains(it.id) }
+            tracksList.addAll(newTracks)
+        }
+    }
+
+    // Synchronize liked state in tracksList
+    val syncedTracksList = remember(tracksList.toList(), likedIds) {
+        tracksList.map { track ->
+            track.copy(isLiked = likedIds.contains(track.id))
+        }
+    }
+
+    val likedCount = syncedTracksList.count { it.isLiked }
+    val downloadedCount = syncedTracksList.count { it.isDownloaded }
 
     BackHandler(enabled = isPlayerExpanded || showSettingsModal || showSocialModal || showAskListModal) {
         when {
@@ -133,18 +220,14 @@ fun MainAppScreen(
             when (tab) {
                 NavTab.HOME -> {
                     HomeScreen(
-                        tracks = tracksList,
-                        currentTrack = currentTrack,
+                        tracks = syncedTracksList,
+                        currentTrack = displayCurrentTrack,
                         isPlaying = isPlaying,
                         onPlayTrack = { track ->
-                            currentTrackIndex = tracksList.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0
-                            isPlaying = true
+                            playerManager.playTrack(track, syncedTracksList)
                         },
                         onToggleLike = { track ->
-                            val idx = tracksList.indexOfFirst { it.id == track.id }
-                            if (idx >= 0) {
-                                tracksList[idx] = tracksList[idx].copy(isLiked = !tracksList[idx].isLiked)
-                            }
+                            scope.launch { prefsRepo.toggleLike(track.id) }
                         },
                         onToggleDownload = { track ->
                             val idx = tracksList.indexOfFirst { it.id == track.id }
@@ -158,18 +241,14 @@ fun MainAppScreen(
 
                 NavTab.SEARCH -> {
                     SearchScreen(
-                        tracks = tracksList,
-                        currentTrack = currentTrack,
+                        tracks = syncedTracksList,
+                        currentTrack = displayCurrentTrack,
                         isPlaying = isPlaying,
                         onPlayTrack = { track ->
-                            currentTrackIndex = tracksList.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0
-                            isPlaying = true
+                            playerManager.playTrack(track, syncedTracksList)
                         },
                         onToggleLike = { track ->
-                            val idx = tracksList.indexOfFirst { it.id == track.id }
-                            if (idx >= 0) {
-                                tracksList[idx] = tracksList[idx].copy(isLiked = !tracksList[idx].isLiked)
-                            }
+                            scope.launch { prefsRepo.toggleLike(track.id) }
                         },
                         onToggleDownload = { track ->
                             val idx = tracksList.indexOfFirst { it.id == track.id }
@@ -183,18 +262,14 @@ fun MainAppScreen(
 
                 NavTab.LIBRARY -> {
                     LibraryScreen(
-                        tracks = tracksList,
-                        currentTrack = currentTrack,
+                        tracks = syncedTracksList,
+                        currentTrack = displayCurrentTrack,
                         isPlaying = isPlaying,
                         onPlayTrack = { track ->
-                            currentTrackIndex = tracksList.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0
-                            isPlaying = true
+                            playerManager.playTrack(track, syncedTracksList)
                         },
                         onToggleLike = { track ->
-                            val idx = tracksList.indexOfFirst { it.id == track.id }
-                            if (idx >= 0) {
-                                tracksList[idx] = tracksList[idx].copy(isLiked = !tracksList[idx].isLiked)
-                            }
+                            scope.launch { prefsRepo.toggleLike(track.id) }
                         },
                         onToggleDownload = { track ->
                             val idx = tracksList.indexOfFirst { it.id == track.id }
@@ -230,15 +305,11 @@ fun MainAppScreen(
 
         // ── Floating Mini Player Widget (Docked directly above BottomNav) ──
         WhenPlayingWidget(
-            currentTrack = currentTrack,
+            currentTrack = displayCurrentTrack,
             isPlaying = isPlaying,
             progress = playbackProgress,
-            onTogglePlay = { isPlaying = !isPlaying },
-            onNextTrack = {
-                if (tracksList.isNotEmpty()) {
-                    currentTrackIndex = (currentTrackIndex + 1) % tracksList.size
-                }
-            },
+            onTogglePlay = { playerManager.togglePlay() },
+            onNextTrack = { playerManager.skipToNext() },
             onOpenPlayer = { isPlayerExpanded = true },
             hazeState = hazeState,
             modifier = Modifier
@@ -268,25 +339,17 @@ fun MainAppScreen(
                 animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f)
             ) + fadeOut()
         ) {
-            if (currentTrack != null) {
+            if (displayCurrentTrack != null) {
                 FullScreenPlayer(
-                    track = currentTrack,
+                    track = displayCurrentTrack,
                     isPlaying = isPlaying,
-                    currentTimeSec = (playbackProgress * currentTrack.duration).toInt(),
-                    durationSec = currentTrack.duration,
+                    currentTimeSec = (currentPositionMs / 1000).toInt(),
+                    durationSec = displayCurrentTrack.duration,
                     onBack = { isPlayerExpanded = false },
-                    onTogglePlay = { isPlaying = !isPlaying },
-                    onNextTrack = {
-                        if (tracksList.isNotEmpty()) {
-                            currentTrackIndex = (currentTrackIndex + 1) % tracksList.size
-                        }
-                    },
-                    onPreviousTrack = {
-                        if (tracksList.isNotEmpty()) {
-                            currentTrackIndex = if (currentTrackIndex > 0) currentTrackIndex - 1 else tracksList.size - 1
-                        }
-                    },
-                    onSeek = { playbackProgress = it },
+                    onTogglePlay = { playerManager.togglePlay() },
+                    onNextTrack = { playerManager.skipToNext() },
+                    onPreviousTrack = { playerManager.skipToPrevious() },
+                    onSeek = { playerManager.seekToProgress(it) },
                     hazeState = hazeState
                 )
             }
@@ -308,7 +371,9 @@ fun MainAppScreen(
             isOpen = showSettingsModal,
             onClose = { showSettingsModal = false },
             isNationalNet = isNationalNet,
-            onToggleNationalNet = { isNationalNet = it },
+            onToggleNationalNet = { enabled ->
+                scope.launch { prefsRepo.setNationalNet(enabled) }
+            },
             isDarkTheme = isDarkTheme,
             onToggleTheme = onToggleTheme
         )
