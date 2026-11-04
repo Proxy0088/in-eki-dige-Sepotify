@@ -86,7 +86,7 @@ fun HomeScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
+        contentPadding = PaddingValues(top = 130.dp, bottom = 175.dp, start = 16.dp, end = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ── 1. Featured / Frequently Played Hero Card ──

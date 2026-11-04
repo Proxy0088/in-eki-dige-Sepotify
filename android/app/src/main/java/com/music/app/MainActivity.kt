@@ -408,7 +408,7 @@ fun MainAppScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 80.dp)
+                    .padding(bottom = 94.dp)
                     .graphicsLayer {
                         alpha = miniPlayerAlpha
                         translationY = miniPlayerSlideY.toPx()

@@ -189,7 +189,7 @@ fun SearchScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
+        contentPadding = PaddingValues(top = 130.dp, bottom = 175.dp, start = 16.dp, end = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // ── Pinned Search Controls ──

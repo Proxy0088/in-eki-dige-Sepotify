@@ -76,7 +76,7 @@ fun BottomNav(
     Box(
         modifier = modifier
             .navigationBarsPadding()
-            .padding(bottom = 22.dp),
+            .padding(bottom = 20.dp),
         contentAlignment = Alignment.Center
     ) {
         LiquidGlassSurface(
@@ -89,8 +89,8 @@ fun BottomNav(
         ) {
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 7.dp, vertical = 7.dp),
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 NavTab.entries.forEach { tab ->
@@ -166,7 +166,7 @@ fun BottomNav(
                     Box(
                         modifier = Modifier
                             .height(44.dp)
-                            .defaultMinSize(minWidth = 44.dp)
+                            .defaultMinSize(minWidth = 52.dp)
                             .graphicsLayer {
                                 scaleX = tabScale
                                 scaleY = tabScale
@@ -185,7 +185,7 @@ fun BottomNav(
                                 )
                             )
                             .padding(
-                                horizontal = if (isActive) 15.dp else 11.5.dp,
+                                horizontal = if (isActive) 18.dp else 14.dp,
                                 vertical = 4.dp
                             ),
                         contentAlignment = Alignment.Center
@@ -264,7 +264,7 @@ fun BottomNav(
                                         ),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Spacer(modifier = Modifier.width(7.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = label,
                                             fontSize = 13.sp,

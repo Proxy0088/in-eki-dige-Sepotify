@@ -114,7 +114,7 @@ fun LibraryScreen(
             // ── Main Playlists List View ──
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
+                contentPadding = PaddingValues(top = 130.dp, bottom = 175.dp, start = 16.dp, end = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // Header with counts & actions
@@ -352,7 +352,7 @@ fun LibraryScreen(
 
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
+                contentPadding = PaddingValues(top = 130.dp, bottom = 175.dp, start = 16.dp, end = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Header with Back button & Play All
