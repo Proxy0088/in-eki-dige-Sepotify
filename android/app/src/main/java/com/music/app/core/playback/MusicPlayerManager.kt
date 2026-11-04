@@ -3,15 +3,18 @@ package com.music.app.core.playback
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.music.app.core.model.Track
 import com.music.app.core.network.OnlineMusicService
+import com.music.app.core.network.newpipe.StreamResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -53,6 +56,7 @@ class MusicPlayerManager(private val context: Context) {
 
     private var playlistQueue: List<Track> = emptyList()
     private var positionUpdateJob: Job? = null
+    private var isRetryingCurrentTrack = false
 
     init {
         connectToService()
@@ -92,6 +96,7 @@ class MusicPlayerManager(private val context: Context) {
                     val dur = player.duration.coerceAtLeast(1L)
                     _durationMs.value = dur
                     updateProgress()
+                    isRetryingCurrentTrack = false
                 }
             }
 
@@ -100,12 +105,42 @@ class MusicPlayerManager(private val context: Context) {
                 val matched = playlistQueue.find { it.id == currentId }
                 if (matched != null) {
                     _currentTrack.value = matched
+                    prefetchNextTrack(matched)
                 }
                 updateProgress()
             }
 
-            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                android.util.Log.e("MusicPlayerManager", "Playback error: ${error.errorCodeName} - ${error.message}", error)
+            override fun onPlayerError(error: PlaybackException) {
+                Log.e("MusicPlayerManager", "Playback error: ${error.errorCodeName} (${error.errorCode}) - ${error.message}", error)
+                val track = _currentTrack.value
+
+                // If error is 403 HTTP or IO error and we haven't retried yet, refresh stream link once
+                if (track != null && !isRetryingCurrentTrack &&
+                    (error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
+                     error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                     error.errorCodeName.contains("HTTP", ignoreCase = true))
+                ) {
+                    isRetryingCurrentTrack = true
+                    Log.i("MusicPlayerManager", "Attempting to re-resolve expired/forbidden stream for: ${track.id}")
+                    scope.launch {
+                        StreamResolver.invalidate(track.id)
+                        val refreshed = try {
+                            OnlineMusicService.resolveTrackAudio(track, forceRefresh = true)
+                        } catch (e: Exception) {
+                            track
+                        }
+
+                        if (refreshed.url.isNotEmpty() && refreshed.url != track.url) {
+                            playTrack(refreshed, playlistQueue)
+                        } else {
+                            Log.w("MusicPlayerManager", "Re-resolution failed, advancing to next track.")
+                            skipToNext()
+                        }
+                    }
+                } else {
+                    // Automatically skip to next track without crashing
+                    skipToNext()
+                }
             }
         })
 
@@ -128,8 +163,16 @@ class MusicPlayerManager(private val context: Context) {
             val resolvedTrack = try {
                 OnlineMusicService.resolveTrackAudio(track)
             } catch (e: Exception) {
+                Log.e("MusicPlayerManager", "Error resolving track audio", e)
                 track
             }
+
+            if (resolvedTrack.url.isEmpty()) {
+                Log.w("MusicPlayerManager", "Track url is empty for ${track.title}, moving to next track.")
+                skipToNext()
+                return@launch
+            }
+
             _currentTrack.value = resolvedTrack
 
             val currentQ = playlistQueue
@@ -149,9 +192,10 @@ class MusicPlayerManager(private val context: Context) {
                     }
                     .build()
 
+                val itemUri = if (t.url.isNotEmpty()) Uri.parse(t.url) else Uri.EMPTY
                 MediaItem.Builder()
                     .setMediaId(t.id)
-                    .setUri(Uri.parse(t.url))
+                    .setUri(itemUri)
                     .setMediaMetadata(metadata)
                     .build()
             }
@@ -161,6 +205,21 @@ class MusicPlayerManager(private val context: Context) {
             player.seekTo(startIndex, 0L)
             player.prepare()
             player.play()
+
+            // Pre-fetch next track in queue for seamless gapless playback
+            prefetchNextTrack(resolvedTrack)
+        }
+    }
+
+    private fun prefetchNextTrack(current: Track) {
+        val currIndex = playlistQueue.indexOfFirst { it.id == current.id }
+        if (currIndex in 0 until playlistQueue.size - 1) {
+            val nextTrack = playlistQueue[currIndex + 1]
+            if (nextTrack.id.startsWith("yt-") || !nextTrack.isNationalNet) {
+                scope.launch {
+                    StreamResolver.prefetch(nextTrack.id)
+                }
+            }
         }
     }
 

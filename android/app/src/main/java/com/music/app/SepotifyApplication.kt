@@ -6,8 +6,17 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.music.app.core.media.AudioCoverFetcher
+import com.music.app.core.network.newpipe.NewPipeOkHttpDownloader
+import org.schabi.newpipe.extractor.NewPipe
 
 class SepotifyApplication : Application(), ImageLoaderFactory {
+
+    override fun onCreate() {
+        super.onCreate()
+        // Initialize NewPipeExtractor with custom OkHttp Downloader once at startup
+        NewPipe.init(NewPipeOkHttpDownloader.getInstance())
+    }
+
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .memoryCache {
