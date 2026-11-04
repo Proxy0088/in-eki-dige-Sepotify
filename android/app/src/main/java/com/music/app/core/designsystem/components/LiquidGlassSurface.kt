@@ -29,7 +29,6 @@ import com.music.app.core.designsystem.theme.GlassHighlightDark
 import com.music.app.core.designsystem.theme.LocalIsDarkTheme
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeChild
 
 enum class LiquidGlassVariant {
@@ -54,7 +53,6 @@ fun LiquidGlassSurface(
     shape: Shape = RoundedCornerShape(percent = 50),
     variant: LiquidGlassVariant = LiquidGlassVariant.Dock,
     borderWidth: Dp = 1.dp,
-    blurRadius: Dp = 12.dp,
     showTopHighlight: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -64,7 +62,7 @@ fun LiquidGlassSurface(
     // Glass Background Color depending on Variant & Theme
     val baseColor = when (variant) {
         LiquidGlassVariant.Dock -> if (isDark) {
-            if (isApi31Plus) GlassDockDark else Color(0x99283248)
+            if (isApi31Plus) GlassDockDark else Color(0xDE1A2030)
         } else {
             if (isApi31Plus) GlassDockLight else Color(0xF2FFFFFF)
         }
@@ -106,7 +104,7 @@ fun LiquidGlassSurface(
 
     // Shadow setup
     val shadowElevation = when (variant) {
-        LiquidGlassVariant.Dock -> 12.dp
+        LiquidGlassVariant.Dock -> 14.dp
         LiquidGlassVariant.Button -> 8.dp
         LiquidGlassVariant.ActivePill -> 4.dp
         LiquidGlassVariant.Card -> 20.dp
@@ -117,7 +115,7 @@ fun LiquidGlassSurface(
         Modifier.shadow(
             elevation = shadowElevation,
             shape = shape,
-            spotColor = Color.Black.copy(alpha = if (isDark) 0.20f else 0.08f),
+            spotColor = Color.Black.copy(alpha = if (isDark) 0.40f else 0.12f),
             ambientColor = Color.Transparent
         )
     } else {
@@ -128,9 +126,9 @@ fun LiquidGlassSurface(
         Modifier.hazeChild(
             state = hazeState,
             style = HazeStyle(
-                backgroundColor = if (variant == LiquidGlassVariant.ClearGlass) Color.Transparent else if (isDark) Color(0x1A1E2433) else Color(0xFFF8F9FA),
-                tint = if (isDark) HazeTint(color = Color.White.copy(alpha = 0.07f)) else null,
-                blurRadius = blurRadius
+                backgroundColor = if (variant == LiquidGlassVariant.ClearGlass) Color.Transparent else if (isDark) Color(0xFF07080B) else Color(0xFFF8F9FA),
+                tint = null,
+                blurRadius = 20.dp
             )
         )
     } else {
@@ -144,19 +142,11 @@ fun LiquidGlassSurface(
             .then(hazeModifier)
             .background(
                 brush = Brush.verticalGradient(
-                    colors = if (isDark && variant == LiquidGlassVariant.Dock) {
-                        listOf(
-                            Color.White.copy(alpha = 0.14f),
-                            baseColor,
-                            baseColor.copy(alpha = (baseColor.alpha * 0.70f).coerceAtMost(1f))
-                        )
-                    } else {
-                        listOf(
-                            baseColor.copy(alpha = (baseColor.alpha * 1.2f).coerceAtMost(1f)),
-                            baseColor,
-                            baseColor.copy(alpha = (baseColor.alpha * 0.85f).coerceAtMost(1f))
-                        )
-                    }
+                    colors = listOf(
+                        baseColor.copy(alpha = (baseColor.alpha * 1.2f).coerceAtMost(1f)),
+                        baseColor,
+                        baseColor.copy(alpha = (baseColor.alpha * 0.85f).coerceAtMost(1f))
+                    )
                 ),
                 shape = shape
             )

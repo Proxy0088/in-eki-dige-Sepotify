@@ -11,19 +11,19 @@ val BackgroundLight = Color(0xFFF8F9FA)
 val SurfaceCardLight = Color(0xFFFFFFFF)
 
 // Liquid Glass Tokens
-val GlassDockDark = Color(0x45485472)       // Lighter, luminous glass (rgba(72, 84, 114, 0.27))
+val GlassDockDark = Color(0x85202638)       // rgba(32, 38, 56, 0.52)
 val GlassDockLight = Color(0xA6FFFFFF)      // rgba(255, 255, 255, 0.65)
 
-val GlassButtonDark = Color(0x3D30394D)     // rgba(48, 57, 77, 0.24)
+val GlassButtonDark = Color(0x52161924)     // rgba(22, 25, 36, 0.32)
 val GlassButtonLight = Color(0x33000000)
 
-val GlassActivePillDark = Color(0x33FFFFFF) // rgba(255, 255, 255, 0.20)
+val GlassActivePillDark = Color(0x2EFFFFFF) // rgba(255, 255, 255, 0.18)
 val GlassActivePillLight = Color(0xFF0F172A)
 
-val GlassBorderDark = Color(0x4DFFFFFF)     // rgba(255, 255, 255, 0.30)
+val GlassBorderDark = Color(0x33FFFFFF)     // rgba(255, 255, 255, 0.20)
 val GlassBorderLight = Color(0x1F000000)
 
-val GlassHighlightDark = Color(0x80FFFFFF)  // rgba(255, 255, 255, 0.50)
+val GlassHighlightDark = Color(0x59FFFFFF)  // rgba(255, 255, 255, 0.35)
 
 // Accent Colors
 val AccentAmber = Color(0xFFF59E0B)
