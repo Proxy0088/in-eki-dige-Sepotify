@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -12,51 +13,42 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.music.app.core.designsystem.components.BottomNav
 import com.music.app.core.designsystem.components.NavTab
+import com.music.app.core.designsystem.components.NetworkStatus
+import com.music.app.core.designsystem.components.NetworkStatusToast
 import com.music.app.core.designsystem.components.TopCapsule
-import com.music.app.core.designsystem.theme.AudexFontFamily
 import com.music.app.core.designsystem.theme.SepotifyTheme
+import com.music.app.core.model.SAMPLE_TRACKS
+import com.music.app.core.model.Track
+import com.music.app.features.home.HomeScreen
+import com.music.app.features.library.AskListLibraryModal
+import com.music.app.features.library.LibraryScreen
 import com.music.app.features.player.FullScreenPlayer
 import com.music.app.features.player.WhenPlayingWidget
+import com.music.app.features.search.SearchScreen
+import com.music.app.features.settings.SettingsModal
+import com.music.app.features.social.SocialAccountModal
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.haze
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,223 +65,150 @@ class MainActivity : ComponentActivity() {
         insetsController.isAppearanceLightNavigationBars = false
 
         setContent {
-            SepotifyTheme(darkTheme = true) {
-                MainAppScreen()
+            var isDarkTheme by remember { mutableStateOf(true) }
+
+            SepotifyTheme(darkTheme = isDarkTheme) {
+                MainAppScreen(
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = { isDarkTheme = it }
+                )
             }
         }
     }
 }
 
-// Dummy track model for visual verification
-data class DummyTrack(
-    val id: String,
-    val title: String,
-    val artist: String,
-    val duration: String,
-    val gradientColors: List<Color>
-)
-
-val SampleTracks = listOf(
-    DummyTrack(
-        id = "1",
-        title = "Cheshme Man",
-        artist = "Dariush",
-        duration = "4:57",
-        gradientColors = listOf(Color(0xFFE65100), Color(0xFFF57C00), Color(0xFF263238))
-    ),
-    DummyTrack(
-        id = "2",
-        title = "The Winner Takes It All",
-        artist = "ABBA",
-        duration = "4:55",
-        gradientColors = listOf(Color(0xFF1E88E5), Color(0xFF0D47A1), Color(0xFF1A237E))
-    ),
-    DummyTrack(
-        id = "3",
-        title = "Garageband Jam Session",
-        artist = "newbi3",
-        duration = "5:02",
-        gradientColors = listOf(Color(0xFFD81B60), Color(0xFF880E4F), Color(0xFF311B92))
-    ),
-    DummyTrack(
-        id = "4",
-        title = "c418_warmth",
-        artist = "C418",
-        duration = "3:59",
-        gradientColors = listOf(Color(0xFF00897B), Color(0xFF004D40), Color(0xFF263238))
-    ),
-    DummyTrack(
-        id = "5",
-        title = "Midnight City",
-        artist = "M83",
-        duration = "4:04",
-        gradientColors = listOf(Color(0xFF7B1FA2), Color(0xFF4A148C), Color(0xFF12005E))
-    ),
-    DummyTrack(
-        id = "6",
-        title = "Starboy",
-        artist = "The Weeknd ft. Daft Punk",
-        duration = "3:50",
-        gradientColors = listOf(Color(0xFFD32F2F), Color(0xFFB71C1C), Color(0xFF212121))
-    ),
-    DummyTrack(
-        id = "7",
-        title = "Get Lucky",
-        artist = "Daft Punk ft. Pharrell",
-        duration = "4:08",
-        gradientColors = listOf(Color(0xFFFBC02D), Color(0xFFF57F17), Color(0xFF3E2723))
-    ),
-    DummyTrack(
-        id = "8",
-        title = "Blinding Lights",
-        artist = "The Weeknd",
-        duration = "3:20",
-        gradientColors = listOf(Color(0xFFE91E63), Color(0xFF880E4F), Color(0xFF1A1A24))
-    )
-)
-
 @Composable
-fun MainAppScreen() {
+fun MainAppScreen(
+    isDarkTheme: Boolean,
+    onToggleTheme: (Boolean) -> Unit
+) {
     var activeTab by remember { mutableStateOf(NavTab.HOME) }
     var currentTrackIndex by remember { mutableIntStateOf(0) }
     var isPlaying by remember { mutableStateOf(true) }
     var isPlayerExpanded by remember { mutableStateOf(false) }
-    var playbackProgress by remember { mutableFloatStateOf(0.28f) }
+    var playbackProgress by remember { mutableFloatStateOf(0.35f) }
+
+    // Settings & Network states
+    var isNationalNet by remember { mutableStateOf(false) }
+    var networkStatus by remember { mutableStateOf(NetworkStatus.IDLE) }
+
+    // Modals visibility
+    var showSettingsModal by remember { mutableStateOf(false) }
+    var showSocialModal by remember { mutableStateOf(false) }
+    var showAskListModal by remember { mutableStateOf(false) }
 
     val hazeState = remember { HazeState() }
-    val currentTrack = SampleTracks.getOrNull(currentTrackIndex)
 
-    BackHandler(enabled = isPlayerExpanded) {
-        isPlayerExpanded = false
+    // Dynamic track list allowing like and download mutations
+    val tracksList = remember { mutableStateListOf<Track>().apply { addAll(SAMPLE_TRACKS) } }
+    val currentTrack = tracksList.getOrNull(currentTrackIndex)
+
+    val likedCount = tracksList.count { it.isLiked }
+    val downloadedCount = tracksList.count { it.isDownloaded }
+
+    BackHandler(enabled = isPlayerExpanded || showSettingsModal || showSocialModal || showAskListModal) {
+        when {
+            showAskListModal -> showAskListModal = false
+            showSettingsModal -> showSettingsModal = false
+            showSocialModal -> showSocialModal = false
+            isPlayerExpanded -> isPlayerExpanded = false
+        }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF07080B))
+            .background(if (isDarkTheme) Color(0xFF07080B) else Color(0xFFF3F4F6))
     ) {
-        // Scrollable content registered as haze source for real-time background blur
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .haze(state = hazeState),
-            contentPadding = PaddingValues(top = 135.dp, bottom = 150.dp, start = 16.dp, end = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Text(
-                    text = when (activeTab) {
-                        NavTab.HOME -> "Recently Played"
-                        NavTab.SEARCH -> "Explore Music"
-                        NavTab.LIBRARY -> "Your Library"
-                    },
-                    fontFamily = AudexFontFamily,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFEDEDED),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-
-            // Featured Horizontal Carousel
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(SampleTracks.take(4)) { track ->
-                        Box(
-                            modifier = Modifier
-                                .size(140.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(
-                                    brush = Brush.linearGradient(track.gradientColors)
-                                )
-                                .clickable {
-                                    currentTrackIndex = SampleTracks.indexOf(track)
-                                    isPlaying = true
-                                    isPlayerExpanded = true
-                                }
-                                .padding(12.dp),
-                            contentAlignment = Alignment.BottomStart
-                        ) {
-                            Column {
-                                Text(
-                                    text = track.title,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = track.artist,
-                                    fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.8f),
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Songs",
-                    fontFamily = AudexFontFamily,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFEDEDED),
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-            }
-
-            // Vertical list of songs
-            items(SampleTracks) { track ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF13151D).copy(alpha = 0.6f))
-                        .clickable {
-                            currentTrackIndex = SampleTracks.indexOf(track)
+        // ── Active Screen Content (Animated Crossfade / Slide) ──
+        AnimatedContent(
+            targetState = activeTab,
+            transitionSpec = {
+                fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) togetherWith
+                fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+            },
+            label = "screen_tab_switch",
+            modifier = Modifier.fillMaxSize()
+        ) { tab ->
+            when (tab) {
+                NavTab.HOME -> {
+                    HomeScreen(
+                        tracks = tracksList,
+                        currentTrack = currentTrack,
+                        isPlaying = isPlaying,
+                        onPlayTrack = { track ->
+                            currentTrackIndex = tracksList.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0
                             isPlaying = true
-                        }
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                brush = Brush.linearGradient(track.gradientColors)
-                            )
+                        },
+                        onToggleLike = { track ->
+                            val idx = tracksList.indexOfFirst { it.id == track.id }
+                            if (idx >= 0) {
+                                tracksList[idx] = tracksList[idx].copy(isLiked = !tracksList[idx].isLiked)
+                            }
+                        },
+                        onToggleDownload = { track ->
+                            val idx = tracksList.indexOfFirst { it.id == track.id }
+                            if (idx >= 0) {
+                                tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
+                            }
+                        },
+                        hazeState = hazeState
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = track.title,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFFEDEDED)
-                        )
-                        Text(
-                            text = track.artist,
-                            fontSize = 12.sp,
-                            color = Color(0xFFA1A1A6)
-                        )
-                    }
-                    Text(
-                        text = track.duration,
-                        fontSize = 12.sp,
-                        color = Color(0xFF71717A)
+                }
+
+                NavTab.SEARCH -> {
+                    SearchScreen(
+                        tracks = tracksList,
+                        currentTrack = currentTrack,
+                        isPlaying = isPlaying,
+                        onPlayTrack = { track ->
+                            currentTrackIndex = tracksList.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0
+                            isPlaying = true
+                        },
+                        onToggleLike = { track ->
+                            val idx = tracksList.indexOfFirst { it.id == track.id }
+                            if (idx >= 0) {
+                                tracksList[idx] = tracksList[idx].copy(isLiked = !tracksList[idx].isLiked)
+                            }
+                        },
+                        onToggleDownload = { track ->
+                            val idx = tracksList.indexOfFirst { it.id == track.id }
+                            if (idx >= 0) {
+                                tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
+                            }
+                        },
+                        hazeState = hazeState
+                    )
+                }
+
+                NavTab.LIBRARY -> {
+                    LibraryScreen(
+                        tracks = tracksList,
+                        currentTrack = currentTrack,
+                        isPlaying = isPlaying,
+                        onPlayTrack = { track ->
+                            currentTrackIndex = tracksList.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0
+                            isPlaying = true
+                        },
+                        onToggleLike = { track ->
+                            val idx = tracksList.indexOfFirst { it.id == track.id }
+                            if (idx >= 0) {
+                                tracksList[idx] = tracksList[idx].copy(isLiked = !tracksList[idx].isLiked)
+                            }
+                        },
+                        onToggleDownload = { track ->
+                            val idx = tracksList.indexOfFirst { it.id == track.id }
+                            if (idx >= 0) {
+                                tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
+                            }
+                        },
+                        hazeState = hazeState
                     )
                 }
             }
         }
 
-        // Top Glass Capsule (Dock)
+        // ── Top Glass Capsule (Dock) ──
         TopCapsule(
             title = when (activeTab) {
                 NavTab.HOME -> "Home"
@@ -297,17 +216,28 @@ fun MainAppScreen() {
                 NavTab.LIBRARY -> "Library"
             },
             hazeState = hazeState,
+            onProfileClick = { showSocialModal = true },
             modifier = Modifier.align(Alignment.TopCenter)
         )
 
-        // Floating Mini Player Widget (Docked directly above BottomNav)
+        // ── Network Status Toast ──
+        NetworkStatusToast(
+            status = networkStatus,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 92.dp)
+        )
+
+        // ── Floating Mini Player Widget (Docked directly above BottomNav) ──
         WhenPlayingWidget(
             currentTrack = currentTrack,
             isPlaying = isPlaying,
             progress = playbackProgress,
             onTogglePlay = { isPlaying = !isPlaying },
             onNextTrack = {
-                currentTrackIndex = (currentTrackIndex + 1) % SampleTracks.size
+                if (tracksList.isNotEmpty()) {
+                    currentTrackIndex = (currentTrackIndex + 1) % tracksList.size
+                }
             },
             onOpenPlayer = { isPlayerExpanded = true },
             hazeState = hazeState,
@@ -317,7 +247,7 @@ fun MainAppScreen() {
                 .padding(bottom = 80.dp)
         )
 
-        // Bottom Glass Navigation Dock
+        // ── Bottom Glass Navigation Dock ──
         BottomNav(
             activeTab = activeTab,
             onTabSelected = { activeTab = it },
@@ -342,20 +272,51 @@ fun MainAppScreen() {
                 FullScreenPlayer(
                     track = currentTrack,
                     isPlaying = isPlaying,
-                    currentTimeSec = (playbackProgress * 297).toInt(),
-                    durationSec = 297,
+                    currentTimeSec = (playbackProgress * currentTrack.duration).toInt(),
+                    durationSec = currentTrack.duration,
                     onBack = { isPlayerExpanded = false },
                     onTogglePlay = { isPlaying = !isPlaying },
                     onNextTrack = {
-                        currentTrackIndex = (currentTrackIndex + 1) % SampleTracks.size
+                        if (tracksList.isNotEmpty()) {
+                            currentTrackIndex = (currentTrackIndex + 1) % tracksList.size
+                        }
                     },
                     onPreviousTrack = {
-                        currentTrackIndex = if (currentTrackIndex > 0) currentTrackIndex - 1 else SampleTracks.size - 1
+                        if (tracksList.isNotEmpty()) {
+                            currentTrackIndex = if (currentTrackIndex > 0) currentTrackIndex - 1 else tracksList.size - 1
+                        }
                     },
                     onSeek = { playbackProgress = it },
                     hazeState = hazeState
                 )
             }
         }
+
+        // ── Modals Layer ──
+        SocialAccountModal(
+            isOpen = showSocialModal,
+            onClose = { showSocialModal = false },
+            onOpenSettings = {
+                showSocialModal = false
+                showSettingsModal = true
+            },
+            likedCount = likedCount,
+            downloadedCount = downloadedCount
+        )
+
+        SettingsModal(
+            isOpen = showSettingsModal,
+            onClose = { showSettingsModal = false },
+            isNationalNet = isNationalNet,
+            onToggleNationalNet = { isNationalNet = it },
+            isDarkTheme = isDarkTheme,
+            onToggleTheme = onToggleTheme
+        )
+
+        AskListLibraryModal(
+            isOpen = showAskListModal,
+            onClose = { showAskListModal = false },
+            onSelectLibrary = { /* handled */ }
+        )
     }
 }

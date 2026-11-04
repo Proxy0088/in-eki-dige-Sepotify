@@ -39,13 +39,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.music.app.DummyTrack
+import coil.compose.AsyncImage
 import com.music.app.core.designsystem.components.LiquidGlassSurface
 import com.music.app.core.designsystem.components.LiquidGlassVariant
+import com.music.app.core.model.Track
 import dev.chrisbanes.haze.HazeState
 
 /**
@@ -56,7 +58,7 @@ import dev.chrisbanes.haze.HazeState
  */
 @Composable
 fun WhenPlayingWidget(
-    currentTrack: DummyTrack?,
+    currentTrack: Track?,
     isPlaying: Boolean,
     progress: Float, // 0.0f to 1.0f
     onTogglePlay: () -> Unit,
@@ -111,6 +113,15 @@ fun WhenPlayingWidget(
                             ),
                         contentAlignment = Alignment.BottomCenter
                     ) {
+                        if (!currentTrack.coverUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = currentTrack.coverUrl,
+                                contentDescription = currentTrack.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+
                         if (isPlaying) {
                             AnimatedEqualizerBars(
                                 modifier = Modifier.padding(bottom = 6.dp)

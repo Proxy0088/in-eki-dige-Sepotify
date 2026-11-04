@@ -60,16 +60,18 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.music.app.DummyTrack
+import coil.compose.AsyncImage
 import com.music.app.core.designsystem.components.LiquidGlassButton
 import com.music.app.core.designsystem.components.LiquidGlassSurface
 import com.music.app.core.designsystem.components.LiquidGlassVariant
 import com.music.app.core.designsystem.theme.AudexFontFamily
+import com.music.app.core.model.Track
 import dev.chrisbanes.haze.HazeState
 
 enum class RepeatModeState {
@@ -94,7 +96,7 @@ val SampleLyrics = listOf(
  */
 @Composable
 fun FullScreenPlayer(
-    track: DummyTrack,
+    track: Track,
     isPlaying: Boolean,
     currentTimeSec: Int,
     durationSec: Int,
@@ -144,7 +146,16 @@ fun FullScreenPlayer(
                     .background(
                         brush = Brush.linearGradient(track.gradientColors)
                     )
-            )
+            ) {
+                if (!track.coverUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = track.coverUrl,
+                        contentDescription = track.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
 
             // Gradient overlay fading from dark-transparent to pitch-black #07080B
             Box(
