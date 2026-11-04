@@ -104,10 +104,10 @@ fun SearchScreen(
             .fillMaxSize()
             .haze(state = hazeState),
         contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // ── Pinned Search Controls ──
-        item {
+        item(key = "search_controls") {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Glass Search Input Capsule
                 val capsuleShape = RoundedCornerShape(24.dp)
@@ -234,49 +234,46 @@ fun SearchScreen(
             }
         }
 
-        // ── Results Container ──
-        item {
-            val containerShape = RoundedCornerShape(24.dp)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(containerShape)
-                    .background(Color(0xFF14161F))
-                    .border(1.dp, Color.White.copy(alpha = 0.06f), containerShape)
-                    .padding(12.dp)
-            ) {
-                if (filteredTracks.isNotEmpty()) {
-                    filteredTracks.forEach { track ->
-                        MusicRow(
-                            track = track,
-                            isPlaying = isPlaying,
-                            isCurrent = currentTrack?.id == track.id,
-                            onPlay = onPlayTrack,
-                            onToggleLike = onToggleLike,
-                            onToggleDownload = onToggleDownload
-                        )
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 48.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.AutoAwesome,
-                            contentDescription = null,
-                            tint = Color(0xFF71717A).copy(alpha = 0.4f),
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "نتیجه‌ای یافت نشد",
-                            fontSize = 13.sp,
-                            color = Color(0xFF71717A)
-                        )
-                    }
+        // ── Fully Virtualized Search Results ──
+        if (filteredTracks.isNotEmpty()) {
+            items(
+                items = filteredTracks,
+                key = { it.id }
+            ) { track ->
+                MusicRow(
+                    track = track,
+                    isPlaying = isPlaying,
+                    isCurrent = currentTrack?.id == track.id,
+                    onPlay = onPlayTrack,
+                    onToggleLike = onToggleLike,
+                    onToggleDownload = onToggleDownload
+                )
+            }
+        } else {
+            item(key = "empty_search") {
+                val containerShape = RoundedCornerShape(24.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(containerShape)
+                        .background(Color(0xFF14161F))
+                        .border(1.dp, Color.White.copy(alpha = 0.06f), containerShape)
+                        .padding(vertical = 48.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                        tint = Color(0xFF71717A).copy(alpha = 0.4f),
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "نتیجه‌ای یافت نشد",
+                        fontSize = 13.sp,
+                        color = Color(0xFF71717A)
+                    )
                 }
             }
         }

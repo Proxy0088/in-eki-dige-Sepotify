@@ -2,17 +2,30 @@ package com.music.app.core.media
 
 import android.content.ContentUris
 import android.content.Context
-import android.net.Uri
 import android.provider.MediaStore
 import androidx.compose.ui.graphics.Color
 import com.music.app.core.model.MoodType
 import com.music.app.core.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 object MediaStoreScanner {
 
-    private val ALBUM_ART_URI = Uri.parse("content://media/external/audio/albumart")
+    private val PRESET_GRADIENTS = listOf(
+        listOf(Color(0xFF22C55E), Color(0xFFA3E635), Color(0xFF14B8A6)), // Emerald / Lime
+        listOf(Color(0xFFF59E0B), Color(0xFFFB923C), Color(0xFFEA580C)), // Amber / Orange
+        listOf(Color(0xFF3B82F6), Color(0xFF6366F1), Color(0xFF0EA5E9)), // Sky / Indigo
+        listOf(Color(0xFFA855F7), Color(0xFFEC4899), Color(0xFFC084FC)), // Purple / Pink
+        listOf(Color(0xFF10B981), Color(0xFF34D399), Color(0xFF2DD4BF)), // Mint / Teal
+        listOf(Color(0xFFEF4444), Color(0xFFF97316), Color(0xFFFBBF24))  // Coral / Sunset
+    )
+
+    private fun getPaletteForSeed(seed: String): List<Color> {
+        val hash = seed.hashCode()
+        val idx = abs(hash) % PRESET_GRADIENTS.size
+        return PRESET_GRADIENTS[idx]
+    }
 
     suspend fun scanDeviceAudio(context: Context): List<Track> = withContext(Dispatchers.IO) {
         val tracks = mutableListOf<Track>()
@@ -23,7 +36,6 @@ object MediaStoreScanner {
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.DATE_ADDED
         )
 
@@ -45,7 +57,6 @@ object MediaStoreScanner {
                 val artistCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
                 val albumCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
                 val durationCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-                val albumIdCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
                 val dateAddedCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
 
                 while (it.moveToNext()) {
@@ -54,7 +65,6 @@ object MediaStoreScanner {
                     val artist = it.getString(artistCol) ?: "Unknown Artist"
                     val album = it.getString(albumCol) ?: "Device Audio"
                     val durationMs = it.getLong(durationCol)
-                    val albumId = it.getLong(albumIdCol)
                     val dateAdded = it.getLong(dateAddedCol)
 
                     val contentUri = ContentUris.withAppendedId(
@@ -62,13 +72,7 @@ object MediaStoreScanner {
                         id
                     )
 
-                    val artworkUri = ContentUris.withAppendedId(ALBUM_ART_URI, albumId).toString()
-
-                    val gradient = listOf(
-                        Color(0xFF1E88E5),
-                        Color(0xFF0D47A1),
-                        Color(0xFF1A237E)
-                    )
+                    val gradient = getPaletteForSeed("$title::$artist")
 
                     tracks.add(
                         Track(
@@ -78,7 +82,7 @@ object MediaStoreScanner {
                             album = album,
                             duration = (durationMs / 1000).toInt(),
                             url = contentUri.toString(),
-                            coverUrl = artworkUri,
+                            coverUrl = null, // Safe null so Coil doesn't hammer broken albumart URIs
                             gradientColors = gradient,
                             mood = MoodType.CHILL,
                             isLiked = false,

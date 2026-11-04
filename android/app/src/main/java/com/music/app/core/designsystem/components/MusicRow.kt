@@ -62,16 +62,16 @@ fun MusicRow(
 ) {
     val activePlaying = isCurrent && isPlaying
 
-    val rowShape = RoundedCornerShape(14.dp)
+    val rowShape = RoundedCornerShape(16.dp)
     val rowBackground = if (isCurrent) {
         Color.White.copy(alpha = 0.08f)
     } else {
-        Color.Transparent
+        Color(0xFF14161F).copy(alpha = 0.85f)
     }
     val rowBorder = if (isCurrent) {
-        Modifier.border(1.dp, Color.White.copy(alpha = 0.12f), rowShape)
+        Modifier.border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.35f), rowShape)
     } else {
-        Modifier
+        Modifier.border(1.dp, Color.White.copy(alpha = 0.06f), rowShape)
     }
 
     Row(
@@ -114,8 +114,8 @@ fun MusicRow(
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = null,
-                        tint = Color(0xFF71717A),
-                        modifier = Modifier.size(18.dp)
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 

@@ -3,13 +3,13 @@ package com.music.app.core.playback
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.MoreExecutors
 import com.music.app.core.model.Track
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +27,7 @@ class MusicPlayerManager(private val context: Context) {
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
+    private var pendingPlayAction: (() -> Unit)? = null
 
     private val _currentTrack = MutableStateFlow<Track?>(null)
     val currentTrack: StateFlow<Track?> = _currentTrack.asStateFlow()
@@ -66,10 +67,12 @@ class MusicPlayerManager(private val context: Context) {
                 val mediaController = future.get()
                 controller = mediaController
                 setupPlayerListener(mediaController)
+                pendingPlayAction?.invoke()
+                pendingPlayAction = null
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-        }, MoreExecutors.directExecutor())
+        }, ContextCompat.getMainExecutor(context))
     }
 
     private fun setupPlayerListener(player: Player) {
@@ -110,7 +113,11 @@ class MusicPlayerManager(private val context: Context) {
         _currentTrack.value = track
         playlistQueue = if (queue.isNotEmpty()) queue else listOf(track)
 
-        val player = controller ?: return
+        val player = controller
+        if (player == null) {
+            pendingPlayAction = { playTrack(track, queue) }
+            return
+        }
 
         player.clearMediaItems()
         val mediaItems = playlistQueue.map { t ->
@@ -231,5 +238,6 @@ class MusicPlayerManager(private val context: Context) {
         stopPositionUpdates()
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controller = null
+        pendingPlayAction = null
     }
 }

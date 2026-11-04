@@ -123,7 +123,7 @@ fun LibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // Header with counts & actions
-                item {
+                item(key = "library_header") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -220,7 +220,7 @@ fun LibraryScreen(
                 }
 
                 // Playlist Cards
-                items(sortedCollections) { col ->
+                items(sortedCollections, key = { it.id }) { col ->
                     val colTracks = getTracksForCollection(col)
                     val firstCover = colTracks.firstOrNull { !it.coverUrl.isNullOrEmpty() }?.coverUrl
 
@@ -354,10 +354,10 @@ fun LibraryScreen(
                     .fillMaxSize()
                     .haze(state = hazeState),
                 contentPadding = PaddingValues(top = 130.dp, bottom = 160.dp, start = 16.dp, end = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Header with Back button & Play All
-                item {
+                item(key = "detail_header") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -425,56 +425,53 @@ fun LibraryScreen(
                     }
                 }
 
-                // Tracks container
-                item {
-                    val containerShape = RoundedCornerShape(24.dp)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(containerShape)
-                            .background(Color(0xFF14161F))
-                            .border(1.dp, Color.White.copy(alpha = 0.06f), containerShape)
-                            .padding(12.dp)
-                    ) {
-                        if (colTracks.isNotEmpty()) {
-                            colTracks.forEach { track ->
-                                MusicRow(
-                                    track = track,
-                                    isPlaying = isPlaying,
-                                    isCurrent = currentTrack?.id == track.id,
-                                    onPlay = onPlayTrack,
-                                    onToggleLike = onToggleLike,
-                                    onToggleDownload = onToggleDownload
-                                )
-                            }
-                        } else {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 48.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MusicNote,
-                                    contentDescription = null,
-                                    tint = Color(0xFF71717A).copy(alpha = 0.4f),
-                                    modifier = Modifier.size(36.dp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "این پلی‌لیست خالی است",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFA1A1A6)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "می‌توانید آهنگ‌ها را هنگام پخش به این پلی‌لیست اضافه کنید.",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF71717A)
-                                )
-                            }
+                // Fully Virtualized Tracks in collection
+                if (colTracks.isNotEmpty()) {
+                    items(
+                        items = colTracks,
+                        key = { it.id }
+                    ) { track ->
+                        MusicRow(
+                            track = track,
+                            isPlaying = isPlaying,
+                            isCurrent = currentTrack?.id == track.id,
+                            onPlay = onPlayTrack,
+                            onToggleLike = onToggleLike,
+                            onToggleDownload = onToggleDownload
+                        )
+                    }
+                } else {
+                    item(key = "empty_col") {
+                        val containerShape = RoundedCornerShape(24.dp)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(containerShape)
+                                .background(Color(0xFF14161F))
+                                .border(1.dp, Color.White.copy(alpha = 0.06f), containerShape)
+                                .padding(vertical = 48.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = Color(0xFF71717A).copy(alpha = 0.4f),
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "این پلی‌لیست خالی است",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFFA1A1A6)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "می‌توانید آهنگ‌ها را هنگام پخش به این پلی‌لیست اضافه کنید.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF71717A)
+                            )
                         }
                     }
                 }

@@ -1,6 +1,7 @@
 package com.music.app
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -24,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.app.core.data.UserPreferencesRepository
@@ -59,7 +60,9 @@ import com.music.app.features.search.SearchScreen
 import com.music.app.features.settings.SettingsModal
 import com.music.app.features.social.SocialAccountModal
 import dev.chrisbanes.haze.HazeState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -141,6 +144,19 @@ fun MainAppScreen(
     val tracksList = remember { mutableStateListOf<Track>().apply { addAll(SAMPLE_TRACKS) } }
     val displayCurrentTrack = activePlayingTrack ?: tracksList.firstOrNull()
 
+    fun loadLocalTracks() {
+        scope.launch(Dispatchers.IO) {
+            val localTracks = MediaStoreScanner.scanDeviceAudio(context)
+            if (localTracks.isNotEmpty()) {
+                withContext(Dispatchers.Main) {
+                    val existingIds = tracksList.map { it.id }.toSet()
+                    val newTracks = localTracks.filterNot { existingIds.contains(it.id) }
+                    tracksList.addAll(newTracks)
+                }
+            }
+        }
+    }
+
     // Permission launcher for MediaStore and Notifications
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -152,34 +168,35 @@ fun MainAppScreen(
         }
 
         if (audioGranted) {
-            scope.launch {
-                val localTracks = MediaStoreScanner.scanDeviceAudio(context)
-                if (localTracks.isNotEmpty()) {
-                    val existingIds = tracksList.map { it.id }.toSet()
-                    val newTracks = localTracks.filterNot { existingIds.contains(it.id) }
-                    tracksList.addAll(newTracks)
-                }
-            }
+            loadLocalTracks()
         }
     }
 
     // Launch permission request & local media scan on start
     LaunchedEffect(Unit) {
-        val permissions = mutableListOf<String>()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.READ_MEDIA_AUDIO)
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        val hasAudioPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_MEDIA_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
         } else {
-            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
         }
-        permissionLauncher.launch(permissions.toTypedArray())
 
-        // Initial scan in case permission already granted
-        val localTracks = MediaStoreScanner.scanDeviceAudio(context)
-        if (localTracks.isNotEmpty()) {
-            val existingIds = tracksList.map { it.id }.toSet()
-            val newTracks = localTracks.filterNot { existingIds.contains(it.id) }
-            tracksList.addAll(newTracks)
+        if (hasAudioPermission) {
+            loadLocalTracks()
+        } else {
+            val permissions = mutableListOf<String>()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissions.add(Manifest.permission.READ_MEDIA_AUDIO)
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            permissionLauncher.launch(permissions.toTypedArray())
         }
     }
 
