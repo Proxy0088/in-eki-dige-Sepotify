@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,9 +64,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.music.app.core.designsystem.components.MusicRow
+import com.music.app.core.model.MoodType
 import com.music.app.core.model.Track
 import com.music.app.core.network.OnlineMusicService
 import kotlinx.coroutines.delay
@@ -90,14 +94,17 @@ fun SearchScreen(
     var query by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
     var searchMode by remember { mutableStateOf(SearchMode.ONLINE) }
+    var retryTrigger by remember { mutableIntStateOf(0) }
 
     var isSearching by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf<String?>(null) }
     var onlineResults by remember { mutableStateOf<List<Track>>(emptyList()) }
 
     // ── Debounced Online Search (350ms) ──
-    LaunchedEffect(query, searchMode) {
+    LaunchedEffect(query, searchMode, retryTrigger) {
         if (searchMode == SearchMode.LOCAL) {
             isSearching = false
+            searchError = null
             return@LaunchedEffect
         }
 
@@ -105,23 +112,27 @@ fun SearchScreen(
         if (trimmed.isEmpty()) {
             onlineResults = emptyList()
             isSearching = false
+            searchError = null
             return@LaunchedEffect
         }
 
         isSearching = true
+        searchError = null
         delay(350)
 
         android.util.Log.i("SearchScreen", "Triggering OnlineMusicService.search('$trimmed', mode=$searchMode)")
-        val results = try {
-            OnlineMusicService.search(trimmed, searchMode == SearchMode.NATIONAL_NET)
+        try {
+            val results = OnlineMusicService.search(trimmed, searchMode == SearchMode.NATIONAL_NET)
+            onlineResults = results
+            searchError = null
+            android.util.Log.i("SearchScreen", "Search returned ${results.size} tracks")
         } catch (e: Exception) {
             android.util.Log.e("SearchScreen", "Search exception", e)
-            emptyList()
+            searchError = e.message ?: "Unable to load search results"
+            onlineResults = emptyList()
+        } finally {
+            isSearching = false
         }
-        android.util.Log.i("SearchScreen", "Search returned ${results.size} tracks")
-
-        onlineResults = results
-        isSearching = false
     }
 
     // Filtered tracks to display
@@ -156,9 +167,20 @@ fun SearchScreen(
 
         if (selectedCategory != "All") {
             val catLower = selectedCategory.lowercase()
-            baseList.filter {
-                it.mood.displayName.lowercase().contains(catLower) ||
-                it.album.lowercase().contains(catLower)
+            baseList.filter { track ->
+                track.mood.displayName.lowercase().contains(catLower) ||
+                track.album.lowercase().contains(catLower) ||
+                track.title.lowercase().contains(catLower) ||
+                track.artist.lowercase().contains(catLower) ||
+                when (catLower) {
+                    "ambient" -> track.mood == MoodType.CHILL || track.mood == MoodType.FOCUS
+                    "electronic" -> track.mood == MoodType.GAMING
+                    "pop" -> track.mood == MoodType.FEELS_GOOD
+                    "lo-fi", "lofi" -> track.mood == MoodType.CHILL
+                    "classical" -> track.mood == MoodType.FOCUS
+                    "rock" -> track.mood == MoodType.GAMING
+                    else -> false
+                }
             }
         } else {
             baseList
@@ -321,12 +343,7 @@ fun SearchScreen(
                                     interactionSource = chipInteraction,
                                     indication = null,
                                     onClick = {
-                                        selectedCategory = cat
-                                        if (cat != "All") {
-                                            query = cat.lowercase()
-                                        } else if (query.lowercase() in CATEGORY_CHIPS.map { it.lowercase() }) {
-                                            query = ""
-                                        }
+                                        selectedCategory = if (selectedCategory == cat) "All" else cat
                                     }
                                 )
                                 .padding(horizontal = 14.dp, vertical = 7.dp)
@@ -343,7 +360,7 @@ fun SearchScreen(
             }
         }
 
-        // ── Search State (Loading / Results / Empty) ──
+        // ── Search State (Loading / Results / Error / Empty) ──
         if (isSearching && displayTracks.isEmpty()) {
             item(key = "loading_search") {
                 val containerShape = RoundedCornerShape(24.dp)
@@ -369,6 +386,58 @@ fun SearchScreen(
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFFA1A1A6)
                     )
+                }
+            }
+        } else if (searchError != null && displayTracks.isEmpty()) {
+            item(key = "error_search") {
+                val containerShape = RoundedCornerShape(24.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(containerShape)
+                        .background(Color(0xFF14161F))
+                        .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.25f), containerShape)
+                        .padding(horizontal = 24.dp, vertical = 36.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.CloudOff,
+                        contentDescription = "Search Error",
+                        tint = Color(0xFFEF4444).copy(alpha = 0.85f),
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Search Error",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFEDEDED)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = searchError ?: "Search failed or network request was blocked",
+                        fontSize = 12.sp,
+                        color = Color(0xFFA1A1A6),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.12f))
+                            .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                            .clickable { retryTrigger++ }
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Retry",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         } else if (displayTracks.isNotEmpty()) {
@@ -406,7 +475,7 @@ fun SearchScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "No tracks found",
+                        text = if (query.isNotBlank()) "No tracks found for \"${query.trim()}\"" else "Search songs, artists, or albums",
                         fontSize = 13.sp,
                         color = Color(0xFF71717A)
                     )

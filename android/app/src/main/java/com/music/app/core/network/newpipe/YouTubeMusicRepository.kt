@@ -42,11 +42,25 @@ object YouTubeMusicRepository {
     )
 
     /**
-     * Cleans artist name by stripping "- Topic" suffix and trimming.
+     * Cleans artist name by stripping "- Topic", "Official", etc., and trimming.
      */
     fun cleanArtistName(rawArtist: String): String {
         return rawArtist
             .replace(Regex("(?i)\\s*-\\s*Topic$"), "")
+            .replace(Regex("(?i)\\s+Official(?:\\s+Channel)?$"), "")
+            .replace(Regex("(?i)^Official\\s+"), "")
+            .trim()
+    }
+
+    /**
+     * Cleans display title by stripping trailing noise like (Official Video), [Audio], [Subtitle], etc.
+     */
+    fun cleanDisplayTitle(rawTitle: String): String {
+        return rawTitle
+            .replace(Regex("(?i)\\s*[\\[\\(]?(?:official\\s+(?:video|audio|music\\s+video)|video\\s+clip|audio|lyric\\s+video|lyrics|موزیک\\s+ویدیو|ویدیو\\s+کلیپ|کلیپ|آهنگ)[\\]\\)]?"), "")
+            .replace(Regex("(?i)\\s*[\\[\\(]?(?:remastered(?:\\s+\\d{4})?|4k|hd|hq)[\\]\\)]?"), "")
+            .replace(Regex("(?i)\\s*[\\[\\(]?(?:[a-zA-Z]+\\s+)?(?:subtitle|subtitles|lyric|lyrics|with\\s+lyrics)[\\]\\)]?"), "")
+            .replace(Regex("(?i)\\s*[\\[\\(]?(?:زیرنویس(?:\\s+فارسی)?|همراه\\s+با\\s+متن)[\\]\\)]?"), "")
             .trim()
     }
 
@@ -83,66 +97,112 @@ object YouTubeMusicRepository {
     }
 
     /**
-     * Computes ranking score for a candidate track against user query.
+     * Computes ranking score for a candidate track against user query with strict original/main version ranking.
      */
-    fun scoreTrack(query: String, trackTitle: String, rawArtist: String, durationSec: Int): Int {
+    fun scoreTrack(
+        query: String,
+        trackTitle: String,
+        rawArtist: String,
+        durationSec: Int,
+        isTopicChannel: Boolean = false,
+        viewCount: Long = 0L
+    ): Int {
         val normQuery = normalizeText(query)
         val normTitle = normalizeText(trackTitle)
-        val artists = parseArtists(rawArtist)
-        val normArtists = artists.map { normalizeText(it) }
-        val allArtistsCombined = normArtists.joinToString(" ")
+        val normArtist = normalizeText(cleanArtistName(rawArtist))
 
         var score = 0
 
         // 1. Exact match bonus
         if (normTitle == normQuery) {
-            score += 1000
+            score += 350
         } else if (normTitle.contains(normQuery) || normQuery.contains(normTitle)) {
-            score += 500
+            score += 250
         }
 
         // 2. Query token matching across title and artist
         val queryTokens = normQuery.split(" ").filter { it.length >= 2 }
         var titleMatchedTokens = 0
         var artistMatchedTokens = 0
+        var totalMatchedTokens = 0
 
         for (token in queryTokens) {
             val inTitle = normTitle.contains(token)
-            val inArtist = allArtistsCombined.contains(token)
+            val inArtist = normArtist.contains(token)
 
-            if (inTitle) {
-                titleMatchedTokens++
-                score += 150
-            }
-            if (inArtist) {
-                artistMatchedTokens++
-                score += 150
-            }
+            if (inTitle) titleMatchedTokens++
+            if (inArtist) artistMatchedTokens++
+            if (inTitle || inArtist) totalMatchedTokens++
         }
 
-        // High boost when both title and artist are matched by different tokens
+        score += totalMatchedTokens * 150
+
+        // Ratio of matched tokens: if all query tokens are present, give huge boost
+        if (queryTokens.isNotEmpty() && totalMatchedTokens == queryTokens.size) {
+            score += 550 // All query terms matched!
+        } else if (queryTokens.isNotEmpty()) {
+            val missing = queryTokens.size - totalMatchedTokens
+            score -= missing * 120 // Penalty for missing query terms
+        }
+
+        // High boost when both title and artist are matched by query tokens
         if (titleMatchedTokens > 0 && artistMatchedTokens > 0) {
-            score += 800
+            score += 300
         }
 
-        // 3. Penalty for non-original versions (unless user explicitly searched for them)
-        for (penaltyWord in PENALTY_KEYWORDS) {
-            val normPenalty = normalizeText(penaltyWord)
-            val penaltyInTitle = normTitle.contains(normPenalty)
-            val penaltyInQuery = normQuery.contains(normPenalty)
-
-            if (penaltyInTitle && !penaltyInQuery) {
-                score -= 500
-            }
+        // Exact phrase in title bonus
+        if (normTitle.contains(normQuery)) {
+            score += 300
         }
 
-        // 4. Duration sanity check
-        if (durationSec in 75..420) {
-            score += 60 // Normal single track duration
-        } else if (durationSec < 50) {
-            score -= 300 // Teaser, ringtone, or snippet
+        // 3. Official Artist / Topic channel boost (+400)
+        if (isTopicChannel || rawArtist.contains("- Topic", ignoreCase = true) || rawArtist.contains("Official", ignoreCase = true)) {
+            score += 400
+        }
+
+        // 4. Penalties for non-original / derivative versions
+        // Karaoke / instrumental / بی کلام -> -500
+        if (normTitle.contains("karaoke") || normTitle.contains("instrumental") || normTitle.contains("بی کلام")) {
+            score -= 500
+        }
+        // Cover / کاور / اجرای زنده -> -400
+        if (normTitle.contains("cover") || normTitle.contains("کاور") || normTitle.contains("اجرای زنده")) {
+            score -= 400
+        }
+        // Sped up / slowed / reverb / 8d / bass boosted -> -400
+        if (normTitle.contains("sped up") || normTitle.contains("speed up") || normTitle.contains("slowed") ||
+            normTitle.contains("reverb") || normTitle.contains("8d") || normTitle.contains("bass boosted")
+        ) {
+            score -= 400
+        }
+        // Live / لایو / live in / کنسرت / concert -> -300
+        if (normTitle.contains("live") || normTitle.contains("لایو") || normTitle.contains("کنسرت") || normTitle.contains("concert")) {
+            score -= 300
+        }
+        // Remix / ریمیکس -> -300 (unless user explicitly searched for remix)
+        if ((normTitle.contains("remix") || normTitle.contains("ریمیکس")) && !normQuery.contains("remix") && !normQuery.contains("ریمیکس")) {
+            score -= 300
+        }
+        // Official video / music video / موزیک ویدیو / ویدیو کلیپ -> -100 (prefer pure audio/topic tracks)
+        if (normTitle.contains("official video") || normTitle.contains("music video") ||
+            normTitle.contains("موزیک ویدیو") || normTitle.contains("ویدیو کلیپ")
+        ) {
+            score -= 100
+        }
+
+        // 5. Duration window: 90s .. 360s -> +150 (filters out 10-second teasers & 1-hour loops)
+        if (durationSec in 90..360) {
+            score += 150
+        } else if (durationSec in 1..89) {
+            score -= 350 // Teaser or short snippet
         } else if (durationSec > 600) {
-            score -= 250 // Full album, DJ set, or long mix
+            score -= 300 // Full album or DJ set
+        }
+
+        // 6. View count boost as proxy for popularity / canonical release
+        if (viewCount > 0) {
+            val viewBonus = (Math.log10(viewCount.toDouble()) * 25).toInt().coerceIn(0, 250)
+            score += viewBonus
         }
 
         return score
@@ -286,8 +346,6 @@ object YouTubeMusicRepository {
                 continue
             }
 
-            if (!sub.valid) continue
-
             seenVideoIds.add(videoId)
 
             var duration = sub.durationSec
@@ -309,19 +367,27 @@ object YouTubeMusicRepository {
             val coverUrl = thumbs?.optJSONObject(thumbs.length() - 1)?.optString("url")
                 ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
 
-            val rawArtist = sub.artist.ifEmpty { "Artist" }
+            var rawArtist = sub.artist
+            if (rawArtist.isEmpty() && subCol != null && subCol.length() > 0) {
+                rawArtist = (0 until subCol.length()).joinToString("") {
+                    subCol.optJSONObject(it)?.optString("text", "") ?: ""
+                }.trim()
+            }
+            if (rawArtist.isEmpty()) rawArtist = "Artist"
+
             val cleanedArtist = cleanArtistName(rawArtist)
-            val finalDuration = if (duration > 0) duration else 210
-            val score = scoreTrack(trimmedQuery, title, rawArtist, finalDuration)
+            val displayTitle = cleanDisplayTitle(title)
+            val isTopic = rawArtist.contains("- Topic", ignoreCase = true)
+            val score = scoreTrack(trimmedQuery, title, rawArtist, duration, isTopicChannel = isTopic)
 
             candidates.add(
                 TrackWithScore(
                     Track(
                         id = "yt-$videoId",
-                        title = title,
+                        title = displayTitle.ifEmpty { title },
                         artist = cleanedArtist,
                         album = sub.album,
-                        duration = finalDuration,
+                        duration = duration,
                         url = "",
                         coverUrl = coverUrl,
                         mood = MoodType.CHILL,
@@ -498,15 +564,16 @@ object YouTubeMusicRepository {
     }
 
     /**
-     * Fallback on-device search via NewPipeExtractor
+     * Fallback on-device search via NewPipeExtractor (General search, no restrictive filters)
      */
     private suspend fun searchNewPipe(query: String, limit: Int): List<Track> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         val service = ServiceList.YouTube
         val searchQHFactory = service.searchQHFactory
+        // Empty list = search all videos so Persian and International songs are never filtered out
         val queryHandler = searchQHFactory.fromQuery(
             trimmed,
-            listOf(YoutubeSearchQueryHandlerFactory.MUSIC_SONGS),
+            emptyList(),
             ""
         )
         val extractor = service.getSearchExtractor(queryHandler)
@@ -514,6 +581,7 @@ object YouTubeMusicRepository {
 
         val initialPage = extractor.initialPage
         val rawItems = initialPage?.items ?: emptyList()
+        Log.i(TAG, "NewPipe (no-filter) returned ${rawItems.size} raw items for '$trimmed'")
 
         val candidates = mutableListOf<TrackWithScore>()
         val seenVideoIds = mutableSetOf<String>()
@@ -529,8 +597,35 @@ object YouTubeMusicRepository {
             val rawName = item.name ?: "Unknown Track"
             val rawUploader = item.uploaderName ?: "Artist"
             val duration = item.duration.toInt().coerceAtLeast(0)
-            val cleanedArtist = cleanArtistName(rawUploader)
-            val score = scoreTrack(trimmed, rawName, rawUploader, duration)
+            val viewCount = item.viewCount.coerceAtLeast(0)
+            val isTopic = rawUploader.contains("- Topic", ignoreCase = true) || rawUploader.contains("Official", ignoreCase = true)
+
+            // Extract artist and title if the video title is structured as "Artist - Title"
+            var parsedArtist = rawUploader
+            var parsedTitle = rawName
+
+            if (isTopic) {
+                parsedArtist = cleanArtistName(rawUploader)
+            } else if (rawName.contains(" - ")) {
+                val parts = rawName.split(" - ", limit = 2)
+                parsedArtist = cleanArtistName(parts[0])
+                parsedTitle = parts[1]
+            } else if (rawName.contains(" – ")) {
+                val parts = rawName.split(" – ", limit = 2)
+                parsedArtist = cleanArtistName(parts[0])
+                parsedTitle = parts[1]
+            }
+
+            val cleanedArtist = cleanArtistName(parsedArtist)
+            val displayTitle = cleanDisplayTitle(parsedTitle)
+            val score = scoreTrack(
+                query = trimmed,
+                trackTitle = rawName,
+                rawArtist = rawUploader,
+                durationSec = duration,
+                isTopicChannel = isTopic,
+                viewCount = viewCount
+            )
 
             val thumbnails = item.thumbnails ?: emptyList()
             val bestCover = thumbnails.maxByOrNull { (it.width * it.height) }?.url
@@ -540,10 +635,10 @@ object YouTubeMusicRepository {
                 TrackWithScore(
                     Track(
                         id = "yt-$videoId",
-                        title = rawName,
-                        artist = cleanedArtist,
+                        title = displayTitle.ifEmpty { rawName },
+                        artist = cleanedArtist.ifEmpty { "Artist" },
                         album = "",
-                        duration = if (duration > 0) duration else 210,
+                        duration = duration,
                         url = "",
                         coverUrl = bestCover,
                         mood = MoodType.CHILL,
@@ -573,8 +668,8 @@ object YouTubeMusicRepository {
 
     /**
      * Main YouTube search entry point.
-     * Prioritizes official InnerTube WEB_REMIX (matching localhost reference-web),
-     * with transparent NewPipeExtractor fallback.
+     * Prioritizes robust NewPipeExtractor (no restrictive filters),
+     * with transparent InnerTube WEB_REMIX fallback.
      */
     suspend fun searchSongs(query: String, limit: Int = 18): List<Track> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
@@ -590,21 +685,21 @@ object YouTubeMusicRepository {
 
         try {
             ensureActive()
-            // 1. First attempt: Direct InnerTube search (matching localhost reference-web)
+            // 1. Primary path: Robust NewPipe search without restrictive filters
             var results = try {
-                searchInnerTube(trimmed, limit)
+                searchNewPipe(trimmed, limit)
             } catch (e: Exception) {
-                Log.w(TAG, "InnerTube search attempt failed, trying fallback: ${e.message}")
+                Log.w(TAG, "NewPipe search attempt failed, trying InnerTube fallback: ${e.message}")
                 emptyList()
             }
 
-            // 2. Second attempt: Fallback to NewPipeExtractor if InnerTube was empty
+            // 2. Secondary path: Fallback to InnerTube if NewPipe returned empty
             if (results.isEmpty()) {
                 ensureActive()
                 results = try {
-                    searchNewPipe(trimmed, limit)
+                    searchInnerTube(trimmed, limit)
                 } catch (e: Exception) {
-                    Log.w(TAG, "NewPipe fallback failed: ${e.message}")
+                    Log.w(TAG, "InnerTube fallback failed: ${e.message}")
                     emptyList()
                 }
             }

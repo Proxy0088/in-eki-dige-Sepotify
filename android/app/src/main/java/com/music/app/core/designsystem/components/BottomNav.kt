@@ -20,12 +20,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
@@ -164,9 +166,7 @@ fun BottomNav(
                     Box(
                         modifier = Modifier
                             .height(38.dp)
-                            .then(
-                                if (!isActive) Modifier.width(38.dp) else Modifier
-                            )
+                            .defaultMinSize(minWidth = 38.dp)
                             .graphicsLayer {
                                 scaleX = tabScale
                                 scaleY = tabScale
@@ -185,7 +185,7 @@ fun BottomNav(
                                 )
                             )
                             .padding(
-                                horizontal = if (isActive) 13.dp else 0.dp,
+                                horizontal = if (isActive) 13.dp else 9.5.dp,
                                 vertical = 4.dp
                             ),
                         contentAlignment = Alignment.Center
@@ -243,23 +243,30 @@ fun BottomNav(
                                         animationSpec = spring(
                                             stiffness = 450f,
                                             dampingRatio = 0.78f
-                                        )
+                                        ),
+                                        expandFrom = Alignment.Start
                                     ),
                                     exit = fadeOut(animationSpec = tween(100)) + shrinkHorizontally(
                                         animationSpec = spring(
                                             stiffness = 450f,
                                             dampingRatio = 0.78f
-                                        )
+                                        ),
+                                        shrinkTowards = Alignment.Start
                                     )
                                 ) {
-                                    Row {
+                                    Row(
+                                        modifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
                                             text = label,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = if (isDark) Color.White else Color(0xFF0F172A),
-                                            letterSpacing = (-0.2).sp
+                                            letterSpacing = (-0.2).sp,
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     }
                                 }
