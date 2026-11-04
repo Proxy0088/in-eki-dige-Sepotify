@@ -34,9 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,16 +45,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.music.app.core.designsystem.theme.LocalIsDarkTheme
 import dev.chrisbanes.haze.HazeState
-import kotlin.math.roundToInt
 
 enum class NavTab(val title: String) {
     HOME("Home"),
@@ -77,25 +70,6 @@ fun BottomNav(
     isPlaying: Boolean = false
 ) {
     val isDark = LocalIsDarkTheme.current
-    val density = LocalDensity.current
-
-    // Tab position registry for the sliding active indicator
-    var tabOffsets by remember { mutableStateOf(mapOf<NavTab, Float>()) }
-    var tabWidths by remember { mutableStateOf(mapOf<NavTab, Float>()) }
-
-    val targetX = tabOffsets[activeTab] ?: 0f
-    val targetW = tabWidths[activeTab] ?: 0f
-
-    val animX by animateFloatAsState(
-        targetValue = targetX,
-        animationSpec = spring(stiffness = 420f, dampingRatio = 0.75f),
-        label = "pill_x"
-    )
-    val animW by animateFloatAsState(
-        targetValue = targetW,
-        animationSpec = spring(stiffness = 420f, dampingRatio = 0.75f),
-        label = "pill_w"
-    )
 
     Box(
         modifier = modifier
@@ -104,33 +78,43 @@ fun BottomNav(
         contentAlignment = Alignment.Center
     ) {
         LiquidGlassSurface(
-            modifier = Modifier
-                .height(52.dp)
-                .clip(CircleShape)
-                .animateContentSize(
-                    animationSpec = spring(
-                        stiffness = 450f,
-                        dampingRatio = 0.78f
-                    )
-                ),
+            modifier = Modifier.height(52.dp),
             hazeState = hazeState,
             shape = CircleShape,
             variant = LiquidGlassVariant.Dock,
             borderWidth = 1.dp,
             showTopHighlight = true
         ) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .padding(horizontal = 9.dp, vertical = 7.dp),
-                contentAlignment = Alignment.CenterStart
+                    .padding(horizontal = 7.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // ── Animated Sliding Liquid Active Pill ──
-                if (animW > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .offset { IntOffset(animX.roundToInt(), 0) }
-                            .width(with(density) { animW.toDp() })
-                            .height(38.dp)
+                NavTab.entries.forEach { tab ->
+                    val isActive = activeTab == tab
+                    val label = tab.title
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+
+                    val tabScale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.92f else 1f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.65f),
+                        label = "tab_scale"
+                    )
+
+                    val iconTint by animateColorAsState(
+                        targetValue = if (isActive) {
+                            if (isDark) Color.White else Color(0xFF0F172A)
+                        } else {
+                            if (isDark) Color(0xFFB8B8BE) else Color(0xFF64748B)
+                        },
+                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                        label = "iconTint"
+                    )
+
+                    val activePillModifier = if (isActive) {
+                        Modifier
                             .clip(CircleShape)
                             .shadow(
                                 elevation = 3.dp,
@@ -154,7 +138,7 @@ fun BottomNav(
                                 shape = CircleShape
                             )
                             .drawBehind {
-                                // Meniscus specular highlight line
+                                // Meniscus specular reflection
                                 drawLine(
                                     brush = Brush.horizontalGradient(
                                         colors = listOf(
@@ -165,77 +149,47 @@ fun BottomNav(
                                     ),
                                     start = Offset(size.width * 0.15f, 1.dp.toPx()),
                                     end = Offset(size.width * 0.85f, 1.dp.toPx()),
-                                    strokeWidth = 1.5.dp.toPx()
+                                    strokeWidth = 1.2.dp.toPx()
                                 )
                             }
                             .border(
                                 width = 1.dp,
-                                color = if (isDark) Color.White.copy(alpha = 0.24f) else Color(0x330F172A),
+                                color = if (isDark) Color.White.copy(alpha = 0.22f) else Color(0x330F172A),
                                 shape = CircleShape
                             )
-                    )
-                }
+                    } else {
+                        Modifier
+                    }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    NavTab.entries.forEach { tab ->
-                        val isActive = activeTab == tab
-                        val label = tab.title
-                        val interactionSource = remember { MutableInteractionSource() }
-                        val isPressed by interactionSource.collectIsPressedAsState()
-
-                        val tabScale by animateFloatAsState(
-                            targetValue = if (isPressed) 0.92f else 1f,
-                            animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.65f),
-                            label = "tab_scale"
-                        )
-
-                        val iconTint by animateColorAsState(
-                            targetValue = if (isActive) {
-                                if (isDark) Color.White else Color(0xFF0F172A)
-                            } else {
-                                if (isDark) Color(0xFFB8B8BE) else Color(0xFF64748B)
-                            },
-                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                            label = "iconTint"
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .height(38.dp)
-                                .then(
-                                    if (!isActive) Modifier.width(38.dp) else Modifier
+                    Box(
+                        modifier = Modifier
+                            .height(38.dp)
+                            .then(
+                                if (!isActive) Modifier.width(38.dp) else Modifier
+                            )
+                            .graphicsLayer {
+                                scaleX = tabScale
+                                scaleY = tabScale
+                            }
+                            .clip(CircleShape)
+                            .then(activePillModifier)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                                onClick = { onTabSelected(tab) }
+                            )
+                            .animateContentSize(
+                                animationSpec = spring(
+                                    stiffness = 420f,
+                                    dampingRatio = 0.75f
                                 )
-                                .graphicsLayer {
-                                    scaleX = tabScale
-                                    scaleY = tabScale
-                                }
-                                .clip(CircleShape)
-                                .clickable(
-                                    interactionSource = interactionSource,
-                                    indication = null,
-                                    onClick = { onTabSelected(tab) }
-                                )
-                                .onGloballyPositioned { coordinates ->
-                                    val pos = coordinates.positionInParent()
-                                    val size = coordinates.size
-                                    tabOffsets = tabOffsets + (tab to pos.x)
-                                    tabWidths = tabWidths + (tab to size.width.toFloat())
-                                }
-                                .animateContentSize(
-                                    animationSpec = spring(
-                                        stiffness = 450f,
-                                        dampingRatio = 0.78f
-                                    )
-                                )
-                                .padding(
-                                    horizontal = if (isActive) 12.dp else 0.dp,
-                                    vertical = 4.dp
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
+                            )
+                            .padding(
+                                horizontal = if (isActive) 13.dp else 0.dp,
+                                vertical = 4.dp
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
@@ -316,7 +270,6 @@ fun BottomNav(
             }
         }
     }
-}
 
 /**
  * Lucide Library icon composed of 3 books (2 upright, 1 leaning)

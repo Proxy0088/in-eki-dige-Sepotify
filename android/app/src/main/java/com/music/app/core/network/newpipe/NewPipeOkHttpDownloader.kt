@@ -70,6 +70,7 @@ class NewPipeOkHttpDownloader private constructor(
         requestBuilder.method(httpMethod, requestBody)
 
         val response = client.newCall(requestBuilder.build()).execute()
+        android.util.Log.d("NewPipeDownloader", "HTTP ${response.code} for $url")
 
         if (response.code == 429) {
             response.close()

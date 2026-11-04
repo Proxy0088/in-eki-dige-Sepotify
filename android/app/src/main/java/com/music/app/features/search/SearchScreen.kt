@@ -82,7 +82,7 @@ fun SearchScreen(
     tracks: List<Track>,
     currentTrack: Track?,
     isPlaying: Boolean,
-    onPlayTrack: (Track) -> Unit,
+    onPlayTrack: (Track, List<Track>) -> Unit,
     onToggleLike: (Track) -> Unit,
     onToggleDownload: (Track) -> Unit,
     modifier: Modifier = Modifier
@@ -111,12 +111,14 @@ fun SearchScreen(
         isSearching = true
         delay(350)
 
+        android.util.Log.i("SearchScreen", "Triggering OnlineMusicService.search('$trimmed', mode=$searchMode)")
         val results = try {
             OnlineMusicService.search(trimmed, searchMode == SearchMode.NATIONAL_NET)
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("SearchScreen", "Search exception", e)
             emptyList()
         }
+        android.util.Log.i("SearchScreen", "Search returned ${results.size} tracks")
 
         onlineResults = results
         isSearching = false
@@ -378,7 +380,7 @@ fun SearchScreen(
                     track = track,
                     isPlaying = isPlaying,
                     isCurrent = currentTrack?.id == track.id,
-                    onPlay = onPlayTrack,
+                    onPlay = { selected -> onPlayTrack(selected, displayTracks) },
                     onToggleLike = onToggleLike,
                     onToggleDownload = onToggleDownload
                 )

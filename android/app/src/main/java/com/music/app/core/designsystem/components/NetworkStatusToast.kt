@@ -35,19 +35,22 @@ enum class NetworkStatus {
 
 @Composable
 fun NetworkStatusToast(
-    status: NetworkStatus,
+    status: NetworkStatus = NetworkStatus.IDLE,
+    message: String? = null,
     modifier: Modifier = Modifier
 ) {
+    val isVisible = status != NetworkStatus.IDLE || !message.isNullOrEmpty()
+
     AnimatedVisibility(
-        visible = status != NetworkStatus.IDLE,
+        visible = isVisible,
         enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
         modifier = modifier
     ) {
-        val isOffline = status == NetworkStatus.OFFLINE
-        val bgColor = if (isOffline) Color(0xFF450A0A).copy(alpha = 0.92f) else Color(0xFF064E3B).copy(alpha = 0.92f)
-        val borderColor = if (isOffline) Color(0xFFDC2626).copy(alpha = 0.4f) else Color(0xFF10B981).copy(alpha = 0.4f)
-        val textColor = if (isOffline) Color(0xFFFECACA) else Color(0xFFA7F3D0)
+        val isError = status == NetworkStatus.OFFLINE || message != null
+        val bgColor = if (isError) Color(0xFF450A0A).copy(alpha = 0.92f) else Color(0xFF064E3B).copy(alpha = 0.92f)
+        val borderColor = if (isError) Color(0xFFDC2626).copy(alpha = 0.4f) else Color(0xFF10B981).copy(alpha = 0.4f)
+        val textColor = if (isError) Color(0xFFFECACA) else Color(0xFFA7F3D0)
 
         Box(
             modifier = Modifier
@@ -61,7 +64,20 @@ fun NetworkStatusToast(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (isOffline) {
+                if (!message.isNullOrEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFEF4444))
+                    )
+                    Text(
+                        text = message,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = textColor
+                    )
+                } else if (status == NetworkStatus.OFFLINE) {
                     Box(
                         modifier = Modifier
                             .size(6.dp)

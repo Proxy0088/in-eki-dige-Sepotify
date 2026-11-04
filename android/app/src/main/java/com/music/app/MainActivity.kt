@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -135,6 +136,14 @@ fun MainAppScreen(
     val activePlayingTrack by playerManager.currentTrack.collectAsStateWithLifecycle()
     val playbackProgress by playerManager.progress.collectAsStateWithLifecycle()
     val currentPositionMs by playerManager.currentPositionMs.collectAsStateWithLifecycle()
+    val playbackNotice by playerManager.playbackNotice.collectAsStateWithLifecycle()
+
+    LaunchedEffect(playbackNotice) {
+        if (!playbackNotice.isNullOrEmpty()) {
+            delay(3200)
+            playerManager.clearPlaybackNotice()
+        }
+    }
 
     // Collect preferences from DataStore
     val likedIds by prefsRepo.likedTrackIds.collectAsStateWithLifecycle(initialValue = emptySet())
@@ -282,11 +291,11 @@ fun MainAppScreen(
                             tracks = syncedTracksList,
                             currentTrack = displayCurrentTrack,
                             isPlaying = isPlaying,
-                            onPlayTrack = { track ->
+                            onPlayTrack = { track, queue ->
                                 if (!tracksList.any { it.id == track.id }) {
                                     tracksList.add(0, track)
                                 }
-                                playerManager.playTrack(track, listOf(track) + syncedTracksList)
+                                playerManager.playTrack(track, queue)
                             },
                             onToggleLike = { track ->
                                 scope.launch { prefsRepo.toggleLike(track.id) }
@@ -344,6 +353,7 @@ fun MainAppScreen(
         // ── Network Status Toast ──
         NetworkStatusToast(
             status = networkStatus,
+            message = playbackNotice,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 92.dp)

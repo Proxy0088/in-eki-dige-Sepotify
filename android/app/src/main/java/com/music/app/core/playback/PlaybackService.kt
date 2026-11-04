@@ -6,10 +6,16 @@ import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.music.app.MainActivity
+import com.music.app.core.network.newpipe.StreamResolver
+import com.music.app.core.playback.datasource.YouTubeDataSourceFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 
 class PlaybackService : MediaSessionService() {
 
@@ -25,7 +31,21 @@ class PlaybackService : MediaSessionService() {
             .setUsage(C.USAGE_MEDIA)
             .build()
 
+        val upstreamFactory = DefaultDataSource.Factory(this)
+        val youtubeDataSourceFactory = YouTubeDataSourceFactory(
+            upstreamFactory = upstreamFactory,
+            resolver = { videoId, forceRefresh ->
+                runBlocking(Dispatchers.IO) {
+                    StreamResolver.resolveStreamUrl(videoId, forceRefresh)
+                }
+            }
+        )
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(this)
+            .setDataSourceFactory(youtubeDataSourceFactory)
+
         val exoPlayer = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_LOCAL)
