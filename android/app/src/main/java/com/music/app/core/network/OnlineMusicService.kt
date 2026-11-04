@@ -30,15 +30,20 @@ object OnlineMusicService {
 
     // Candidate proxy backend hosts matching reference-web
     private val CANDIDATE_HOSTS = listOf(
+        "http://192.168.1.57:3000",
         "http://127.0.0.1:3000",
-        "http://10.0.2.2:3000",
-        "http://192.168.1.57:3000"
+        "http://10.0.2.2:3000"
     )
+
+    private val fastProbeClient = OkHttpClient.Builder()
+        .connectTimeout(1200, TimeUnit.MILLISECONDS)
+        .readTimeout(1500, TimeUnit.MILLISECONDS)
+        .build()
 
     @Volatile
     private var detectedBackendHost: String? = null
 
-    private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+    private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
     /**
      * Checks if a string contains Persian/Arabic characters.
@@ -69,25 +74,36 @@ object OnlineMusicService {
     }
 
     /**
-     * Probes candidate backend hosts to detect active Vite proxy.
+     * Probes candidate backend hosts concurrently to detect active Vite proxy.
      */
     suspend fun probeBackendHost(): String? = withContext(Dispatchers.IO) {
         val current = detectedBackendHost
         if (current != null) return@withContext current
 
-        for (host in CANDIDATE_HOSTS) {
-            try {
-                val req = Request.Builder()
-                    .url("$host/api/health")
-                    .build()
-                val res = client.newCall(req).execute()
-                if (res.isSuccessful) {
-                    detectedBackendHost = host
-                    return@withContext host
+        try {
+            coroutineScope {
+                val deferreds = CANDIDATE_HOSTS.map { host ->
+                    async {
+                        try {
+                            val req = Request.Builder()
+                                .url("$host/api/health")
+                                .build()
+                            val res = fastProbeClient.newCall(req).execute()
+                            if (res.isSuccessful) host else null
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
                 }
-            } catch (_: Exception) {}
+                val found = deferreds.firstNotNullOfOrNull { it.await() }
+                if (found != null) {
+                    detectedBackendHost = found
+                }
+                found
+            }
+        } catch (_: Exception) {
+            null
         }
-        null
     }
 
     /**
@@ -129,19 +145,25 @@ object OnlineMusicService {
     }
 
     /**
-     * Search genuine full-length YouTube songs using InnerTube API.
+     * Search genuine full-length YouTube Music songs matching reference-web YouTubeMusicProvider.
      */
-    suspend fun searchYouTube(query: String, limit: Int = 12): List<Track> = withContext(Dispatchers.IO) {
+    suspend fun searchYouTube(query: String, limit: Int = 14): List<Track> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return@withContext emptyList()
 
         try {
-            val url = "https://www.youtube.com/youtubei/v1/search"
+            val backend = probeBackendHost()
+            val url = if (backend != null) {
+                "$backend/api/ytmusic/youtubei/v1/search"
+            } else {
+                "https://music.youtube.com/youtubei/v1/search"
+            }
+
             val jsonPayload = JSONObject().apply {
                 put("context", JSONObject().apply {
                     put("client", JSONObject().apply {
-                        put("clientName", "WEB")
-                        put("clientVersion", "2.20240101.00.00")
+                        put("clientName", "WEB_REMIX")
+                        put("clientVersion", "1.20240101.01.00")
                         put("hl", "en")
                         put("gl", "US")
                     })
@@ -154,6 +176,7 @@ object OnlineMusicService {
                 .url(url)
                 .post(requestBody)
                 .header("User-Agent", USER_AGENT)
+                .header("Referer", "https://music.youtube.com/")
                 .build()
 
             val response = client.newCall(request).execute()
@@ -162,59 +185,136 @@ object OnlineMusicService {
             val body = response.body?.string() ?: return@withContext emptyList()
             val root = JSONObject(body)
             val tracks = mutableListOf<Track>()
+            val seenVideoIds = mutableSetOf<String>()
 
-            val contents = root.optJSONObject("contents")
-                ?.optJSONObject("twoColumnSearchResultsRenderer")
-                ?.optJSONObject("primaryContents")
+            val tabs = root.optJSONObject("contents")
+                ?.optJSONObject("tabbedSearchResultsRenderer")
+                ?.optJSONArray("tabs")
+            val sectionList = tabs?.optJSONObject(0)
+                ?.optJSONObject("tabRenderer")
+                ?.optJSONObject("content")
                 ?.optJSONObject("sectionListRenderer")
-                ?.optJSONArray("contents") ?: return@withContext emptyList()
+                ?.optJSONArray("contents")
 
-            for (i in 0 until contents.length()) {
-                val sec = contents.optJSONObject(i)?.optJSONObject("itemSectionRenderer") ?: continue
-                val items = sec.optJSONArray("contents") ?: continue
+            val streamBase = backend ?: "http://192.168.1.57:3000"
 
-                for (j in 0 until items.length()) {
-                    val v = items.optJSONObject(j)?.optJSONObject("videoRenderer") ?: continue
-                    val videoId = v.optString("videoId", "")
-                    if (videoId.isEmpty()) continue
+            if (sectionList != null) {
+                for (i in 0 until sectionList.length()) {
+                    val sec = sectionList.optJSONObject(i) ?: continue
 
-                    val titleRuns = v.optJSONObject("title")?.optJSONArray("runs")
-                    val rawTitle = titleRuns?.let { runs ->
-                        (0 until runs.length()).joinToString("") { runs.getJSONObject(it).optString("text", "") }
-                    } ?: "Track"
+                    // 1. Check musicCardShelfRenderer (Official Hero Track / Artist Card)
+                    val card = sec.optJSONObject("musicCardShelfRenderer")
+                    if (card != null) {
+                        val cardVideoId = card.optJSONObject("onTap")?.optJSONObject("watchEndpoint")?.optString("videoId", "")
+                            ?: card.optJSONObject("title")?.optJSONArray("runs")?.optJSONObject(0)
+                                ?.optJSONObject("navigationEndpoint")?.optJSONObject("watchEndpoint")?.optString("videoId", "")
+                            ?: ""
 
-                    val ownerRuns = v.optJSONObject("ownerText")?.optJSONArray("runs")
-                    val rawAuthor = ownerRuns?.let { runs ->
-                        (0 until runs.length()).joinToString("") { runs.getJSONObject(it).optString("text", "") }
-                    } ?: "Artist"
+                        val titleRuns = card.optJSONObject("title")?.optJSONArray("runs")
+                        val cardTitle = titleRuns?.let { runs ->
+                            (0 until runs.length()).joinToString("") { runs.getJSONObject(it).optString("text", "") }
+                        }?.trim() ?: ""
 
-                    val lengthText = v.optJSONObject("lengthText")?.optString("simpleText", "3:30") ?: "3:30"
-                    val durationSec = parseDurationText(lengthText)
+                        if (cardVideoId.isNotEmpty() && cardTitle.isNotEmpty() && !seenVideoIds.contains(cardVideoId)) {
+                            seenVideoIds.add(cardVideoId)
+                            val subRuns = card.optJSONObject("subtitle")?.optJSONArray("runs")
+                            val cardArtist = subRuns?.optJSONObject(0)?.optString("text", "") ?: "Artist"
+                            val thumbs = card.optJSONObject("thumbnail")?.optJSONObject("musicThumbnailRenderer")
+                                ?.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
+                            val cover = thumbs?.optJSONObject(thumbs.length() - 1)?.optString("url", "")
+                                ?: "https://i.ytimg.com/vi/$cardVideoId/hqdefault.jpg"
 
-                    // Skip ultra-long mix > 20 mins or short < 30 secs
-                    if (durationSec > 1200 || durationSec < 30) continue
+                            tracks.add(
+                                Track(
+                                    id = "yt-$cardVideoId",
+                                    title = cardTitle,
+                                    artist = cardArtist,
+                                    album = "YouTube Music Original",
+                                    duration = 210,
+                                    url = "$streamBase/api/stream?v=$cardVideoId",
+                                    coverUrl = cover,
+                                    isLiked = false,
+                                    isDownloaded = false,
+                                    isNationalNet = false,
+                                    collection = "YouTube Music"
+                                )
+                            )
+                        }
+                    }
 
-                    val coverUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+                    // 2. Check musicShelfRenderer contents (Song search results)
+                    val shelfContents = sec.optJSONObject("musicShelfRenderer")?.optJSONArray("contents")
+                        ?: sec.optJSONObject("itemSectionRenderer")?.optJSONArray("contents")
 
-                    tracks.add(
-                        Track(
-                            id = "yt-$videoId",
-                            title = rawTitle.replace(Regex("(?i)\\(official.*?\\)|\\[official.*?\\]"), "").trim(),
-                            artist = rawAuthor.replace(Regex("(?i) - Topic$| - Official$|VEVO$"), "").trim(),
-                            album = "YouTube Music",
-                            duration = durationSec,
-                            url = "https://www.youtube.com/watch?v=$videoId",
-                            coverUrl = coverUrl,
-                            isLiked = false,
-                            isDownloaded = false,
-                            isNationalNet = false,
-                            collection = "YouTube Music"
-                        )
-                    )
+                    if (shelfContents != null) {
+                        for (j in 0 until shelfContents.length()) {
+                            val r = shelfContents.optJSONObject(j)?.optJSONObject("musicResponsiveListItemRenderer") ?: continue
 
+                            val flexCols = r.optJSONArray("flexColumns") ?: continue
+                            val titleCol = flexCols.optJSONObject(0)
+                                ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
+                                ?.optJSONObject("text")?.optJSONArray("runs")
+                            val subCols = flexCols.optJSONObject(1)
+                                ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
+                                ?.optJSONObject("text")?.optJSONArray("runs")
+
+                            val title = titleCol?.let { runs ->
+                                (0 until runs.length()).joinToString("") { runs.getJSONObject(it).optString("text", "") }
+                            }?.trim() ?: ""
+
+                            val videoId = r.optJSONObject("playlistItemData")?.optString("videoId", "")
+                                ?.ifEmpty { null }
+                                ?: titleCol?.optJSONObject(0)?.optJSONObject("navigationEndpoint")
+                                    ?.optJSONObject("watchEndpoint")?.optString("videoId", "")
+                                ?: r.optJSONObject("overlay")?.optJSONObject("musicItemThumbnailOverlayRenderer")
+                                    ?.optJSONObject("content")?.optJSONObject("musicPlayButtonRenderer")
+                                    ?.optJSONObject("playNavigationEndpoint")?.optJSONObject("watchEndpoint")
+                                    ?.optString("videoId", "")
+                                ?: ""
+
+                            if (videoId.isEmpty() || title.isEmpty() || seenVideoIds.contains(videoId)) continue
+                            seenVideoIds.add(videoId)
+
+                            var artist = "Artist"
+                            var durationSec = 210
+                            if (subCols != null) {
+                                for (k in 0 until subCols.length()) {
+                                    val txt = subCols.getJSONObject(k).optString("text", "").trim()
+                                    if (txt == "•" || txt.isEmpty()) continue
+                                    if (txt.contains(":")) {
+                                        durationSec = parseDurationText(txt)
+                                    } else if (artist == "Artist" && !txt.contains("views") && !txt.contains("plays")) {
+                                        artist = txt
+                                    }
+                                }
+                            }
+
+                            val thumbs = r.optJSONObject("thumbnail")?.optJSONObject("musicThumbnailRenderer")
+                                ?.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
+                            val cover = thumbs?.optJSONObject(thumbs.length() - 1)?.optString("url", "")
+                                ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+
+                            tracks.add(
+                                Track(
+                                    id = "yt-$videoId",
+                                    title = title,
+                                    artist = artist,
+                                    album = "YouTube Music",
+                                    duration = durationSec,
+                                    url = "$streamBase/api/stream?v=$videoId",
+                                    coverUrl = cover,
+                                    isLiked = false,
+                                    isDownloaded = false,
+                                    isNationalNet = false,
+                                    collection = "YouTube Music"
+                                )
+                            )
+
+                            if (tracks.size >= limit) break
+                        }
+                    }
                     if (tracks.size >= limit) break
                 }
-                if (tracks.size >= limit) break
             }
 
             tracks
@@ -225,64 +325,16 @@ object OnlineMusicService {
     }
 
     /**
-     * Resolves YouTube video stream to direct audio stream URL.
+     * Resolves YouTube video stream to direct audio stream URL through the stream proxy.
      */
-    suspend fun resolveYouTubeStream(videoId: String): String? = withContext(Dispatchers.IO) {
+    suspend fun resolveYouTubeStream(videoId: String): String = withContext(Dispatchers.IO) {
         val cached = youtubeStreamCache[videoId]
         if (cached != null) return@withContext cached
 
-        // 1. Probe local dev proxy first (/api/stream-info?v=...)
-        val backend = probeBackendHost()
-        if (backend != null) {
-            try {
-                val req = Request.Builder()
-                    .url("$backend/api/stream-info?v=$videoId")
-                    .build()
-                val res = client.newCall(req).execute()
-                if (res.isSuccessful) {
-                    val json = JSONObject(res.body?.string() ?: "")
-                    val streamUrl = json.optString("url", "")
-                    if (streamUrl.isNotEmpty()) {
-                        youtubeStreamCache[videoId] = streamUrl
-                        return@withContext streamUrl
-                    }
-                }
-            } catch (_: Exception) {}
-
-            // Fallback direct stream endpoint on proxy
-            val proxyStream = "$backend/api/stream?v=$videoId"
-            youtubeStreamCache[videoId] = proxyStream
-            return@withContext proxyStream
-        }
-
-        // 2. Query public fast fallback stream resolvers
-        val fallbackResolvers = listOf(
-            "https://pipedapi.kavin.rocks/streams/$videoId",
-            "https://api.piped.yt/streams/$videoId"
-        )
-
-        for (endpoint in fallbackResolvers) {
-            try {
-                val req = Request.Builder()
-                    .url(endpoint)
-                    .header("User-Agent", USER_AGENT)
-                    .build()
-                val res = client.newCall(req).execute()
-                if (res.isSuccessful) {
-                    val json = JSONObject(res.body?.string() ?: "")
-                    val audioStreams = json.optJSONArray("audioStreams")
-                    if (audioStreams != null && audioStreams.length() > 0) {
-                        val best = audioStreams.getJSONObject(0).optString("url", "")
-                        if (best.isNotEmpty()) {
-                            youtubeStreamCache[videoId] = best
-                            return@withContext best
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
-        }
-
-        null
+        val backend = probeBackendHost() ?: "http://192.168.1.57:3000"
+        val proxyStream = "$backend/api/stream?v=$videoId"
+        youtubeStreamCache[videoId] = proxyStream
+        proxyStream
     }
 
     /**
@@ -427,6 +479,7 @@ object OnlineMusicService {
     suspend fun resolveTrackAudio(track: Track): Track = withContext(Dispatchers.IO) {
         if (track.url.endsWith(".mp3", ignoreCase = true) ||
             track.url.contains(".mp3?", ignoreCase = true) ||
+            track.url.contains("/api/stream?v=") ||
             track.url.contains("googlevideo.com") ||
             track.url.startsWith("content://") ||
             track.url.startsWith("file://")
@@ -443,9 +496,7 @@ object OnlineMusicService {
             }
 
             val ytStream = resolveYouTubeStream(videoId)
-            if (ytStream != null) {
-                return@withContext track.copy(url = ytStream)
-            }
+            return@withContext track.copy(url = ytStream)
         }
 
         // MusicDel MP3 post resolution

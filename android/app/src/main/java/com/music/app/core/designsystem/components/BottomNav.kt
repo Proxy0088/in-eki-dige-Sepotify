@@ -79,7 +79,15 @@ fun BottomNav(
         contentAlignment = Alignment.Center
     ) {
         LiquidGlassSurface(
-            modifier = Modifier.height(52.dp),
+            modifier = Modifier
+                .height(52.dp)
+                .clip(CircleShape)
+                .animateContentSize(
+                    animationSpec = spring(
+                        stiffness = 450f,
+                        dampingRatio = 0.78f
+                    )
+                ),
             hazeState = hazeState,
             shape = CircleShape,
             variant = LiquidGlassVariant.Dock,
@@ -88,7 +96,7 @@ fun BottomNav(
         ) {
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 6.dp, vertical = 6.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -116,8 +124,9 @@ fun BottomNav(
 
                     val activePillModifier = if (isActive) {
                         Modifier
+                            .clip(CircleShape)
                             .shadow(
-                                elevation = 4.dp,
+                                elevation = 3.dp,
                                 shape = CircleShape,
                                 spotColor = Color.Black.copy(alpha = 0.25f)
                             )
@@ -162,9 +171,9 @@ fun BottomNav(
 
                     Box(
                         modifier = Modifier
-                            .height(40.dp)
+                            .height(38.dp)
                             .then(
-                                if (!isActive) Modifier.width(40.dp) else Modifier
+                                if (!isActive) Modifier.width(38.dp) else Modifier
                             )
                             .graphicsLayer {
                                 scaleX = tabScale
@@ -184,8 +193,8 @@ fun BottomNav(
                                 )
                             )
                             .padding(
-                                horizontal = if (isActive) 14.dp else 0.dp,
-                                vertical = 6.dp
+                                horizontal = if (isActive) 12.dp else 0.dp,
+                                vertical = 4.dp
                             ),
                         contentAlignment = Alignment.Center
                     ) {

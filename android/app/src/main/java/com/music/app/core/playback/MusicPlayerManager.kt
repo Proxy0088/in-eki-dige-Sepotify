@@ -103,6 +103,10 @@ class MusicPlayerManager(private val context: Context) {
                 }
                 updateProgress()
             }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                android.util.Log.e("MusicPlayerManager", "Playback error: ${error.errorCodeName} - ${error.message}", error)
+            }
         })
 
         _isPlaying.value = player.isPlaying
