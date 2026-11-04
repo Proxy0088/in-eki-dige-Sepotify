@@ -75,7 +75,7 @@ fun NetworkStatusToast(
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "اتصال اینترنت قطع شد • در انتظار اتصال مجدد...",
+                        text = "Internet connection lost • Reconnecting...",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = textColor
@@ -88,7 +88,7 @@ fun NetworkStatusToast(
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "اتصال اینترنت برقرار شد",
+                        text = "Internet connection restored",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = textColor

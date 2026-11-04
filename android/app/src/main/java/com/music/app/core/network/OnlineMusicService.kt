@@ -6,8 +6,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -18,12 +20,23 @@ import java.util.regex.Pattern
 object OnlineMusicService {
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(12, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(12, TimeUnit.SECONDS)
         .followRedirects(true)
         .build()
 
     private val postMp3Cache = ConcurrentHashMap<String, String>()
+    private val youtubeStreamCache = ConcurrentHashMap<String, String>()
+
+    // Candidate proxy backend hosts matching reference-web
+    private val CANDIDATE_HOSTS = listOf(
+        "http://127.0.0.1:3000",
+        "http://10.0.2.2:3000",
+        "http://192.168.1.57:3000"
+    )
+
+    @Volatile
+    private var detectedBackendHost: String? = null
 
     private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
@@ -44,7 +57,41 @@ object OnlineMusicService {
     }
 
     /**
-     * Main search function integrating MusicDel (Persian) and iTunes (International).
+     * Parse duration text like "3:45" or "1:02:15" to seconds.
+     */
+    private fun parseDurationText(text: String): Int {
+        val parts = text.split(":").mapNotNull { it.toIntOrNull() }
+        return when (parts.size) {
+            2 -> parts[0] * 60 + parts[1]
+            3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
+            else -> 210
+        }
+    }
+
+    /**
+     * Probes candidate backend hosts to detect active Vite proxy.
+     */
+    suspend fun probeBackendHost(): String? = withContext(Dispatchers.IO) {
+        val current = detectedBackendHost
+        if (current != null) return@withContext current
+
+        for (host in CANDIDATE_HOSTS) {
+            try {
+                val req = Request.Builder()
+                    .url("$host/api/health")
+                    .build()
+                val res = client.newCall(req).execute()
+                if (res.isSuccessful) {
+                    detectedBackendHost = host
+                    return@withContext host
+                }
+            } catch (_: Exception) {}
+        }
+        null
+    }
+
+    /**
+     * Main search function integrating YouTube Music & Full Audio Streams.
      */
     suspend fun search(query: String, isNationalNet: Boolean): List<Track> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
@@ -58,27 +105,184 @@ object OnlineMusicService {
             return@withContext filterVerifiedIranCatalog(trimmed)
         }
 
-        // International mode: query both concurrently
+        // International search: Query YouTube Music & MusicDel concurrently
         coroutineScope {
+            val ytDeferred = async { searchYouTube(trimmed) }
             val musicDelDeferred = async { searchMusicDel(trimmed) }
-            val itunesDeferred = async { searchItunes(trimmed) }
 
+            val ytResults = try { ytDeferred.await() } catch (e: Exception) { emptyList() }
             val musicDelResults = try { musicDelDeferred.await() } catch (e: Exception) { emptyList() }
-            val itunesResults = try { itunesDeferred.await() } catch (e: Exception) { emptyList() }
 
             val combined = mutableListOf<Track>()
             val isPersian = isPersianText(trimmed)
 
             if (isPersian) {
                 combined.addAll(musicDelResults)
-                combined.addAll(itunesResults)
+                combined.addAll(ytResults)
             } else {
-                combined.addAll(itunesResults)
+                combined.addAll(ytResults)
                 combined.addAll(musicDelResults)
             }
 
             combined
         }
+    }
+
+    /**
+     * Search genuine full-length YouTube songs using InnerTube API.
+     */
+    suspend fun searchYouTube(query: String, limit: Int = 12): List<Track> = withContext(Dispatchers.IO) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return@withContext emptyList()
+
+        try {
+            val url = "https://www.youtube.com/youtubei/v1/search"
+            val jsonPayload = JSONObject().apply {
+                put("context", JSONObject().apply {
+                    put("client", JSONObject().apply {
+                        put("clientName", "WEB")
+                        put("clientVersion", "2.20240101.00.00")
+                        put("hl", "en")
+                        put("gl", "US")
+                    })
+                })
+                put("query", trimmed)
+            }
+
+            val requestBody = jsonPayload.toString().toRequestBody("application/json".toMediaType())
+            val request = Request.Builder()
+                .url(url)
+                .post(requestBody)
+                .header("User-Agent", USER_AGENT)
+                .build()
+
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) return@withContext emptyList()
+
+            val body = response.body?.string() ?: return@withContext emptyList()
+            val root = JSONObject(body)
+            val tracks = mutableListOf<Track>()
+
+            val contents = root.optJSONObject("contents")
+                ?.optJSONObject("twoColumnSearchResultsRenderer")
+                ?.optJSONObject("primaryContents")
+                ?.optJSONObject("sectionListRenderer")
+                ?.optJSONArray("contents") ?: return@withContext emptyList()
+
+            for (i in 0 until contents.length()) {
+                val sec = contents.optJSONObject(i)?.optJSONObject("itemSectionRenderer") ?: continue
+                val items = sec.optJSONArray("contents") ?: continue
+
+                for (j in 0 until items.length()) {
+                    val v = items.optJSONObject(j)?.optJSONObject("videoRenderer") ?: continue
+                    val videoId = v.optString("videoId", "")
+                    if (videoId.isEmpty()) continue
+
+                    val titleRuns = v.optJSONObject("title")?.optJSONArray("runs")
+                    val rawTitle = titleRuns?.let { runs ->
+                        (0 until runs.length()).joinToString("") { runs.getJSONObject(it).optString("text", "") }
+                    } ?: "Track"
+
+                    val ownerRuns = v.optJSONObject("ownerText")?.optJSONArray("runs")
+                    val rawAuthor = ownerRuns?.let { runs ->
+                        (0 until runs.length()).joinToString("") { runs.getJSONObject(it).optString("text", "") }
+                    } ?: "Artist"
+
+                    val lengthText = v.optJSONObject("lengthText")?.optString("simpleText", "3:30") ?: "3:30"
+                    val durationSec = parseDurationText(lengthText)
+
+                    // Skip ultra-long mix > 20 mins or short < 30 secs
+                    if (durationSec > 1200 || durationSec < 30) continue
+
+                    val coverUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+
+                    tracks.add(
+                        Track(
+                            id = "yt-$videoId",
+                            title = rawTitle.replace(Regex("(?i)\\(official.*?\\)|\\[official.*?\\]"), "").trim(),
+                            artist = rawAuthor.replace(Regex("(?i) - Topic$| - Official$|VEVO$"), "").trim(),
+                            album = "YouTube Music",
+                            duration = durationSec,
+                            url = "https://www.youtube.com/watch?v=$videoId",
+                            coverUrl = coverUrl,
+                            isLiked = false,
+                            isDownloaded = false,
+                            isNationalNet = false,
+                            collection = "YouTube Music"
+                        )
+                    )
+
+                    if (tracks.size >= limit) break
+                }
+                if (tracks.size >= limit) break
+            }
+
+            tracks
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
+     * Resolves YouTube video stream to direct audio stream URL.
+     */
+    suspend fun resolveYouTubeStream(videoId: String): String? = withContext(Dispatchers.IO) {
+        val cached = youtubeStreamCache[videoId]
+        if (cached != null) return@withContext cached
+
+        // 1. Probe local dev proxy first (/api/stream-info?v=...)
+        val backend = probeBackendHost()
+        if (backend != null) {
+            try {
+                val req = Request.Builder()
+                    .url("$backend/api/stream-info?v=$videoId")
+                    .build()
+                val res = client.newCall(req).execute()
+                if (res.isSuccessful) {
+                    val json = JSONObject(res.body?.string() ?: "")
+                    val streamUrl = json.optString("url", "")
+                    if (streamUrl.isNotEmpty()) {
+                        youtubeStreamCache[videoId] = streamUrl
+                        return@withContext streamUrl
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // Fallback direct stream endpoint on proxy
+            val proxyStream = "$backend/api/stream?v=$videoId"
+            youtubeStreamCache[videoId] = proxyStream
+            return@withContext proxyStream
+        }
+
+        // 2. Query public fast fallback stream resolvers
+        val fallbackResolvers = listOf(
+            "https://pipedapi.kavin.rocks/streams/$videoId",
+            "https://api.piped.yt/streams/$videoId"
+        )
+
+        for (endpoint in fallbackResolvers) {
+            try {
+                val req = Request.Builder()
+                    .url(endpoint)
+                    .header("User-Agent", USER_AGENT)
+                    .build()
+                val res = client.newCall(req).execute()
+                if (res.isSuccessful) {
+                    val json = JSONObject(res.body?.string() ?: "")
+                    val audioStreams = json.optJSONArray("audioStreams")
+                    if (audioStreams != null && audioStreams.length() > 0) {
+                        val best = audioStreams.getJSONObject(0).optString("url", "")
+                        if (best.isNotEmpty()) {
+                            youtubeStreamCache[videoId] = best
+                            return@withContext best
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        null
     }
 
     /**
@@ -112,7 +316,6 @@ object OnlineMusicService {
                 val postUrl = item.optString("u", "")
                 val type = item.optString("tp", "")
 
-                // Skip artist categories; only single track posts
                 if (postUrl.isEmpty() || type == "artist" || postUrl.contains("/artist/") || postUrl.contains("/tag/")) {
                     continue
                 }
@@ -127,28 +330,27 @@ object OnlineMusicService {
                     rawImg.replace(Regex("-\\d+x\\d+(\\.[a-zA-Z0-9]+)$"), "$1")
                 } else null
 
-                // Extract post ID
                 val idMatch = Regex("single-tracks/(\\d+)").find(postUrl)
                 val id = idMatch?.groupValues?.get(1) ?: "musicdel-$i"
 
                 tracks.add(
                     Track(
                         id = "musicdel-$id",
-                        title = cleanTitle.ifEmpty { "آهنگ جدید" },
-                        artist = artist.ifEmpty { "موزیکدل" },
-                        album = "MusicDel",
+                        title = cleanTitle.ifEmpty { "Single Track" },
+                        artist = artist.ifEmpty { "Artist" },
+                        album = "MusicDel Original",
                         duration = 210,
-                        url = postUrl, // Will be resolved to direct MP3
+                        url = postUrl,
                         coverUrl = cleanCover,
                         isLiked = false,
                         isDownloaded = false,
                         isNationalNet = true,
-                        collection = "موزیکدل"
+                        collection = "National Net"
                     )
                 )
             }
 
-            // Pre-resolve direct 320kbps MP3s for top 3 candidates concurrently
+            // Pre-resolve top 3 tracks to direct MP3 URLs
             coroutineScope {
                 tracks.take(3).map { track ->
                     async {
@@ -197,7 +399,6 @@ object OnlineMusicService {
 
             val html = response.body?.string() ?: return@withContext null
 
-            // Find all MP3 links
             val mp3Pattern = Pattern.compile("""(?:data-url|href|src)=["']([^"']+\.mp3)["']""", Pattern.CASE_INSENSITIVE)
             val matcher = mp3Pattern.matcher(html)
             val mp3List = mutableListOf<String>()
@@ -211,7 +412,6 @@ object OnlineMusicService {
 
             if (mp3List.isEmpty()) return@withContext null
 
-            // Prefer 320kbps over 128kbps or 64kbps
             val bestMp3 = mp3List.find { it.contains("320") } ?: mp3List.first()
             postMp3Cache[postUrl] = bestMp3
             bestMp3
@@ -222,93 +422,33 @@ object OnlineMusicService {
     }
 
     /**
-     * Search official international songs and albums via Apple iTunes API.
-     */
-    suspend fun searchItunes(query: String, limit: Int = 15): List<Track> = withContext(Dispatchers.IO) {
-        val trimmed = query.trim()
-        if (trimmed.isEmpty()) return@withContext emptyList()
-
-        try {
-            val encodedQuery = URLEncoder.encode(trimmed, "UTF-8")
-            val url = "https://itunes.apple.com/search?term=$encodedQuery&entity=song&limit=$limit"
-
-            val request = Request.Builder()
-                .url(url)
-                .header("User-Agent", USER_AGENT)
-                .build()
-
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) return@withContext emptyList()
-
-            val body = response.body?.string() ?: return@withContext emptyList()
-            val jsonObject = JSONObject(body)
-            val results = jsonObject.optJSONArray("results") ?: return@withContext emptyList()
-            val tracks = mutableListOf<Track>()
-
-            for (i in 0 until results.length()) {
-                val item = results.optJSONObject(i) ?: continue
-                val trackId = item.optLong("trackId", 0L)
-                val trackName = item.optString("trackName", "")
-                val artistName = item.optString("artistName", "")
-                val collectionName = item.optString("collectionName", "Single")
-                val artworkUrl100 = item.optString("artworkUrl100", "")
-                val previewUrl = item.optString("previewUrl", "")
-                val durationMillis = item.optLong("trackTimeMillis", 180000L)
-                val primaryGenreName = item.optString("primaryGenreName", "").lowercase()
-
-                if (previewUrl.isEmpty() || trackName.isEmpty()) continue
-
-                // High-resolution artwork: replace 100x100 with 600x600
-                val coverUrl = if (artworkUrl100.isNotEmpty()) {
-                    artworkUrl100.replace("100x100bb.jpg", "600x600bb.jpg")
-                } else null
-
-                val mood = when {
-                    primaryGenreName.contains("rock") || primaryGenreName.contains("electronic") ||
-                    primaryGenreName.contains("hip-hop") || primaryGenreName.contains("rap") -> MoodType.GAMING
-                    primaryGenreName.contains("classical") || primaryGenreName.contains("ambient") -> MoodType.FOCUS
-                    primaryGenreName.contains("acoustic") || primaryGenreName.contains("jazz") -> MoodType.CHILL
-                    else -> MoodType.FEELS_GOOD
-                }
-
-                tracks.add(
-                    Track(
-                        id = "itunes-$trackId",
-                        title = trackName,
-                        artist = artistName,
-                        album = collectionName,
-                        duration = (durationMillis / 1000).toInt(),
-                        url = previewUrl, // Direct high-quality preview stream
-                        coverUrl = coverUrl,
-                        mood = mood,
-                        isLiked = false,
-                        isDownloaded = false,
-                        isNationalNet = false,
-                        collection = "iTunes Music"
-                    )
-                )
-            }
-
-            tracks
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-
-    /**
-     * Upgrades a track if needed by resolving its post URL into a direct playable MP3.
+     * Upgrades a track by resolving its audio stream URL (YouTube or MusicDel).
      */
     suspend fun resolveTrackAudio(track: Track): Track = withContext(Dispatchers.IO) {
         if (track.url.endsWith(".mp3", ignoreCase = true) ||
             track.url.contains(".mp3?", ignoreCase = true) ||
-            track.url.contains("audio-ssl.itunes.apple.com") ||
+            track.url.contains("googlevideo.com") ||
             track.url.startsWith("content://") ||
             track.url.startsWith("file://")
         ) {
             return@withContext track
         }
 
+        // YouTube video stream resolution
+        if (track.id.startsWith("yt-") || track.url.contains("youtube.com")) {
+            val videoId = if (track.id.startsWith("yt-")) {
+                track.id.removePrefix("yt-")
+            } else {
+                track.url.substringAfter("v=").substringBefore("&")
+            }
+
+            val ytStream = resolveYouTubeStream(videoId)
+            if (ytStream != null) {
+                return@withContext track.copy(url = ytStream)
+            }
+        }
+
+        // MusicDel MP3 post resolution
         if (track.url.startsWith("https://musicdel.ir") || track.url.contains("single-tracks")) {
             val directMp3 = resolveMusicDelMp3(track.url)
             if (directMp3 != null) {
@@ -331,51 +471,51 @@ object OnlineMusicService {
     val VERIFIED_IRAN_TRACKS = listOf(
         Track(
             id = "iran-verified-1",
-            title = "بی تو هرگز",
-            artist = "شادمهر عقیلی",
-            album = "آهنگ‌های ماندگار",
+            title = "Bi To Hargez",
+            artist = "Shadmehr Aghili",
+            album = "Golden Hits",
             duration = 254,
             url = "https://archive.org/download/ShadmehrAghili-BiToHargez_12/ShadmehrAghili-BiToHargez.mp3",
             mood = MoodType.FEELS_GOOD,
             coverUrl = "https://archive.org/services/img/ShadmehrAghili-BiToHargez_12",
             isNationalNet = true,
-            collection = "نت ملی"
+            collection = "National Net"
         ),
         Track(
             id = "iran-verified-2",
-            title = "خیلی دلم ازت پره",
-            artist = "محسن یگانه",
-            album = "رگ خواب",
+            title = "Kheyli Delam Azat Pore",
+            artist = "Mohsen Yeganeh",
+            album = "Rage Khab",
             duration = 242,
             url = "https://archive.org/download/MohsenYeganeh-KheyliDelamAzatPore/MohsenYeganeh-KheyliDelamAzatPore.mp3",
             mood = MoodType.CHILL,
             coverUrl = "https://archive.org/services/img/MohsenYeganeh-KheyliDelamAzatPore",
             isNationalNet = true,
-            collection = "نت ملی"
+            collection = "National Net"
         ),
         Track(
             id = "iran-verified-3",
-            title = "قرص‌های خواب‌آور",
-            artist = "محسن یگانه",
-            album = "حباب",
+            title = "Ghorshaye Khab Avar",
+            artist = "Mohsen Yeganeh",
+            album = "Hobab",
             duration = 218,
             url = "https://archive.org/download/MohsenYeganeh-GhorshayeKhabAvar/MohsenYeganeh-GhorshayeKhabAvar.mp3",
             mood = MoodType.FOCUS,
             coverUrl = "https://archive.org/services/img/MohsenYeganeh-GhorshayeKhabAvar",
             isNationalNet = true,
-            collection = "نت ملی"
+            collection = "National Net"
         ),
         Track(
             id = "iran-verified-4",
-            title = "پر پرواز",
-            artist = "شادمهر عقیلی",
-            album = "پر پرواز",
+            title = "Pare Parvaz",
+            artist = "Shadmehr Aghili",
+            album = "Pare Parvaz",
             duration = 236,
             url = "https://archive.org/download/Shadmehr_Aghili_-_Pare_Parvaz/01_Pare_Parvaz.mp3",
             mood = MoodType.CHILL,
             coverUrl = "https://archive.org/services/img/Shadmehr_Aghili_-_Pare_Parvaz",
             isNationalNet = true,
-            collection = "نت ملی"
+            collection = "National Net"
         )
     )
 }

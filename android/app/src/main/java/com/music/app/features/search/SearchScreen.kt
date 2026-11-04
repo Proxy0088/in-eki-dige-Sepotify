@@ -196,9 +196,9 @@ fun SearchScreen(
                         if (query.isEmpty()) {
                             Text(
                                 text = when (searchMode) {
-                                    SearchMode.LOCAL -> "جست‌وجو در فایل‌های دانلود شده..."
-                                    SearchMode.NATIONAL_NET -> "جست‌وجو در موزیکدل (نت ملی)..."
-                                    SearchMode.ONLINE -> "جست‌وجوی آنلاین آهنگ یا خواننده..."
+                                    SearchMode.LOCAL -> "Search local & downloaded files..."
+                                    SearchMode.NATIONAL_NET -> "Search National Net catalog..."
+                                    SearchMode.ONLINE -> "Search songs, artists, albums..."
                                 },
                                 fontSize = 13.sp,
                                 color = Color(0xFF71717A)
@@ -362,7 +362,7 @@ fun SearchScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "در حال جستجوی آنلاین موزیک...",
+                        text = "Searching online music...",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFFA1A1A6)
@@ -404,7 +404,7 @@ fun SearchScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "نتیجه‌ای یافت نشد",
+                        text = "No tracks found",
                         fontSize = 13.sp,
                         color = Color(0xFF71717A)
                     )

@@ -124,42 +124,42 @@ val SAMPLE_PLAYLISTS = listOf(
     Playlist(
         id = "ambient",
         name = "Ambient",
-        nameFa = "امبینت",
+        nameFa = "Ambient",
         gradientColors = listOf(Color(0xFF6D28D9), Color(0xFF5B21B6), Color(0xFF1E1B4B)),
         borderColor = Color(0xFF8B5CF6).copy(alpha = 0.35f)
     ),
     Playlist(
         id = "rock",
         name = "Rock",
-        nameFa = "راک",
+        nameFa = "Rock",
         gradientColors = listOf(Color(0xFFDC2626), Color(0xFFBE123C), Color(0xFF450A0A)),
         borderColor = Color(0xFFF43F5E).copy(alpha = 0.35f)
     ),
     Playlist(
         id = "pop",
         name = "Pop Music",
-        nameFa = "پاپ",
+        nameFa = "Pop Music",
         gradientColors = listOf(Color(0xFF0284C7), Color(0xFF2563EB), Color(0xFF082F49)),
         borderColor = Color(0xFF38BDF8).copy(alpha = 0.35f)
     ),
     Playlist(
         id = "hiphop",
         name = "Hip Hop",
-        nameFa = "هیپ‌هاپ",
+        nameFa = "Hip Hop",
         gradientColors = listOf(Color(0xFF9333EA), Color(0xFFA21CAF), Color(0xFF312E81)),
         borderColor = Color(0xFFA855F7).copy(alpha = 0.35f)
     ),
     Playlist(
         id = "blues",
         name = "Blues",
-        nameFa = "بلوز",
+        nameFa = "Blues",
         gradientColors = listOf(Color(0xFF059669), Color(0xFF0F766E), Color(0xFF064E3B)),
         borderColor = Color(0xFF10B981).copy(alpha = 0.35f)
     ),
     Playlist(
         id = "electronic",
         name = "Electronic",
-        nameFa = "الکترونیک",
+        nameFa = "Electronic",
         gradientColors = listOf(Color(0xFFD97706), Color(0xFFC2410C), Color(0xFF451A03)),
         borderColor = Color(0xFFF59E0B).copy(alpha = 0.35f)
     )

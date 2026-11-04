@@ -1,6 +1,9 @@
 package com.music.app.features.player
 
+import android.graphics.drawable.BitmapDrawable
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -45,6 +48,7 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,12 +62,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.music.app.core.designsystem.components.LiquidGlassButton
 import com.music.app.core.designsystem.components.LiquidGlassSurface
 import com.music.app.core.designsystem.components.LiquidGlassVariant
@@ -71,6 +80,8 @@ import com.music.app.core.designsystem.theme.AudexFontFamily
 import com.music.app.core.model.Track
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 enum class RepeatModeState {
     OFF, ALL, ONE
@@ -79,14 +90,14 @@ enum class RepeatModeState {
 data class LyricsLine(val text: String, val timeMs: Long)
 
 val SampleLyrics = listOf(
-    LyricsLine("بوی گندم مال من، هرچی که دارم مال تو", 0),
-    LyricsLine("یه وجب خاک واسه من، تموم دنیا مال تو", 8000),
-    LyricsLine("اهل طاعونی این قبیله‌ی مشرقیم", 16000),
-    LyricsLine("تویی این مسافر شیشه‌ای شهر فرنگ", 24000),
-    LyricsLine("پوستم از جنس شبه، پوست تو از مخمل سرخ", 32000),
-    LyricsLine("رختم از تاوله، تن‌پوش تو از پوست پلنگ", 40000),
-    LyricsLine("بوی گندم مال من، هرچی که دارم مال تو", 48000),
-    LyricsLine("یه وجب خاک واسه من، تموم دنیا مال تو", 56000)
+    LyricsLine("Walking through the glowing lights at night", 0),
+    LyricsLine("Listening to the rhythm of the city sounds", 8000),
+    LyricsLine("Feel the bass vibrating through the ground", 16000),
+    LyricsLine("Lost inside the melody we found", 24000),
+    LyricsLine("Stars are shining bright above the sky", 32000),
+    LyricsLine("Every second passing slowly by", 40000),
+    LyricsLine("Walking through the glowing lights at night", 48000),
+    LyricsLine("Listening to the rhythm of the city sounds", 56000)
 )
 
 /**
@@ -109,6 +120,8 @@ fun FullScreenPlayer(
 ) {
     val playerHazeState = remember { HazeState() }
 
+    val context = LocalContext.current
+
     var isLiked by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
     var isShuffle by remember { mutableStateOf(false) }
@@ -116,7 +129,57 @@ fun FullScreenPlayer(
     var isDraggingSlider by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
 
-    val dominantColor = track.gradientColors.firstOrNull() ?: Color(0xFFF59E0B)
+    // Dynamic Artwork Palette Colors (smoothly transition when songs change)
+    val fallbackHue = (track.title.hashCode() and 0xFFFF) % 360f
+    var dynamicDominant by remember(track.id) { mutableStateOf(Color.hsl(fallbackHue, 0.70f, 0.45f)) }
+    var dynamicSecondary by remember(track.id) { mutableStateOf(Color.hsl((fallbackHue + 60f) % 360f, 0.85f, 0.55f)) }
+
+    LaunchedEffect(track.id, track.coverUrl) {
+        val cover = track.coverUrl
+        if (!cover.isNullOrEmpty()) {
+            try {
+                val loader = context.imageLoader
+                val request = ImageRequest.Builder(context)
+                    .data(cover)
+                    .allowHardware(false)
+                    .size(120, 120)
+                    .build()
+                val result = (loader.execute(request) as? SuccessResult)?.drawable
+                val bitmap = (result as? BitmapDrawable)?.bitmap
+                if (bitmap != null) {
+                    val palette = withContext(Dispatchers.Default) {
+                        Palette.from(bitmap).generate()
+                    }
+                    val dominant = palette.dominantSwatch?.rgb
+                        ?: palette.vibrantSwatch?.rgb
+                        ?: palette.mutedSwatch?.rgb
+                    val secondary = palette.vibrantSwatch?.rgb
+                        ?: palette.lightVibrantSwatch?.rgb
+                        ?: palette.darkVibrantSwatch?.rgb
+                        ?: palette.dominantSwatch?.rgb
+
+                    if (dominant != null) {
+                        dynamicDominant = Color(dominant)
+                    }
+                    if (secondary != null) {
+                        dynamicSecondary = Color(secondary)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    val animatedDominant by animateColorAsState(
+        targetValue = dynamicDominant,
+        animationSpec = tween(durationMillis = 750),
+        label = "dominant_color"
+    )
+    val animatedSecondary by animateColorAsState(
+        targetValue = dynamicSecondary,
+        animationSpec = tween(durationMillis = 750),
+        label = "secondary_color"
+    )
+
     val currentRatio = if (isDraggingSlider) {
         dragProgress
     } else {
@@ -151,7 +214,7 @@ fun FullScreenPlayer(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            brush = Brush.linearGradient(track.gradientColors)
+                            brush = Brush.linearGradient(listOf(animatedDominant, animatedSecondary, Color(0xFF07080B)))
                         )
                 ) {
                     if (!track.coverUrl.isNullOrEmpty()) {
@@ -180,9 +243,10 @@ fun FullScreenPlayer(
                 )
             }
 
-            // Ambient Floating Light Halos (Drifting across lower region)
+            // Ambient Floating Light Halos (Drifting across lower region with dynamic cover colors)
             AmbientHalos(
-                dominantColor = dominantColor,
+                dominantColor = animatedDominant,
+                secondaryColor = animatedSecondary,
                 modifier = Modifier.fillMaxSize()
             )
         }

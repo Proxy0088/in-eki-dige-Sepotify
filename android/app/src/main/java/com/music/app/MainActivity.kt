@@ -12,7 +12,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -38,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -241,13 +245,13 @@ fun MainAppScreen(
                 transitionSpec = {
                     val forward = targetState.ordinal > initialState.ordinal
                     (slideInHorizontally(
-                        initialOffsetX = { fullWidth -> if (forward) fullWidth / 3 else -fullWidth / 3 },
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.82f)
-                    ) + fadeIn(animationSpec = tween(220))) togetherWith
+                        initialOffsetX = { (if (forward) 1 else -1) * 80 },
+                        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(200))) togetherWith
                     (slideOutHorizontally(
-                        targetOffsetX = { fullWidth -> if (forward) -fullWidth / 3 else fullWidth / 3 },
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.82f)
-                    ) + fadeOut(animationSpec = tween(180)))
+                        targetOffsetX = { (if (forward) -1 else 1) * 80 },
+                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                    ) + fadeOut(animationSpec = tween(160)))
                 },
                 label = "screen_tab_switch",
                 modifier = Modifier.fillMaxSize()
@@ -346,45 +350,66 @@ fun MainAppScreen(
         )
 
         // ── Floating Mini Player Widget (Docked directly above BottomNav) ──
-        AnimatedVisibility(
-            visible = !isPlayerExpanded && displayCurrentTrack != null,
-            enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f)
-            ) + fadeIn(),
-            exit = slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f)
-            ) + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 80.dp)
-        ) {
-            WhenPlayingWidget(
-                currentTrack = displayCurrentTrack,
-                isPlaying = isPlaying,
-                progress = playbackProgress,
-                onTogglePlay = { playerManager.togglePlay() },
-                onNextTrack = { playerManager.skipToNext() },
-                onOpenPlayer = { isPlayerExpanded = true },
-                hazeState = rootHazeState
-            )
+        val showMiniPlayer = !isPlayerExpanded && displayCurrentTrack != null
+        val miniPlayerAlpha by animateFloatAsState(
+            targetValue = if (showMiniPlayer) 1f else 0f,
+            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+            label = "mini_player_alpha"
+        )
+        val miniPlayerSlideY by animateDpAsState(
+            targetValue = if (showMiniPlayer) 0.dp else 50.dp,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f),
+            label = "mini_player_slide"
+        )
+
+        if (displayCurrentTrack != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 80.dp)
+                    .graphicsLayer {
+                        alpha = miniPlayerAlpha
+                        translationY = miniPlayerSlideY.toPx()
+                    }
+            ) {
+                if (miniPlayerAlpha > 0.01f) {
+                    WhenPlayingWidget(
+                        currentTrack = displayCurrentTrack,
+                        isPlaying = isPlaying,
+                        progress = playbackProgress,
+                        onTogglePlay = { playerManager.togglePlay() },
+                        onNextTrack = { playerManager.skipToNext() },
+                        onOpenPlayer = { isPlayerExpanded = true },
+                        hazeState = rootHazeState
+                    )
+                }
+            }
         }
 
         // ── Bottom Glass Navigation Dock ──
-        AnimatedVisibility(
-            visible = !isPlayerExpanded,
-            enter = fadeIn(animationSpec = tween(180)),
-            exit = fadeOut(animationSpec = tween(140)),
-            modifier = Modifier.align(Alignment.BottomCenter)
+        val showBottomNav = !isPlayerExpanded
+        val bottomNavAlpha by animateFloatAsState(
+            targetValue = if (showBottomNav) 1f else 0f,
+            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+            label = "bottom_nav_alpha"
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .graphicsLayer {
+                    alpha = bottomNavAlpha
+                }
         ) {
-            BottomNav(
-                activeTab = activeTab,
-                onTabSelected = { activeTab = it },
-                isPlaying = isPlaying,
-                hazeState = rootHazeState
-            )
+            if (bottomNavAlpha > 0.01f) {
+                BottomNav(
+                    activeTab = activeTab,
+                    onTabSelected = { activeTab = it },
+                    isPlaying = isPlaying,
+                    hazeState = rootHazeState
+                )
+            }
         }
 
         // ── FullScreen Player (Animated Slide-up overlay with dedicated Haze) ──

@@ -65,35 +65,29 @@ fun WhenPlayingWidget(
     modifier: Modifier = Modifier,
     hazeState: HazeState? = null
 ) {
-    AnimatedVisibility(
-        visible = currentTrack != null,
-        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+    if (currentTrack == null) return
+
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Box(
         modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp)
     ) {
-        if (currentTrack == null) return@AnimatedVisibility
-
-        val interactionSource = remember { MutableInteractionSource() }
-
-        Box(
+        LiquidGlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp)
+                .height(60.dp)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onOpenPlayer
+                ),
+            hazeState = hazeState,
+            shape = CircleShape,
+            variant = LiquidGlassVariant.Dock,
+            showTopHighlight = true
         ) {
-            LiquidGlassSurface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onOpenPlayer
-                    ),
-                hazeState = hazeState,
-                shape = CircleShape,
-                variant = LiquidGlassVariant.Dock,
-                showTopHighlight = true
-            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
@@ -218,4 +212,3 @@ fun WhenPlayingWidget(
             }
         }
     }
-}

@@ -184,7 +184,7 @@ fun SocialAccountModal(
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
-                            text = "اکانت",
+                            text = "Account",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
@@ -215,7 +215,7 @@ fun SocialAccountModal(
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
-                            text = "رفیق‌ها",
+                            text = "Friends",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
@@ -246,7 +246,7 @@ fun SocialAccountModal(
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
-                            text = "گوشی",
+                            text = "Device",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
@@ -329,7 +329,7 @@ fun SocialAccountModal(
                                             modifier = Modifier.size(15.dp)
                                         )
                                         Text(
-                                            text = "موتور صوتی",
+                                            text = "Audio Engine",
                                             fontSize = 12.sp,
                                             color = Color.White.copy(alpha = 0.7f)
                                         )
@@ -359,13 +359,13 @@ fun SocialAccountModal(
                                             modifier = Modifier.size(15.dp)
                                         )
                                         Text(
-                                            text = "آهنگ‌های لایک‌شده",
+                                            text = "Liked Tracks",
                                             fontSize = 12.sp,
                                             color = Color.White.copy(alpha = 0.7f)
                                         )
                                     }
                                     Text(
-                                        text = "$likedCount آهنگ",
+                                        text = "$likedCount tracks",
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
@@ -389,13 +389,13 @@ fun SocialAccountModal(
                                             modifier = Modifier.size(15.dp)
                                         )
                                         Text(
-                                            text = "دانلودهای آفلاین",
+                                            text = "Offline Downloads",
                                             fontSize = 12.sp,
                                             color = Color.White.copy(alpha = 0.7f)
                                         )
                                     }
                                     Text(
-                                        text = "$downloadedCount ذخیره",
+                                        text = "$downloadedCount saved",
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
@@ -429,7 +429,7 @@ fun SocialAccountModal(
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Text(
-                                text = "گوش دادن با رفیق‌ها",
+                                text = "Listen with Friends",
                                 fontFamily = AudexFontFamily,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
@@ -437,7 +437,7 @@ fun SocialAccountModal(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "پخش موزیک به صورت همزمان با دوستان اطراف همگام می‌شود.",
+                                text = "Sync and listen to music simultaneously with friends nearby.",
                                 fontSize = 11.sp,
                                 textAlign = TextAlign.Center,
                                 color = Color.White.copy(alpha = 0.7f),
@@ -460,7 +460,7 @@ fun SocialAccountModal(
                             ) {
                                 Column {
                                     Text(
-                                        text = "کد نشست زنده",
+                                        text = "Live Session Code",
                                         fontSize = 10.sp,
                                         color = Color.White.copy(alpha = 0.6f)
                                     )
@@ -522,7 +522,7 @@ fun SocialAccountModal(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "نسخه ۱۰۰٪ بومی اندروید با کاتلین، جت‌پک کامپوز و بلور شیشه‌ای سخت‌افزاری بدون وب‌ویو.",
+                                text = "100% Native Android music player with Kotlin, Jetpack Compose and real hardware glass blur.",
                                 fontSize = 11.sp,
                                 textAlign = TextAlign.Center,
                                 color = Color.White.copy(alpha = 0.7f),

@@ -189,7 +189,7 @@ fun MusicRow(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "نت ملی",
+                                text = "National Net",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF34D399)

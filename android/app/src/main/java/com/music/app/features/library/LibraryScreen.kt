@@ -460,14 +460,14 @@ fun LibraryScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "این پلی‌لیست خالی است",
+                                text = "This playlist is empty",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFFA1A1A6)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "می‌توانید آهنگ‌ها را هنگام پخش به این پلی‌لیست اضافه کنید.",
+                                text = "You can add songs to this playlist while listening.",
                                 fontSize = 12.sp,
                                 color = Color(0xFF71717A)
                             )

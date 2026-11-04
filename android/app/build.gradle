@@ -68,6 +68,9 @@ dependencies {
     // Networking
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
+    // Palette (Dynamic Color Extraction from Album Art)
+    implementation 'androidx.palette:palette-ktx:1.0.0'
+
     // DataStore (Persistence)
     implementation 'androidx.datastore:datastore-preferences:1.1.1'
 
