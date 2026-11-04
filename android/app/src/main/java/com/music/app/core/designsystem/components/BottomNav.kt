@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -35,7 +34,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,11 +47,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.music.app.core.designsystem.theme.LocalIsDarkTheme
 import dev.chrisbanes.haze.HazeState
+import kotlin.math.roundToInt
 
 enum class NavTab(val title: String) {
     HOME("Home"),
@@ -71,6 +77,25 @@ fun BottomNav(
     isPlaying: Boolean = false
 ) {
     val isDark = LocalIsDarkTheme.current
+    val density = LocalDensity.current
+
+    // Tab position registry for the sliding active indicator
+    var tabOffsets by remember { mutableStateOf(mapOf<NavTab, Float>()) }
+    var tabWidths by remember { mutableStateOf(mapOf<NavTab, Float>()) }
+
+    val targetX = tabOffsets[activeTab] ?: 0f
+    val targetW = tabWidths[activeTab] ?: 0f
+
+    val animX by animateFloatAsState(
+        targetValue = targetX,
+        animationSpec = spring(stiffness = 420f, dampingRatio = 0.75f),
+        label = "pill_x"
+    )
+    val animW by animateFloatAsState(
+        targetValue = targetW,
+        animationSpec = spring(stiffness = 420f, dampingRatio = 0.75f),
+        label = "pill_w"
+    )
 
     Box(
         modifier = modifier
@@ -94,36 +119,18 @@ fun BottomNav(
             borderWidth = 1.dp,
             showTopHighlight = true
         ) {
-            Row(
+            Box(
                 modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 9.dp, vertical = 7.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
-                NavTab.entries.forEach { tab ->
-                    val isActive = activeTab == tab
-                    val label = tab.title
-                    val interactionSource = remember { MutableInteractionSource() }
-                    val isPressed by interactionSource.collectIsPressedAsState()
-
-                    val tabScale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.92f else 1f,
-                        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.65f),
-                        label = "tab_scale"
-                    )
-
-                    val iconTint by animateColorAsState(
-                        targetValue = if (isActive) {
-                            if (isDark) Color.White else Color(0xFF0F172A)
-                        } else {
-                            if (isDark) Color(0xFFB8B8BE) else Color(0xFF64748B)
-                        },
-                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                        label = "iconTint"
-                    )
-
-                    val activePillModifier = if (isActive) {
-                        Modifier
+                // ── Animated Sliding Liquid Active Pill ──
+                if (animW > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(animX.roundToInt(), 0) }
+                            .width(with(density) { animW.toDp() })
+                            .height(38.dp)
                             .clip(CircleShape)
                             .shadow(
                                 elevation = 3.dp,
@@ -147,6 +154,7 @@ fun BottomNav(
                                 shape = CircleShape
                             )
                             .drawBehind {
+                                // Meniscus specular highlight line
                                 drawLine(
                                     brush = Brush.horizontalGradient(
                                         colors = listOf(
@@ -165,110 +173,141 @@ fun BottomNav(
                                 color = if (isDark) Color.White.copy(alpha = 0.24f) else Color(0x330F172A),
                                 shape = CircleShape
                             )
-                    } else {
-                        Modifier
-                    }
+                    )
+                }
 
-                    Box(
-                        modifier = Modifier
-                            .height(38.dp)
-                            .then(
-                                if (!isActive) Modifier.width(38.dp) else Modifier
-                            )
-                            .graphicsLayer {
-                                scaleX = tabScale
-                                scaleY = tabScale
-                            }
-                            .clip(CircleShape)
-                            .then(activePillModifier)
-                            .clickable(
-                                interactionSource = interactionSource,
-                                indication = null,
-                                onClick = { onTabSelected(tab) }
-                            )
-                            .animateContentSize(
-                                animationSpec = spring(
-                                    stiffness = 450f,
-                                    dampingRatio = 0.78f
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    NavTab.entries.forEach { tab ->
+                        val isActive = activeTab == tab
+                        val label = tab.title
+                        val interactionSource = remember { MutableInteractionSource() }
+                        val isPressed by interactionSource.collectIsPressedAsState()
+
+                        val tabScale by animateFloatAsState(
+                            targetValue = if (isPressed) 0.92f else 1f,
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.65f),
+                            label = "tab_scale"
+                        )
+
+                        val iconTint by animateColorAsState(
+                            targetValue = if (isActive) {
+                                if (isDark) Color.White else Color(0xFF0F172A)
+                            } else {
+                                if (isDark) Color(0xFFB8B8BE) else Color(0xFF64748B)
+                            },
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                            label = "iconTint"
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .height(38.dp)
+                                .then(
+                                    if (!isActive) Modifier.width(38.dp) else Modifier
                                 )
-                            )
-                            .padding(
-                                horizontal = if (isActive) 12.dp else 0.dp,
-                                vertical = 4.dp
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                                .graphicsLayer {
+                                    scaleX = tabScale
+                                    scaleY = tabScale
+                                }
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = interactionSource,
+                                    indication = null,
+                                    onClick = { onTabSelected(tab) }
+                                )
+                                .onGloballyPositioned { coordinates ->
+                                    val pos = coordinates.positionInParent()
+                                    val size = coordinates.size
+                                    tabOffsets = tabOffsets + (tab to pos.x)
+                                    tabWidths = tabWidths + (tab to size.width.toFloat())
+                                }
+                                .animateContentSize(
+                                    animationSpec = spring(
+                                        stiffness = 450f,
+                                        dampingRatio = 0.78f
+                                    )
+                                )
+                                .padding(
+                                    horizontal = if (isActive) 12.dp else 0.dp,
+                                    vertical = 4.dp
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            // Icon with optional playing indicator dot
-                            Box(contentAlignment = Alignment.Center) {
-                                when (tab) {
-                                    NavTab.HOME -> {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Home,
-                                            contentDescription = label,
-                                            tint = iconTint,
-                                            modifier = Modifier.size(19.dp)
-                                        )
-                                        if (isPlaying) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .align(Alignment.TopEnd)
-                                                    .offset(x = 2.dp, y = (-2).dp)
-                                                    .shadow(
-                                                        elevation = 4.dp,
-                                                        shape = CircleShape,
-                                                        spotColor = Color(0xFF22D3EE)
-                                                    )
-                                                    .background(Color(0xFF22D3EE), CircleShape)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                // Icon with optional playing indicator dot
+                                Box(contentAlignment = Alignment.Center) {
+                                    when (tab) {
+                                        NavTab.HOME -> {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Home,
+                                                contentDescription = label,
+                                                tint = iconTint,
+                                                modifier = Modifier.size(19.dp)
+                                            )
+                                            if (isPlaying) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .align(Alignment.TopEnd)
+                                                        .offset(x = 2.dp, y = (-2).dp)
+                                                        .shadow(
+                                                            elevation = 4.dp,
+                                                            shape = CircleShape,
+                                                            spotColor = Color(0xFF22D3EE)
+                                                        )
+                                                        .background(Color(0xFF22D3EE), CircleShape)
+                                                )
+                                            }
+                                        }
+                                        NavTab.SEARCH -> {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Search,
+                                                contentDescription = label,
+                                                tint = iconTint,
+                                                modifier = Modifier.size(19.dp)
+                                            )
+                                        }
+                                        NavTab.LIBRARY -> {
+                                            LucideLibraryIcon(
+                                                tint = iconTint,
+                                                modifier = Modifier.size(19.dp)
                                             )
                                         }
                                     }
-                                    NavTab.SEARCH -> {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Search,
-                                            contentDescription = label,
-                                            tint = iconTint,
-                                            modifier = Modifier.size(19.dp)
-                                        )
-                                    }
-                                    NavTab.LIBRARY -> {
-                                        LucideLibraryIcon(
-                                            tint = iconTint,
-                                            modifier = Modifier.size(19.dp)
-                                        )
-                                    }
                                 }
-                            }
 
-                            // Animated Label for Active Tab
-                            AnimatedVisibility(
-                                visible = isActive,
-                                enter = fadeIn(animationSpec = tween(140)) + expandHorizontally(
-                                    animationSpec = spring(
-                                        stiffness = 450f,
-                                        dampingRatio = 0.78f
+                                // Animated Label for Active Tab
+                                AnimatedVisibility(
+                                    visible = isActive,
+                                    enter = fadeIn(animationSpec = tween(140)) + expandHorizontally(
+                                        animationSpec = spring(
+                                            stiffness = 450f,
+                                            dampingRatio = 0.78f
+                                        )
+                                    ),
+                                    exit = fadeOut(animationSpec = tween(100)) + shrinkHorizontally(
+                                        animationSpec = spring(
+                                            stiffness = 450f,
+                                            dampingRatio = 0.78f
+                                        )
                                     )
-                                ),
-                                exit = fadeOut(animationSpec = tween(100)) + shrinkHorizontally(
-                                    animationSpec = spring(
-                                        stiffness = 450f,
-                                        dampingRatio = 0.78f
-                                    )
-                                )
-                            ) {
-                                Row {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = label,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = if (isDark) Color.White else Color(0xFF0F172A),
-                                        letterSpacing = (-0.2).sp
-                                    )
+                                ) {
+                                    Row {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = label,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isDark) Color.White else Color(0xFF0F172A),
+                                            letterSpacing = (-0.2).sp
+                                        )
+                                    }
                                 }
                             }
                         }
