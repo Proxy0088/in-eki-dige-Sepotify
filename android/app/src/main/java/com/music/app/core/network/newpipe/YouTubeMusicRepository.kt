@@ -674,12 +674,12 @@ object YouTubeMusicRepository {
     suspend fun searchSongs(query: String, limit: Int = 18): List<Track> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return@withContext emptyList()
-        Log.i(TAG, "searchSongs initiated for '$trimmed'")
+        Log.e(TAG, "searchSongs initiated for '$trimmed'")
 
         val normalizedQueryKey = normalizeText(trimmed)
         val cached = searchCache[normalizedQueryKey]
         if (cached != null && (System.currentTimeMillis() - cached.timestamp < CACHE_TTL_MS)) {
-            Log.i(TAG, "searchSongs returning from cache: ${cached.results.size} tracks")
+            Log.e(TAG, "searchSongs returning from cache: ${cached.results.size} tracks")
             return@withContext cached.results
         }
 
@@ -687,9 +687,11 @@ object YouTubeMusicRepository {
             ensureActive()
             // 1. Primary path: Robust NewPipe search without restrictive filters
             var results = try {
-                searchNewPipe(trimmed, limit)
+                val np = searchNewPipe(trimmed, limit)
+                Log.e(TAG, "searchNewPipe returned ${np.size} tracks")
+                np
             } catch (e: Exception) {
-                Log.w(TAG, "NewPipe search attempt failed, trying InnerTube fallback: ${e.message}")
+                Log.e(TAG, "NewPipe search attempt failed, trying InnerTube fallback: ${e.message}", e)
                 emptyList()
             }
 
@@ -697,14 +699,16 @@ object YouTubeMusicRepository {
             if (results.isEmpty()) {
                 ensureActive()
                 results = try {
-                    searchInnerTube(trimmed, limit)
+                    val it = searchInnerTube(trimmed, limit)
+                    Log.e(TAG, "searchInnerTube returned ${it.size} tracks")
+                    it
                 } catch (e: Exception) {
-                    Log.w(TAG, "InnerTube fallback failed: ${e.message}")
+                    Log.e(TAG, "InnerTube fallback failed: ${e.message}", e)
                     emptyList()
                 }
             }
 
-            Log.i(TAG, "searchSongs finished for '$trimmed', found ${results.size} tracks")
+            Log.e(TAG, "searchSongs finished for '$trimmed', found ${results.size} tracks")
             if (results.isNotEmpty()) {
                 searchCache[normalizedQueryKey] = CachedResults(results)
             }

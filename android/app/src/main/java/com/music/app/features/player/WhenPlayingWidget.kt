@@ -1,6 +1,9 @@
 package com.music.app.features.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -8,6 +11,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,6 +73,28 @@ fun WhenPlayingWidget(
     if (currentTrack == null) return
 
     val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val widgetScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.975f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.7f),
+        label = "whenPlayingScale"
+    )
+
+    val playInteraction = remember { MutableInteractionSource() }
+    val isPlayPressed by playInteraction.collectIsPressedAsState()
+    val playScale by animateFloatAsState(
+        targetValue = if (isPlayPressed) 0.88f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.65f),
+        label = "playScale"
+    )
+
+    val nextInteraction = remember { MutableInteractionSource() }
+    val isNextPressed by nextInteraction.collectIsPressedAsState()
+    val nextScale by animateFloatAsState(
+        targetValue = if (isNextPressed) 0.88f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.65f),
+        label = "nextScale"
+    )
 
     Box(
         modifier = modifier
@@ -78,6 +105,10 @@ fun WhenPlayingWidget(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp)
+                .graphicsLayer {
+                    scaleX = widgetScale
+                    scaleY = widgetScale
+                }
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -160,9 +191,17 @@ fun WhenPlayingWidget(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
+                                .graphicsLayer {
+                                    scaleX = playScale
+                                    scaleY = playScale
+                                }
                                 .clip(CircleShape)
                                 .background(Color(0xFFEDEDED))
-                                .clickable { onTogglePlay() },
+                                .clickable(
+                                    interactionSource = playInteraction,
+                                    indication = null,
+                                    onClick = onTogglePlay
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -177,9 +216,17 @@ fun WhenPlayingWidget(
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
+                                .graphicsLayer {
+                                    scaleX = nextScale
+                                    scaleY = nextScale
+                                }
                                 .clip(CircleShape)
                                 .background(Color.White.copy(alpha = 0.08f))
-                                .clickable { onNextTrack() },
+                                .clickable(
+                                    interactionSource = nextInteraction,
+                                    indication = null,
+                                    onClick = onNextTrack
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(

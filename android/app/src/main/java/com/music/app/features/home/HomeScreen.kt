@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +60,7 @@ fun HomeScreen(
     onPlayTrack: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
     onToggleDownload: (Track) -> Unit,
+    onAddToPlaylist: ((Track) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var selectedGenre by remember { mutableStateOf<String?>(null) }
@@ -548,18 +550,49 @@ fun HomeScreen(
         }
 
         // ── 5. Fully Virtualized Song Items (Zero Main Thread Lock / Butter Smooth) ──
-        items(
-            items = filteredTracks,
-            key = { it.id }
-        ) { track ->
-            MusicRow(
-                track = track,
-                isPlaying = isPlaying,
-                isCurrent = currentTrack?.id == track.id,
-                onPlay = onPlayTrack,
-                onToggleLike = onToggleLike,
-                onToggleDownload = onToggleDownload
-            )
+        if (filteredTracks.isEmpty()) {
+            item(key = "empty_home_tracks") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF14161F))
+                        .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(20.dp))
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "No songs played yet",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFEDEDED)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Search and stream any music online to build your recents!",
+                            fontSize = 12.sp,
+                            color = Color(0xFFA1A1A6),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        } else {
+            items(
+                items = filteredTracks,
+                key = { it.id }
+            ) { track ->
+                MusicRow(
+                    track = track,
+                    isPlaying = isPlaying,
+                    isCurrent = currentTrack?.id == track.id,
+                    onPlay = onPlayTrack,
+                    onToggleLike = { onAddToPlaylist?.invoke(it) ?: onToggleLike(it) },
+                    onToggleDownload = onToggleDownload,
+                    onMoreClick = onAddToPlaylist
+                )
+            }
         }
     }
 }

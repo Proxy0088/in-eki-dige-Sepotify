@@ -1,5 +1,6 @@
 package com.music.app.core.network
 
+import android.util.Log
 import com.music.app.core.model.MoodType
 import com.music.app.core.model.Track
 import com.music.app.core.network.newpipe.StreamResolver
@@ -55,6 +56,8 @@ object OnlineMusicService {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return@withContext emptyList()
 
+        Log.e("OnlineMusicService", "search initiated: query='$trimmed', isNationalNet=$isNationalNet")
+
         if (isNationalNet) {
             val musicDelResults = searchMusicDel(trimmed)
             if (musicDelResults.isNotEmpty()) {
@@ -66,6 +69,7 @@ object OnlineMusicService {
         // Online mode:
         // 1. Official iTunes catalog search (100% precision for Persian, English, and international music)
         val itunesTracks = searchITunes(trimmed, limit = 15)
+        Log.e("OnlineMusicService", "searchITunes returned: ${itunesTracks.size} tracks")
         if (itunesTracks.isNotEmpty()) {
             // Silently pre-match top tracks in background so taps are instantaneous
             coroutineScope {
@@ -79,7 +83,9 @@ object OnlineMusicService {
         }
 
         // 2. Fallback to YouTubeMusicRepository
-        YouTubeMusicRepository.searchSongs(trimmed)
+        val ytTracks = YouTubeMusicRepository.searchSongs(trimmed)
+        Log.e("OnlineMusicService", "YouTubeMusicRepository returned: ${ytTracks.size} tracks")
+        ytTracks
     }
 
     /**
@@ -100,11 +106,15 @@ object OnlineMusicService {
                 .build()
 
             val response = client.newCall(request).execute()
-            if (!response.isSuccessful) return@withContext emptyList()
+            if (!response.isSuccessful) {
+                android.util.Log.e("OnlineMusicService", "searchITunes HTTP failure: code=${response.code}")
+                return@withContext emptyList()
+            }
 
             val body = response.body?.string() ?: return@withContext emptyList()
             val jsonObject = org.json.JSONObject(body)
             val jsonArray = jsonObject.optJSONArray("results") ?: return@withContext emptyList()
+            android.util.Log.e("OnlineMusicService", "searchITunes raw JSON results count: ${jsonArray.length()}")
             val tracks = mutableListOf<Track>()
 
             for (i in 0 until jsonArray.length()) {
@@ -141,6 +151,7 @@ object OnlineMusicService {
             }
             tracks
         } catch (e: Exception) {
+            android.util.Log.e("OnlineMusicService", "searchITunes exception: ${e.message}", e)
             emptyList()
         }
     }

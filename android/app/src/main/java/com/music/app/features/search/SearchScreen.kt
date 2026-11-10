@@ -71,7 +71,10 @@ import com.music.app.core.designsystem.components.MusicRow
 import com.music.app.core.model.MoodType
 import com.music.app.core.model.Track
 import com.music.app.core.network.OnlineMusicService
-import kotlinx.coroutines.delay
+import androidx.compose.material.icons.filled.History
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 
 private val CATEGORY_CHIPS = listOf("All", "Ambient", "Electronic", "Pop", "Rock", "Classical", "Lo-Fi")
 
@@ -89,6 +92,11 @@ fun SearchScreen(
     onPlayTrack: (Track, List<Track>) -> Unit,
     onToggleLike: (Track) -> Unit,
     onToggleDownload: (Track) -> Unit,
+    onAddToPlaylist: ((Track) -> Unit)? = null,
+    recentSearches: List<String> = emptyList(),
+    onSaveSearchQuery: ((String) -> Unit)? = null,
+    onRemoveRecentSearch: ((String) -> Unit)? = null,
+    onClearRecentSearches: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var query by remember { mutableStateOf("") }
@@ -118,20 +126,28 @@ fun SearchScreen(
 
         isSearching = true
         searchError = null
-        delay(350)
+        kotlinx.coroutines.delay(350)
 
-        android.util.Log.i("SearchScreen", "Triggering OnlineMusicService.search('$trimmed', mode=$searchMode)")
+        android.util.Log.e("SearchScreen", "Triggering OnlineMusicService.search('$trimmed', mode=$searchMode)")
         try {
             val results = OnlineMusicService.search(trimmed, searchMode == SearchMode.NATIONAL_NET)
             onlineResults = results
             searchError = null
-            android.util.Log.i("SearchScreen", "Search returned ${results.size} tracks")
+            if (results.isNotEmpty()) {
+                onSaveSearchQuery?.invoke(trimmed)
+            }
+            android.util.Log.e("SearchScreen", "Search returned ${results.size} tracks")
+        } catch (e: CancellationException) {
+            // Rethrow coroutine cancellation so typing does NOT set an error state
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("SearchScreen", "Search exception", e)
             searchError = e.message ?: "Unable to load search results"
             onlineResults = emptyList()
         } finally {
-            isSearching = false
+            if (currentCoroutineContext().isActive) {
+                isSearching = false
+            }
         }
     }
 
@@ -361,6 +377,86 @@ fun SearchScreen(
         }
 
         // ── Search State (Loading / Results / Error / Empty) ──
+        if (query.isEmpty() && recentSearches.isNotEmpty()) {
+            item(key = "recent_searches_section") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = null,
+                                tint = Color(0xFF22D3EE),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Recent Searches",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFEDEDED)
+                            )
+                        }
+
+                        if (onClearRecentSearches != null) {
+                            Text(
+                                text = "Clear",
+                                fontSize = 12.sp,
+                                color = Color(0xFF22D3EE),
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable { onClearRecentSearches() }
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(recentSearches) { q ->
+                            Row(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                                    .clickable { query = q }
+                                    .padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = q,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFEDEDED)
+                                )
+                                if (onRemoveRecentSearch != null) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove",
+                                        tint = Color(0xFFA1A1A6),
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clickable { onRemoveRecentSearch(q) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         if (isSearching && displayTracks.isEmpty()) {
             item(key = "loading_search") {
                 val containerShape = RoundedCornerShape(24.dp)
@@ -388,7 +484,7 @@ fun SearchScreen(
                     )
                 }
             }
-        } else if (searchError != null && displayTracks.isEmpty()) {
+        } else if (!isSearching && searchError != null && displayTracks.isEmpty()) {
             item(key = "error_search") {
                 val containerShape = RoundedCornerShape(24.dp)
                 Column(
@@ -450,8 +546,9 @@ fun SearchScreen(
                     isPlaying = isPlaying,
                     isCurrent = currentTrack?.id == track.id,
                     onPlay = { selected -> onPlayTrack(selected, displayTracks) },
-                    onToggleLike = onToggleLike,
-                    onToggleDownload = onToggleDownload
+                    onToggleLike = { onAddToPlaylist?.invoke(it) ?: onToggleLike(it) },
+                    onToggleDownload = onToggleDownload,
+                    onMoreClick = onAddToPlaylist
                 )
             }
         } else {

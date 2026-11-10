@@ -59,14 +59,15 @@ import com.music.app.core.designsystem.components.NetworkStatusToast
 import com.music.app.core.designsystem.components.TopCapsule
 import com.music.app.core.designsystem.theme.SepotifyTheme
 import com.music.app.core.media.MediaStoreScanner
-import com.music.app.core.model.SAMPLE_TRACKS
 import com.music.app.core.model.Track
 import com.music.app.core.playback.MusicPlayerManager
 import com.music.app.features.home.HomeScreen
 import com.music.app.features.library.AskListLibraryModal
 import com.music.app.features.library.LibraryScreen
 import com.music.app.features.player.FullScreenPlayer
+import com.music.app.features.player.LyricsSheet
 import com.music.app.features.player.WhenPlayingWidget
+import com.music.app.features.playlist.AddToPlaylistSheet
 import com.music.app.features.search.SearchScreen
 import com.music.app.features.settings.SettingsModal
 import com.music.app.features.social.SocialAccountModal
@@ -150,19 +151,38 @@ fun MainAppScreen(
 
     // Collect preferences from DataStore
     val likedIds by prefsRepo.likedTrackIds.collectAsStateWithLifecycle(initialValue = emptySet())
+    val downloadedIds by prefsRepo.downloadedTrackIds.collectAsStateWithLifecycle(initialValue = emptySet())
+    val recentPlayedTracks by prefsRepo.recentPlayedTracks.collectAsStateWithLifecycle(initialValue = emptyList())
+    val recentSearches by prefsRepo.recentSearchQueries.collectAsStateWithLifecycle(initialValue = emptyList())
+    val playlistsMap by prefsRepo.playlistsMap.collectAsStateWithLifecycle(initialValue = emptyMap())
+    val userLibraries by prefsRepo.userLibraries.collectAsStateWithLifecycle(initialValue = emptyList())
     val isNationalNet by prefsRepo.isNationalNet.collectAsStateWithLifecycle(initialValue = false)
     val networkStatus by remember { mutableStateOf(NetworkStatus.IDLE) }
 
-    // Modals visibility
+    // Modals & Sheets visibility
     var showSettingsModal by remember { mutableStateOf(false) }
     var showSocialModal by remember { mutableStateOf(false) }
     var showAskListModal by remember { mutableStateOf(false) }
+    var trackForPlaylistDialog by remember { mutableStateOf<Track?>(null) }
+    var showLyricsSheet by remember { mutableStateOf(false) }
 
     // Single stable Root HazeState covering the entire screen content
     val rootHazeState = remember { HazeState() }
 
     // Dynamic track list allowing like, download, and local MediaStore additions
-    val tracksList = remember { mutableStateListOf<Track>().apply { addAll(SAMPLE_TRACKS) } }
+    val tracksList = remember { mutableStateListOf<Track>() }
+
+    // Populate tracksList from persistent recentPlayedTracks
+    LaunchedEffect(recentPlayedTracks) {
+        if (recentPlayedTracks.isNotEmpty()) {
+            val currentIds = tracksList.map { it.id }.toSet()
+            val toAdd = recentPlayedTracks.filterNot { currentIds.contains(it.id) }
+            if (toAdd.isNotEmpty()) {
+                tracksList.addAll(0, toAdd)
+            }
+        }
+    }
+
     val displayCurrentTrack = activePlayingTrack ?: tracksList.firstOrNull()
 
     fun loadLocalTracks() {
@@ -221,18 +241,23 @@ fun MainAppScreen(
         }
     }
 
-    // Synchronize liked state in tracksList
-    val syncedTracksList = remember(tracksList.toList(), likedIds) {
+    // Synchronize liked & downloaded state in tracksList
+    val syncedTracksList = remember(tracksList.toList(), likedIds, downloadedIds) {
         tracksList.map { track ->
-            track.copy(isLiked = likedIds.contains(track.id))
+            track.copy(
+                isLiked = likedIds.contains(track.id),
+                isDownloaded = downloadedIds.contains(track.id)
+            )
         }
     }
 
     val likedCount = syncedTracksList.count { it.isLiked }
     val downloadedCount = syncedTracksList.count { it.isDownloaded }
 
-    BackHandler(enabled = isPlayerExpanded || showSettingsModal || showSocialModal || showAskListModal) {
+    BackHandler(enabled = isPlayerExpanded || showSettingsModal || showSocialModal || showAskListModal || trackForPlaylistDialog != null || showLyricsSheet) {
         when {
+            showLyricsSheet -> showLyricsSheet = false
+            trackForPlaylistDialog != null -> trackForPlaylistDialog = null
             showAskListModal -> showAskListModal = false
             showSettingsModal -> showSettingsModal = false
             showSocialModal -> showSocialModal = false
@@ -303,16 +328,17 @@ fun MainAppScreen(
                             currentTrack = displayCurrentTrack,
                             isPlaying = isPlaying,
                             onPlayTrack = { track ->
+                                scope.launch { prefsRepo.addRecentTrack(track) }
                                 playerManager.playTrack(track, syncedTracksList)
                             },
                             onToggleLike = { track ->
                                 scope.launch { prefsRepo.toggleLike(track.id) }
                             },
                             onToggleDownload = { track ->
-                                val idx = tracksList.indexOfFirst { it.id == track.id }
-                                if (idx >= 0) {
-                                    tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
-                                }
+                                scope.launch { prefsRepo.toggleDownload(track.id) }
+                            },
+                            onAddToPlaylist = { track ->
+                                trackForPlaylistDialog = track
                             }
                         )
                     }
@@ -326,16 +352,27 @@ fun MainAppScreen(
                                 if (!tracksList.any { it.id == track.id }) {
                                     tracksList.add(0, track)
                                 }
+                                scope.launch { prefsRepo.addRecentTrack(track) }
                                 playerManager.playTrack(track, queue)
                             },
                             onToggleLike = { track ->
                                 scope.launch { prefsRepo.toggleLike(track.id) }
                             },
                             onToggleDownload = { track ->
-                                val idx = tracksList.indexOfFirst { it.id == track.id }
-                                if (idx >= 0) {
-                                    tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
-                                }
+                                scope.launch { prefsRepo.toggleDownload(track.id) }
+                            },
+                            onAddToPlaylist = { track ->
+                                trackForPlaylistDialog = track
+                            },
+                            recentSearches = recentSearches,
+                            onSaveSearchQuery = { query ->
+                                scope.launch { prefsRepo.addRecentSearchQuery(query) }
+                            },
+                            onRemoveRecentSearch = { query ->
+                                scope.launch { prefsRepo.removeRecentSearchQuery(query) }
+                            },
+                            onClearRecentSearches = {
+                                scope.launch { prefsRepo.clearRecentSearches() }
                             }
                         )
                     }
@@ -346,16 +383,22 @@ fun MainAppScreen(
                             currentTrack = displayCurrentTrack,
                             isPlaying = isPlaying,
                             onPlayTrack = { track ->
+                                scope.launch { prefsRepo.addRecentTrack(track) }
                                 playerManager.playTrack(track, syncedTracksList)
                             },
                             onToggleLike = { track ->
                                 scope.launch { prefsRepo.toggleLike(track.id) }
                             },
                             onToggleDownload = { track ->
-                                val idx = tracksList.indexOfFirst { it.id == track.id }
-                                if (idx >= 0) {
-                                    tracksList[idx] = tracksList[idx].copy(isDownloaded = !tracksList[idx].isDownloaded)
-                                }
+                                scope.launch { prefsRepo.toggleDownload(track.id) }
+                            },
+                            onAddToPlaylist = { track ->
+                                trackForPlaylistDialog = track
+                            },
+                            playlistsMap = playlistsMap,
+                            userLibraries = userLibraries.toSet(),
+                            onCreatePlaylist = { name ->
+                                scope.launch { prefsRepo.createPlaylist(name) }
                             }
                         )
                     }
@@ -475,12 +518,15 @@ fun MainAppScreen(
                     onTogglePlay = { playerManager.togglePlay() },
                     onNextTrack = { playerManager.skipToNext() },
                     onPreviousTrack = { playerManager.skipToPrevious() },
-                    onSeek = { playerManager.seekToProgress(it) }
+                    onSeek = { playerManager.seekToProgress(it) },
+                    onAddToPlaylist = { track ->
+                        trackForPlaylistDialog = track
+                    }
                 )
             }
         }
 
-        // ── Modals Layer ──
+        // ── Modals & Liquid Glass Sheets Layer ──
         SocialAccountModal(
             isOpen = showSocialModal,
             onClose = { showSocialModal = false },
@@ -508,5 +554,42 @@ fun MainAppScreen(
             onClose = { showAskListModal = false },
             onSelectLibrary = { /* handled */ }
         )
+
+        // ── Liquid Glass "Add to Playlist / Favorites" Animated Sheet ──
+        if (trackForPlaylistDialog != null) {
+            AddToPlaylistSheet(
+                track = trackForPlaylistDialog,
+                isLiked = trackForPlaylistDialog?.let { likedIds.contains(it.id) } ?: false,
+                isDownloaded = trackForPlaylistDialog?.let { downloadedIds.contains(it.id) } ?: false,
+                playlists = userLibraries.toSet(),
+                playlistsMap = playlistsMap,
+                onToggleLike = { track ->
+                    scope.launch { prefsRepo.toggleLike(track.id) }
+                },
+                onToggleDownload = { track ->
+                    scope.launch { prefsRepo.toggleDownload(track.id) }
+                },
+                onTogglePlaylist = { playlistName, track ->
+                    scope.launch { prefsRepo.toggleTrackInPlaylist(playlistName, track) }
+                },
+                onCreatePlaylist = { newName ->
+                    scope.launch { prefsRepo.createPlaylist(newName) }
+                },
+                onDismiss = { trackForPlaylistDialog = null },
+                hazeState = rootHazeState
+            )
+        }
+
+        // ── Liquid Glass Synchronized Lyrics Sheet ──
+        if (showLyricsSheet && displayCurrentTrack != null) {
+            LyricsSheet(
+                track = displayCurrentTrack,
+                currentTimeSec = (currentPositionMs / 1000).toInt(),
+                durationSec = displayCurrentTrack.duration,
+                onSeek = { playerManager.seekToProgress(it) },
+                onDismiss = { showLyricsSheet = false },
+                hazeState = rootHazeState
+            )
+        }
     }
 }

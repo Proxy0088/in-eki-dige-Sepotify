@@ -31,6 +31,41 @@ data class Track(
             val secs = duration % 60
             return "%d:%02d".format(mins, secs)
         }
+
+    fun toJson(): org.json.JSONObject = org.json.JSONObject().apply {
+        put("id", id)
+        put("title", title)
+        put("artist", artist)
+        put("album", album)
+        put("duration", duration)
+        put("url", url)
+        put("coverUrl", coverUrl ?: "")
+        put("isLiked", isLiked)
+        put("isDownloaded", isDownloaded)
+        put("collection", collection)
+        put("dateAdded", dateAdded)
+        put("isNationalNet", isNationalNet)
+    }
+
+    companion object {
+        fun fromJson(obj: org.json.JSONObject): Track {
+            val cover = obj.optString("coverUrl", "").takeIf { it.isNotEmpty() }
+            return Track(
+                id = obj.getString("id"),
+                title = obj.getString("title"),
+                artist = obj.getString("artist"),
+                album = obj.optString("album", ""),
+                duration = obj.optInt("duration", 180),
+                url = obj.optString("url", ""),
+                coverUrl = cover,
+                isLiked = obj.optBoolean("isLiked", false),
+                isDownloaded = obj.optBoolean("isDownloaded", false),
+                collection = obj.optString("collection", "recents"),
+                dateAdded = obj.optLong("dateAdded", System.currentTimeMillis()),
+                isNationalNet = obj.optBoolean("isNationalNet", false)
+            )
+        }
+    }
 }
 
 data class Playlist(

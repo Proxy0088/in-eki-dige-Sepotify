@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -78,6 +79,8 @@ import com.music.app.core.designsystem.components.LiquidGlassSurface
 import com.music.app.core.designsystem.components.LiquidGlassVariant
 import com.music.app.core.designsystem.theme.AudexFontFamily
 import com.music.app.core.model.Track
+import com.music.app.core.network.LyricsService
+import com.music.app.core.network.TrackLyrics
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import kotlinx.coroutines.Dispatchers
@@ -116,18 +119,30 @@ fun FullScreenPlayer(
     onNextTrack: () -> Unit,
     onPreviousTrack: () -> Unit,
     onSeek: (Float) -> Unit,
+    onAddToPlaylist: ((Track) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val playerHazeState = remember { HazeState() }
 
     val context = LocalContext.current
 
-    var isLiked by remember { mutableStateOf(false) }
+    var isLiked by remember(track.id, track.isLiked) { mutableStateOf(track.isLiked) }
     var showLyrics by remember { mutableStateOf(false) }
     var isShuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatModeState.OFF) }
     var isDraggingSlider by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
+
+    var realLyrics by remember(track.id) { mutableStateOf<TrackLyrics?>(null) }
+    var isLoadingLyrics by remember(track.id) { mutableStateOf(false) }
+
+    LaunchedEffect(track.id, showLyrics) {
+        if (showLyrics && realLyrics == null) {
+            isLoadingLyrics = true
+            realLyrics = LyricsService.getLyrics(track.artist, track.title, durationSec)
+            isLoadingLyrics = false
+        }
+    }
 
     // Dynamic Artwork Palette Colors (smoothly transition when songs change)
     val fallbackHue = (track.title.hashCode() and 0xFFFF) % 360f
@@ -339,23 +354,70 @@ fun FullScreenPlayer(
                         hazeState = playerHazeState
                     ) {
                         val listState = rememberLazyListState()
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            itemsIndexed(SampleLyrics) { index, line ->
-                                val isCurrent = index == 1 // sample highlight
+                        val lyricLines = realLyrics?.lines ?: emptyList()
+                        val curMs = currentTimeSec * 1000L
+
+                        val activeIdx = remember(curMs, lyricLines) {
+                            if (lyricLines.isEmpty()) -1
+                            else {
+                                var found = -1
+                                for (i in lyricLines.indices.reversed()) {
+                                    if (curMs >= lyricLines[i].timeMs) {
+                                        found = i
+                                        break
+                                    }
+                                }
+                                if (found == -1 && lyricLines.isNotEmpty()) 0 else found
+                            }
+                        }
+
+                        LaunchedEffect(activeIdx) {
+                            if (activeIdx >= 0 && activeIdx < lyricLines.size) {
+                                val target = (activeIdx - 2).coerceAtLeast(0)
+                                listState.animateScrollToItem(target)
+                            }
+                        }
+
+                        if (isLoadingLyrics) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(28.dp),
+                                    color = Color(0xFF22D3EE),
+                                    strokeWidth = 2.5.dp
+                                )
+                            }
+                        } else if (lyricLines.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = line.text,
-                                    fontSize = if (isCurrent) 20.sp else 16.sp,
-                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isCurrent) Color.White else Color(0xFF71717A),
+                                    text = "No lyrics available for this song",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFFA1A1A6),
                                     textAlign = TextAlign.Center
                                 )
+                            }
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                itemsIndexed(lyricLines) { index, line ->
+                                    val isCurrent = index == activeIdx
+                                    Text(
+                                        text = line.text,
+                                        fontSize = if (isCurrent) 21.sp else 16.sp,
+                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isCurrent) Color(0xFF22D3EE) else Color(0xFF71717A),
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable { onSeek(line.timeSec) }
+                                            .padding(vertical = 4.dp, horizontal = 8.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -398,9 +460,15 @@ fun FullScreenPlayer(
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // Like Button (ClearGlass)
+                        // Like / Add to Playlist Button (ClearGlass)
                         LiquidGlassButton(
-                            onClick = { isLiked = !isLiked },
+                            onClick = {
+                                if (onAddToPlaylist != null) {
+                                    onAddToPlaylist(track)
+                                } else {
+                                    isLiked = !isLiked
+                                }
+                            },
                             size = 44.dp,
                             icon = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                             tint = if (isLiked) Color(0xFFF43F5E) else Color.White,

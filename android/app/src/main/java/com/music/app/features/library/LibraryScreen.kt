@@ -72,16 +72,22 @@ fun LibraryScreen(
     onPlayTrack: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
     onToggleDownload: (Track) -> Unit,
+    onAddToPlaylist: ((Track) -> Unit)? = null,
+    playlistsMap: Map<String, List<Track>> = emptyMap(),
+    userLibraries: Set<String> = emptySet(),
+    onCreatePlaylist: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val collections = remember {
-        mutableStateListOf(
+    val collections = remember(userLibraries) {
+        val base = mutableListOf(
             LibraryCollection("liked", "Liked Songs", isLiked = true),
-            LibraryCollection("downloads", "Downloads", isDownloads = true),
-            LibraryCollection("library 1", "Chill Waves"),
-            LibraryCollection("library 2", "Gaming Sessions"),
-            LibraryCollection("recents", "Recent Grooves")
+            LibraryCollection("downloads", "Downloads", isDownloads = true)
         )
+        val customLibs = if (userLibraries.isNotEmpty()) userLibraries else setOf("Chill Waves", "Gaming Sessions", "Recent Grooves")
+        customLibs.forEach { name ->
+            base.add(LibraryCollection(name.lowercase(), name))
+        }
+        mutableStateListOf<LibraryCollection>().apply { addAll(base) }
     }
 
     var selectedCollection by remember { mutableStateOf<LibraryCollection?>(null) }
@@ -94,7 +100,11 @@ fun LibraryScreen(
         return when {
             col.isLiked -> tracks.filter { it.isLiked }
             col.isDownloads -> tracks.filter { it.isDownloaded }
-            else -> tracks.filter { it.collection.equals(col.name, ignoreCase = true) || it.collection.equals(col.id, ignoreCase = true) }
+            else -> {
+                val fromMap = playlistsMap[col.name] ?: emptyList()
+                if (fromMap.isNotEmpty()) fromMap
+                else tracks.filter { it.collection.equals(col.name, ignoreCase = true) || it.collection.equals(col.id, ignoreCase = true) }
+            }
         }
     }
 
@@ -435,8 +445,9 @@ fun LibraryScreen(
                             isPlaying = isPlaying,
                             isCurrent = currentTrack?.id == track.id,
                             onPlay = onPlayTrack,
-                            onToggleLike = onToggleLike,
-                            onToggleDownload = onToggleDownload
+                            onToggleLike = { onAddToPlaylist?.invoke(it) ?: onToggleLike(it) },
+                            onToggleDownload = onToggleDownload,
+                            onMoreClick = onAddToPlaylist
                         )
                     }
                 } else {
@@ -514,6 +525,7 @@ fun LibraryScreen(
                         val trimmed = newPlaylistName.trim()
                         if (trimmed.isNotEmpty()) {
                             collections.add(LibraryCollection(trimmed.lowercase(), trimmed))
+                            onCreatePlaylist?.invoke(trimmed)
                             newPlaylistName = ""
                             showCreateDialog = false
                         }
