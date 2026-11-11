@@ -63,6 +63,7 @@ fun TopCapsule(
             hazeState = hazeState,
             shape = RoundedCornerShape(36.dp),
             variant = LiquidGlassVariant.Dock,
+            blurRadius = 14.dp,
             showTopHighlight = true
         ) {
             Row(

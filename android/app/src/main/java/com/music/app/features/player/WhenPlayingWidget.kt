@@ -117,6 +117,7 @@ fun WhenPlayingWidget(
             hazeState = hazeState,
             shape = CircleShape,
             variant = LiquidGlassVariant.Dock,
+            blurRadius = 14.dp,
             showTopHighlight = true
         ) {
                 Row(

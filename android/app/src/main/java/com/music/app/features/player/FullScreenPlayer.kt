@@ -3,6 +3,9 @@ package com.music.app.features.player
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,8 +15,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -61,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -144,6 +150,7 @@ fun FullScreenPlayer(
     onNextTrack: () -> Unit,
     onPreviousTrack: () -> Unit,
     onSeek: (Float) -> Unit,
+    onSeekToMs: ((Long) -> Unit)? = null,
     onAddToPlaylist: ((Track) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -380,7 +387,7 @@ fun FullScreenPlayer(
                             .fillMaxHeight(0.75f),
                         shape = RoundedCornerShape(26.dp),
                         variant = LiquidGlassVariant.Card,
-                        blurRadius = 32.dp,
+                        blurRadius = 25.dp,
                         customBaseColor = Color(0xDE0B0E17),
                         borderWidth = 1.dp,
                         hazeState = playerHazeState
@@ -449,7 +456,14 @@ fun FullScreenPlayer(
                                         letterSpacing = if (isCurrent) 0.2.sp else 0.sp,
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
-                                            .clickable { onSeek(line.timeSec) }
+                                            .clickable {
+                                                if (onSeekToMs != null) {
+                                                    onSeekToMs(line.timeMs)
+                                                } else {
+                                                    val safeDurationMs = durationSec.coerceAtLeast(1) * 1000f
+                                                    onSeek((line.timeMs / safeDurationMs).coerceIn(0f, 0.999f))
+                                                }
+                                            }
                                             .padding(vertical = 4.dp, horizontal = 8.dp)
                                     )
                                 }
@@ -654,20 +668,13 @@ fun FullScreenPlayer(
                     )
 
                     // Main Play/Pause Capsule Pill (ClearGlass - Halos shine through!)
-                    LiquidGlassSurface(
+                    ClearGlassPillButton(
+                        onClick = onTogglePlay,
+                        hazeState = playerHazeState,
                         modifier = Modifier
                             .weight(1f)
-                            .height(56.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onTogglePlay
-                            ),
-                        hazeState = playerHazeState,
-                        shape = CircleShape,
-                        variant = LiquidGlassVariant.ClearGlass,
-                        borderWidth = 1.dp,
-                        showTopHighlight = true
+                            .height(56.dp),
+                        pressedScale = 0.93f
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize(),
@@ -712,18 +719,12 @@ fun FullScreenPlayer(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     // Shuffle (ClearGlass)
-                    LiquidGlassSurface(
+                    ClearGlassPillButton(
+                        onClick = { isShuffle = !isShuffle },
+                        hazeState = playerHazeState,
                         modifier = Modifier
                             .weight(1f)
                             .height(44.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { isShuffle = !isShuffle }
-                            ),
-                        hazeState = playerHazeState,
-                        shape = CircleShape,
-                        variant = LiquidGlassVariant.ClearGlass
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Icon(
@@ -736,18 +737,12 @@ fun FullScreenPlayer(
                     }
 
                     // Audio Mode (ClearGlass)
-                    LiquidGlassSurface(
+                    ClearGlassPillButton(
+                        onClick = { /* audio mode */ },
+                        hazeState = playerHazeState,
                         modifier = Modifier
                             .weight(1.3f)
                             .height(44.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { /* audio mode */ }
-                            ),
-                        hazeState = playerHazeState,
-                        shape = CircleShape,
-                        variant = LiquidGlassVariant.ClearGlass
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize(),
@@ -772,24 +767,18 @@ fun FullScreenPlayer(
                     }
 
                     // Repeat Cycle (ClearGlass)
-                    LiquidGlassSurface(
+                    ClearGlassPillButton(
+                        onClick = {
+                            repeatMode = when (repeatMode) {
+                                RepeatModeState.OFF -> RepeatModeState.ALL
+                                RepeatModeState.ALL -> RepeatModeState.ONE
+                                RepeatModeState.ONE -> RepeatModeState.OFF
+                            }
+                        },
+                        hazeState = playerHazeState,
                         modifier = Modifier
                             .weight(1f)
                             .height(44.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {
-                                    repeatMode = when (repeatMode) {
-                                        RepeatModeState.OFF -> RepeatModeState.ALL
-                                        RepeatModeState.ALL -> RepeatModeState.ONE
-                                        RepeatModeState.ONE -> RepeatModeState.OFF
-                                    }
-                                }
-                            ),
-                        hazeState = playerHazeState,
-                        shape = CircleShape,
-                        variant = LiquidGlassVariant.ClearGlass
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Icon(
@@ -807,4 +796,44 @@ fun FullScreenPlayer(
             }
         }
     }
+}
+
+/**
+ * Capsule ClearGlass button with the same tactile spring press bounce as [LiquidGlassButton].
+ */
+@Composable
+private fun ClearGlassPillButton(
+    onClick: () -> Unit,
+    hazeState: HazeState,
+    modifier: Modifier = Modifier,
+    pressedScale: Float = 0.91f,
+    showTopHighlight: Boolean = true,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) pressedScale else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = 0.65f),
+        label = "pill_btn_scale"
+    )
+
+    LiquidGlassSurface(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        hazeState = hazeState,
+        shape = CircleShape,
+        variant = LiquidGlassVariant.ClearGlass,
+        borderWidth = 1.dp,
+        showTopHighlight = showTopHighlight,
+        content = content
+    )
 }

@@ -22,3 +22,11 @@
 -dontwarn org.mozilla.javascript.**
 -dontwarn org.schabi.newpipe.extractor.**
 
+# App models & networking
+-keep class com.music.app.core.model.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
+

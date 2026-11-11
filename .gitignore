@@ -11,3 +11,12 @@ unslop/
 reference-web/
 android-compose-backup/
 skills/
+.agents/
+skills-lock.json
+ECC-2.2.3/
+Sepotify/
+*.jks
+*.keystore
+keystore.properties
+local.properties
+*.apk

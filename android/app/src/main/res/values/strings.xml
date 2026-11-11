@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Music Player</string>
-    <string name="title_activity_main">Music Player</string>
-    <string name="package_name">com.music.app</string>
-    <string name="custom_url_scheme">com.music.app</string>
+    <string name="app_name">Sepotify</string>
+    <string name="title_activity_main">Sepotify</string>
+    <string name="package_name">com.sepotify.app</string>
+    <string name="custom_url_scheme">com.sepotify.app</string>
 </resources>

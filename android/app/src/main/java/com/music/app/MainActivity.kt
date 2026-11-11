@@ -519,6 +519,7 @@ fun MainAppScreen(
                     onNextTrack = { playerManager.skipToNext() },
                     onPreviousTrack = { playerManager.skipToPrevious() },
                     onSeek = { playerManager.seekToProgress(it) },
+                    onSeekToMs = { playerManager.seekToPositionMs(it) },
                     onAddToPlaylist = { track ->
                         trackForPlaylistDialog = track
                     }
@@ -587,6 +588,7 @@ fun MainAppScreen(
                 currentTimeSec = (currentPositionMs / 1000).toInt(),
                 durationSec = displayCurrentTrack.duration,
                 onSeek = { playerManager.seekToProgress(it) },
+                onSeekToMs = { playerManager.seekToPositionMs(it) },
                 onDismiss = { showLyricsSheet = false },
                 hazeState = rootHazeState
             )

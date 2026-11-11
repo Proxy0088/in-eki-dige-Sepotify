@@ -75,6 +75,7 @@ fun LyricsSheet(
     currentTimeSec: Int,
     durationSec: Int,
     onSeek: (Float) -> Unit,
+    onSeekToMs: ((Long) -> Unit)? = null,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     hazeState: HazeState? = null
@@ -146,7 +147,7 @@ fun LyricsSheet(
                 hazeState = hazeState,
                 shape = RoundedCornerShape(32.dp),
                 variant = LiquidGlassVariant.Card,
-                blurRadius = 32.dp,
+                blurRadius = 25.dp,
                 customBaseColor = Color(0xDE0B0E17),
                 borderWidth = 1.dp,
                 showTopHighlight = true
@@ -308,7 +309,12 @@ fun LyricsSheet(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(14.dp))
                                         .clickable {
-                                            onSeek(line.timeSec)
+                                            if (onSeekToMs != null) {
+                                                onSeekToMs(line.timeMs)
+                                            } else {
+                                                val safeDurationMs = durationSec.coerceAtLeast(1) * 1000f
+                                                onSeek((line.timeMs / safeDurationMs).coerceIn(0f, 0.999f))
+                                            }
                                         }
                                         .padding(vertical = 8.dp, horizontal = 12.dp)
                                 ) {

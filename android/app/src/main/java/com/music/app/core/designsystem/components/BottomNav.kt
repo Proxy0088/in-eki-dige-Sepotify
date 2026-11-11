@@ -84,6 +84,7 @@ fun BottomNav(
             hazeState = hazeState,
             shape = CircleShape,
             variant = LiquidGlassVariant.Dock,
+            blurRadius = 14.dp,
             borderWidth = 1.dp,
             showTopHighlight = true
         ) {

@@ -263,11 +263,28 @@ class MusicPlayerManager(private val context: Context) {
 
     fun seekToProgress(progress: Float) {
         val player = controller ?: return
-        val duration = player.duration.coerceAtLeast(1L)
-        val targetPos = (progress * duration).toLong()
+        val safeProgress = progress.coerceIn(0f, 0.999f)
+        val duration = player.duration
+        if (duration <= 0L) return
+        val targetPos = (safeProgress * duration).toLong()
         player.seekTo(targetPos)
-        _progress.value = progress
+        _progress.value = safeProgress
         _currentPositionMs.value = targetPos
+    }
+
+    fun seekToPositionMs(positionMs: Long) {
+        val player = controller ?: return
+        val duration = player.duration
+        val targetPos = if (duration > 0L) {
+            positionMs.coerceIn(0L, (duration - 250L).coerceAtLeast(0L))
+        } else {
+            positionMs.coerceAtLeast(0L)
+        }
+        player.seekTo(targetPos)
+        _currentPositionMs.value = targetPos
+        if (duration > 0L) {
+            _progress.value = (targetPos.toFloat() / duration.toFloat()).coerceIn(0f, 0.999f)
+        }
     }
 
     fun toggleShuffle() {
