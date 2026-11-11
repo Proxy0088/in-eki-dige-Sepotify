@@ -1,15 +1,14 @@
 package com.music.app.features.player
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -19,10 +18,9 @@ import kotlin.math.sin
 
 /**
  * Ambient Glowing Light Halos.
- * - 3 organic halos dynamically driven by track artwork dominant and vibrant colors
- * - Positioned in the lower half of the screen starting from artwork fade-out line
- * - Smooth continuous floating/drifting motion using infinite sinusoidal physics
- * - High performance Canvas draw phase (zero recompositions, 120 FPS)
+ * - Multi-frequency continuous organic plasma drift with zero restarts or loop resets
+ * - Driven dynamically by track artwork dominant and vibrant accent colors
+ * - Ultra smooth 120 FPS frame-based animation
  */
 @Composable
 fun AmbientHalos(
@@ -31,55 +29,37 @@ fun AmbientHalos(
     modifier: Modifier = Modifier,
     haloIntensity: Float = 0.50f
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "ambient_halos")
+    var timeSec by remember { mutableFloatStateOf(0f) }
 
-    // Slow sinusoidal phase 1 (8 seconds cycle)
-    val phase1 by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 2f * Math.PI.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 8000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "phase1"
-    )
-
-    // Phase 2 (11 seconds cycle)
-    val phase2 by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 2f * Math.PI.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 11000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "phase2"
-    )
-
-    // Phase 3 (9.5 seconds cycle)
-    val phase3 by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 2f * Math.PI.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 9500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "phase3"
-    )
+    LaunchedEffect(Unit) {
+        var lastNanos = 0L
+        while (true) {
+            withFrameNanos { nowNanos ->
+                if (lastNanos != 0L) {
+                    val delta = (nowNanos - lastNanos) / 1_000_000_000f
+                    // Smooth, continuous time accumulation - never resets to 0
+                    timeSec += delta.coerceIn(0f, 0.05f)
+                }
+                lastNanos = nowNanos
+            }
+        }
+    }
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
 
-        // Halos live in the lower region starting at artwork fade line (~46% height)
         val topBound = h * 0.44f
         val bottomBound = h * 0.94f
         val centerY = (topBound + bottomBound) / 2f
+        val t = timeSec
 
         // Halo 1: Left-center floating orb (Dominant Color from cover)
-        val x1 = w * 0.28f + (w * 0.14f) * sin(phase1)
-        val y1 = centerY + (h * 0.12f) * cos(phase1)
-        val r1 = (w * 0.58f) * (1f + 0.08f * sin(phase1 * 1.5f))
-        val a1 = haloIntensity * (1f + 0.12f * cos(phase1))
+        // Quasi-periodic motion combining multiple prime frequencies
+        val x1 = w * 0.32f + (w * 0.15f) * sin(t * 0.23f) + (w * 0.08f) * cos(t * 0.11f)
+        val y1 = centerY + (h * 0.11f) * cos(t * 0.19f) + (h * 0.05f) * sin(t * 0.09f)
+        val r1 = (w * 0.60f) * (1f + 0.07f * sin(t * 0.17f) + 0.03f * cos(t * 0.29f))
+        val a1 = haloIntensity * (1f + 0.12f * cos(t * 0.13f))
 
         drawCircle(
             brush = Brush.radialGradient(
@@ -97,10 +77,10 @@ fun AmbientHalos(
         )
 
         // Halo 2: Right-center floating orb (Secondary Vibrant Color from cover)
-        val x2 = w * 0.74f + (w * 0.15f) * cos(phase2)
-        val y2 = (centerY + h * 0.05f) + (h * 0.10f) * sin(phase2)
-        val r2 = (w * 0.62f) * (1f + 0.06f * cos(phase2 * 1.3f))
-        val a2 = haloIntensity * (1f + 0.10f * sin(phase2))
+        val x2 = w * 0.70f + (w * 0.16f) * cos(t * 0.17f) + (w * 0.07f) * sin(t * 0.27f)
+        val y2 = (centerY + h * 0.05f) + (h * 0.10f) * sin(t * 0.21f) + (h * 0.06f) * cos(t * 0.08f)
+        val r2 = (w * 0.64f) * (1f + 0.06f * cos(t * 0.15f) + 0.04f * sin(t * 0.31f))
+        val a2 = haloIntensity * (1f + 0.11f * sin(t * 0.19f))
 
         drawCircle(
             brush = Brush.radialGradient(
@@ -117,11 +97,11 @@ fun AmbientHalos(
             center = Offset(x2, y2)
         )
 
-        // Halo 3: Subtle center-bottom warmth accent (Blended spectrum)
-        val x3 = w * 0.50f + (w * 0.10f) * sin(phase3 * 0.8f)
-        val y3 = (bottomBound - h * 0.08f) + (h * 0.06f) * cos(phase3)
-        val r3 = (w * 0.50f) * (1f + 0.07f * sin(phase3))
-        val a3 = haloIntensity * 0.85f * (1f + 0.10f * cos(phase3))
+        // Halo 3: Subtle center-bottom warmth accent (Harmonic spectrum blend)
+        val x3 = w * 0.50f + (w * 0.13f) * sin(t * 0.13f) + (w * 0.06f) * cos(t * 0.25f)
+        val y3 = (bottomBound - h * 0.08f) + (h * 0.07f) * cos(t * 0.15f) + (h * 0.04f) * sin(t * 0.09f)
+        val r3 = (w * 0.52f) * (1f + 0.07f * sin(t * 0.11f) + 0.03f * cos(t * 0.21f))
+        val a3 = haloIntensity * 0.85f * (1f + 0.10f * cos(t * 0.14f))
 
         drawCircle(
             brush = Brush.radialGradient(

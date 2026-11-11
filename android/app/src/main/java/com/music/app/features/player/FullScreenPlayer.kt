@@ -92,6 +92,31 @@ enum class RepeatModeState {
 
 data class LyricsLine(val text: String, val timeMs: Long)
 
+fun getActiveLyricColor(dominant: Color, secondary: Color): Color {
+    val src = if (secondary != Color.Unspecified && secondary.alpha > 0f) secondary else dominant
+    val r = src.red
+    val g = src.green
+    val b = src.blue
+    val max = maxOf(r, g, b)
+    val min = minOf(r, g, b)
+    val delta = max - min
+    val l = (max + min) / 2f
+    val s = if (delta == 0f) 0f else delta / (1f - kotlin.math.abs(2f * l - 1f))
+    var h = when {
+        delta == 0f -> 0f
+        max == r -> 60f * (((g - b) / delta) % 6f)
+        max == g -> 60f * (((b - r) / delta) + 2f)
+        else -> 60f * (((r - g) / delta) + 4f)
+    }
+    if (h < 0f) h += 360f
+
+    // If artwork is monochromatic (black/white/gray), use bright warm amber
+    if (s < 0.16f) return Color(0xFFFBBF24)
+
+    // Preserve the cover's signature hue with high saturation and bright luminosity for glow
+    return Color.hsl(h, 0.92f, 0.72f)
+}
+
 val SampleLyrics = listOf(
     LyricsLine("Walking through the glowing lights at night", 0),
     LyricsLine("Listening to the rhythm of the city sounds", 8000),
@@ -345,12 +370,19 @@ fun FullScreenPlayer(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
+                    val activeGlowColor = remember(animatedDominant, animatedSecondary) {
+                        getActiveLyricColor(animatedDominant, animatedSecondary)
+                    }
+
                     LiquidGlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .fillMaxHeight(0.75f),
-                        shape = RoundedCornerShape(24.dp),
-                        variant = LiquidGlassVariant.ClearGlass,
+                        shape = RoundedCornerShape(26.dp),
+                        variant = LiquidGlassVariant.Card,
+                        blurRadius = 32.dp,
+                        customBaseColor = Color(0xDE0B0E17),
+                        borderWidth = 1.dp,
                         hazeState = playerHazeState
                     ) {
                         val listState = rememberLazyListState()
@@ -382,7 +414,7 @@ fun FullScreenPlayer(
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(28.dp),
-                                    color = Color(0xFF22D3EE),
+                                    color = activeGlowColor,
                                     strokeWidth = 2.5.dp
                                 )
                             }
@@ -390,6 +422,7 @@ fun FullScreenPlayer(
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(
                                     text = "No lyrics available for this song",
+                                    fontFamily = AudexFontFamily,
                                     fontSize = 14.sp,
                                     color = Color(0xFFA1A1A6),
                                     textAlign = TextAlign.Center
@@ -408,10 +441,12 @@ fun FullScreenPlayer(
                                     val isCurrent = index == activeIdx
                                     Text(
                                         text = line.text,
+                                        fontFamily = AudexFontFamily,
                                         fontSize = if (isCurrent) 21.sp else 16.sp,
                                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isCurrent) Color(0xFF22D3EE) else Color(0xFF71717A),
+                                        color = if (isCurrent) activeGlowColor else Color(0xFF9CA3AF).copy(alpha = 0.60f),
                                         textAlign = TextAlign.Center,
+                                        letterSpacing = if (isCurrent) 0.2.sp else 0.sp,
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
                                             .clickable { onSeek(line.timeSec) }

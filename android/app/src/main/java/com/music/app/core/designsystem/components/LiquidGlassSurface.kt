@@ -53,6 +53,8 @@ fun LiquidGlassSurface(
     shape: Shape = RoundedCornerShape(percent = 50),
     variant: LiquidGlassVariant = LiquidGlassVariant.Dock,
     borderWidth: Dp = 1.dp,
+    blurRadius: Dp = 20.dp,
+    customBaseColor: Color? = null,
     showTopHighlight: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -60,7 +62,7 @@ fun LiquidGlassSurface(
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     // Glass Background Color depending on Variant & Theme
-    val baseColor = when (variant) {
+    val baseColor = customBaseColor ?: when (variant) {
         LiquidGlassVariant.Dock -> if (isDark) {
             if (isApi31Plus) GlassDockDark else Color(0xDE1A2030)
         } else {
@@ -128,7 +130,7 @@ fun LiquidGlassSurface(
             style = HazeStyle(
                 backgroundColor = if (variant == LiquidGlassVariant.ClearGlass) Color.Transparent else if (isDark) Color(0xFF07080B) else Color(0xFFF8F9FA),
                 tint = null,
-                blurRadius = 20.dp
+                blurRadius = blurRadius
             )
         )
     } else {

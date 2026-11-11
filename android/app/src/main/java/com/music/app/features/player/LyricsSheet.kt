@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.music.app.core.designsystem.components.LiquidGlassSurface
 import com.music.app.core.designsystem.components.LiquidGlassVariant
+import com.music.app.core.designsystem.theme.AudexFontFamily
 import com.music.app.core.model.Track
 import com.music.app.core.network.LyricsService
 import com.music.app.core.network.TrackLyrics
@@ -144,7 +145,9 @@ fun LyricsSheet(
                 modifier = Modifier.fillMaxSize(),
                 hazeState = hazeState,
                 shape = RoundedCornerShape(32.dp),
-                variant = LiquidGlassVariant.Dock,
+                variant = LiquidGlassVariant.Card,
+                blurRadius = 32.dp,
+                customBaseColor = Color(0xDE0B0E17),
                 borderWidth = 1.dp,
                 showTopHighlight = true
             ) {
@@ -285,6 +288,11 @@ fun LyricsSheet(
                             }
                         }
                     } else {
+                        val activeGlowColor = remember(track.id, track.gradientColors) {
+                            val dom = track.gradientColors.firstOrNull() ?: Color(0xFF22D3EE)
+                            val sec = track.gradientColors.lastOrNull() ?: dom
+                            getActiveLyricColor(dom, sec)
+                        }
                         LazyColumn(
                             state = listState,
                             modifier = Modifier
@@ -306,9 +314,10 @@ fun LyricsSheet(
                                 ) {
                                     Text(
                                         text = line.text,
+                                        fontFamily = AudexFontFamily,
                                         fontSize = if (isActive) 22.sp else 16.sp,
                                         fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isActive) Color(0xFF22D3EE) else Color(0xFF71717A),
+                                        color = if (isActive) activeGlowColor else Color(0xFF9CA3AF).copy(alpha = 0.60f),
                                         lineHeight = if (isActive) 28.sp else 22.sp
                                     )
                                 }
