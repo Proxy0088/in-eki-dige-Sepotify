@@ -79,6 +79,7 @@ object StreamResolver {
 
     private val streamCache = ConcurrentHashMap<String, CachedStream>()
     private val trackToVideoIdMap = ConcurrentHashMap<String, String>()
+    private val trackCandidatesMap = ConcurrentHashMap<String, List<String>>()
 
     private fun getTrackKey(artist: String, title: String): String {
         return "${artist.lowercase().trim()}:::${title.lowercase().trim()}"
@@ -135,6 +136,7 @@ object StreamResolver {
                 ?.optJSONObject("sectionListRenderer")
                 ?.optJSONArray("contents") ?: return@withContext null
 
+            val candidates = mutableListOf<String>()
             for (s in 0 until sections.length()) {
                 val sec = sections.optJSONObject(s) ?: continue
                 val items = sec.optJSONObject("itemSectionRenderer")?.optJSONArray("contents") ?: continue
@@ -142,12 +144,20 @@ object StreamResolver {
                     val it = items.optJSONObject(i) ?: continue
                     val v = it.optJSONObject("videoRenderer") ?: continue
                     val vid = v.optString("videoId")
-                    if (vid.isNotEmpty()) {
-                        Log.i(TAG, "Matched '$query' -> videoId=$vid")
-                        trackToVideoIdMap[key] = vid
-                        return@withContext vid
+                    if (vid.isNotEmpty() && !candidates.contains(vid)) {
+                        candidates.add(vid)
+                        if (candidates.size >= 4) break
                     }
                 }
+                if (candidates.size >= 4) break
+            }
+
+            if (candidates.isNotEmpty()) {
+                trackCandidatesMap[key] = candidates
+                val bestVid = candidates.first()
+                Log.i(TAG, "Matched '$query' -> candidates=${candidates.joinToString()}, best=$bestVid")
+                trackToVideoIdMap[key] = bestVid
+                return@withContext bestVid
             }
             null
         } catch (ce: CancellationException) {
@@ -217,55 +227,70 @@ object StreamResolver {
             }
         }
 
-        try {
-            ensureActive()
-            val watchUrl = "https://www.youtube.com/watch?v=$videoId"
-            val service = ServiceList.YouTube
+        // Collect all candidate videoIds to try sequentially
+        val candidates = mutableListOf<String>()
+        candidates.add(videoId)
+        var trackKey = ""
+        if (trimmed.startsWith("itunes-") || trimmed.contains("artist=")) {
+            try {
+                val uri = Uri.parse(if (trimmed.startsWith("itunes://")) trimmed else "itunes://$trimmed")
+                val artist = uri.getQueryParameter("artist")?.let { URLDecoder.decode(it, "UTF-8") } ?: ""
+                val title = uri.getQueryParameter("title")?.let { URLDecoder.decode(it, "UTF-8") } ?: ""
+                if (artist.isNotEmpty() && title.isNotEmpty()) {
+                    trackKey = getTrackKey(artist, title)
+                    trackCandidatesMap[trackKey]?.let { candidates.addAll(it) }
+                }
+            } catch (_: Exception) {}
+        }
+        val distinctCandidates = candidates.distinct()
 
-            var lastException: Exception? = null
-            for (attempt in 0 until MAX_RESOLVE_RETRIES) {
-                ensureActive()
+        for (candId in distinctCandidates) {
+            ensureActive()
+            val resolvedUrl = resolveDirectVideoId(candId)
+            if (!resolvedUrl.isNullOrEmpty()) {
+                if (trackKey.isNotEmpty()) {
+                    trackToVideoIdMap[trackKey] = candId
+                }
+                return@withContext resolvedUrl
+            }
+        }
+
+        Log.e(TAG, "All candidate videoIds failed for identifier: $identifier (tried: ${distinctCandidates.joinToString()})")
+        return@withContext null
+    }
+
+    private suspend fun resolveDirectVideoId(videoId: String): String? {
+        val watchUrl = "https://www.youtube.com/watch?v=$videoId"
+        val service = ServiceList.YouTube
+
+        for (attempt in 0 until MAX_RESOLVE_RETRIES) {
+            try {
                 if (attempt > 0) {
-                    val delayMs = RETRY_DELAYS_MS.getOrElse(attempt) { 3000L }
+                    val delayMs = RETRY_DELAYS_MS.getOrElse(attempt) { 2000L }
                     Log.w(TAG, "Retry #$attempt for $videoId after ${delayMs}ms...")
                     kotlinx.coroutines.delay(delayMs)
                 }
-                try {
-                    val streamInfo = StreamInfo.getInfo(service, watchUrl)
-
-                    ensureActive()
-                    val audioStreams: List<AudioStream> = streamInfo.audioStreams ?: emptyList()
-                    if (audioStreams.isEmpty()) {
-                        Log.w(TAG, "No audio streams found for $videoId (attempt $attempt)")
-                        continue
-                    }
-
-                    // Pick highest quality audio stream (prioritizing highest averageBitrate)
-                    val bestAudio = audioStreams.maxByOrNull { it.averageBitrate }
-                    val directUrl = bestAudio?.url ?: bestAudio?.content
-
-                    if (!directUrl.isNullOrEmpty()) {
-                        streamCache[videoId] = CachedStream(directUrl)
-                        return@withContext directUrl
-                    } else {
-                        Log.w(TAG, "Best audio stream URL was null for $videoId (attempt $attempt)")
-                    }
-                } catch (ce: CancellationException) {
-                    throw ce
-                } catch (e: Exception) {
-                    lastException = e
-                    Log.w(TAG, "Resolve attempt $attempt failed for $videoId: ${e.message}")
+                val streamInfo = StreamInfo.getInfo(service, watchUrl)
+                val audioStreams: List<AudioStream> = streamInfo.audioStreams ?: emptyList()
+                if (audioStreams.isEmpty()) {
+                    Log.w(TAG, "No audio streams found for $videoId (attempt $attempt)")
+                    continue
                 }
-            }
 
-            Log.e(TAG, "Failed to resolve stream for videoId: $videoId after $MAX_RESOLVE_RETRIES attempts", lastException)
-            return@withContext null
-        } catch (ce: CancellationException) {
-            throw ce
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to resolve stream for videoId: $videoId", e)
-            return@withContext null
+                val bestAudio = audioStreams.maxByOrNull { it.averageBitrate }
+                val directUrl = bestAudio?.url ?: bestAudio?.content
+
+                if (!directUrl.isNullOrEmpty()) {
+                    streamCache[videoId] = CachedStream(directUrl)
+                    return directUrl
+                }
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                Log.w(TAG, "Resolve attempt $attempt failed for $videoId: ${e.message}")
+            }
         }
+        return null
     }
 
     /**

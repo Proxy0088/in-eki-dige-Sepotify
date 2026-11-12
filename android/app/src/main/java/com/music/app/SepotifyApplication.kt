@@ -8,6 +8,7 @@ import coil.memory.MemoryCache
 import com.music.app.core.media.AudioCoverFetcher
 import com.music.app.core.network.newpipe.NewPipeOkHttpDownloader
 import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
 
 class SepotifyApplication : Application(), ImageLoaderFactory {
 
@@ -15,6 +16,12 @@ class SepotifyApplication : Application(), ImageLoaderFactory {
         super.onCreate()
         // Initialize NewPipeExtractor with custom OkHttp Downloader once at startup
         NewPipe.init(NewPipeOkHttpDownloader.getInstance())
+        // Enable iOS client fallback to bypass YouTube bot detection (LOGIN_REQUIRED) on VPN IPs
+        try {
+            YoutubeStreamExtractor.setFetchIosClient(true)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun newImageLoader(): ImageLoader {
