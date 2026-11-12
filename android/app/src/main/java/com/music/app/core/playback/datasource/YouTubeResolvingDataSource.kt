@@ -54,21 +54,40 @@ class YouTubeResolvingDataSource(
         return try {
             upstreamDataSource.open(resolvedDataSpec)
         } catch (e: Exception) {
-            val isForbiddenOrExpired = when (e) {
-                is HttpDataSource.InvalidResponseCodeException -> e.responseCode == 403 || e.responseCode == 410
+            val isRetryable = when (e) {
+                is HttpDataSource.InvalidResponseCodeException -> e.responseCode in listOf(403, 410, 429, 500, 502, 503)
                 is HttpDataSource.HttpDataSourceException -> true
                 is IOException -> true
                 else -> false
             }
 
-            if (isForbiddenOrExpired) {
-                Log.w(TAG, "Stream open failed for $identifier (${e.message}), attempting force refresh...")
+            if (isRetryable) {
+                Log.w(TAG, "Stream open failed for $identifier (${e.message}), attempting force refresh (retry 1)...")
                 // Attempt 2: Force refresh once
+                try {
+                    upstreamDataSource.close()
+                } catch (_: Exception) {}
+
                 directUrl = resolver.resolve(identifier, forceRefresh = true)
                     ?: throw (if (e is IOException) e else IOException(e))
 
                 resolvedDataSpec = dataSpec.buildUpon().setUri(Uri.parse(directUrl)).build()
-                upstreamDataSource.open(resolvedDataSpec)
+                try {
+                    upstreamDataSource.open(resolvedDataSpec)
+                } catch (e2: Exception) {
+                    Log.w(TAG, "Stream retry 1 also failed for $identifier (${e2.message}), attempting final retry...")
+                    // Attempt 3: Force refresh one more time with a short pause
+                    try {
+                        upstreamDataSource.close()
+                    } catch (_: Exception) {}
+                    Thread.sleep(2000)
+
+                    directUrl = resolver.resolve(identifier, forceRefresh = true)
+                        ?: throw (if (e2 is IOException) e2 else IOException(e2))
+
+                    resolvedDataSpec = dataSpec.buildUpon().setUri(Uri.parse(directUrl)).build()
+                    upstreamDataSource.open(resolvedDataSpec)
+                }
             } else {
                 if (e is IOException) throw e else throw IOException(e)
             }

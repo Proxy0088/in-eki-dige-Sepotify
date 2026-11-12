@@ -14,6 +14,7 @@ import org.json.JSONObject
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import java.net.InetAddress
 import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -21,11 +22,54 @@ import java.util.concurrent.TimeUnit
 object StreamResolver {
     private const val TAG = "StreamResolver"
     private const val CACHE_TTL_MS = 3 * 60 * 60 * 1000L // 3 hours
+    private const val MAX_RESOLVE_RETRIES = 3
+    private val RETRY_DELAYS_MS = longArrayOf(0, 1500, 3000)
+
+    /**
+     * Custom DNS resolver identical to NewPipeOkHttpDownloader.reliableDns.
+     * Falls back to Google DoH JSON API when the system DNS fails (common with VPNs).
+     */
+    private val reliableDns = object : okhttp3.Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            try {
+                val systemResult = okhttp3.Dns.SYSTEM.lookup(hostname)
+                if (systemResult.isNotEmpty()) return systemResult
+            } catch (_: Exception) {}
+
+            try {
+                val url = "https://dns.google/resolve?name=$hostname&type=A"
+                val req = Request.Builder().url(url)
+                    .header("Accept", "application/dns-json")
+                    .build()
+                val fallbackClient = OkHttpClient.Builder()
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build()
+                val resp = fallbackClient.newCall(req).execute()
+                val body = resp.body?.string() ?: ""
+                resp.close()
+                val json = JSONObject(body)
+                val answers = json.optJSONArray("Answer")
+                if (answers != null && answers.length() > 0) {
+                    val ips = mutableListOf<InetAddress>()
+                    for (i in 0 until answers.length()) {
+                        val data = answers.optJSONObject(i)?.optString("data") ?: continue
+                        try { ips.add(InetAddress.getByName(data)) } catch (_: Exception) {}
+                    }
+                    if (ips.isNotEmpty()) return ips
+                }
+            } catch (_: Exception) {}
+
+            return InetAddress.getAllByName(hostname).toList()
+        }
+    }
 
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(8, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
+        .dns(reliableDns)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
+        .retryOnConnectionFailure(true)
         .build()
 
     private data class CachedStream(
@@ -177,26 +221,45 @@ object StreamResolver {
             ensureActive()
             val watchUrl = "https://www.youtube.com/watch?v=$videoId"
             val service = ServiceList.YouTube
-            val streamInfo = StreamInfo.getInfo(service, watchUrl)
 
-            ensureActive()
-            val audioStreams: List<AudioStream> = streamInfo.audioStreams ?: emptyList()
-            if (audioStreams.isEmpty()) {
-                Log.w(TAG, "No audio streams found for $videoId")
-                return@withContext null
+            var lastException: Exception? = null
+            for (attempt in 0 until MAX_RESOLVE_RETRIES) {
+                ensureActive()
+                if (attempt > 0) {
+                    val delayMs = RETRY_DELAYS_MS.getOrElse(attempt) { 3000L }
+                    Log.w(TAG, "Retry #$attempt for $videoId after ${delayMs}ms...")
+                    kotlinx.coroutines.delay(delayMs)
+                }
+                try {
+                    val streamInfo = StreamInfo.getInfo(service, watchUrl)
+
+                    ensureActive()
+                    val audioStreams: List<AudioStream> = streamInfo.audioStreams ?: emptyList()
+                    if (audioStreams.isEmpty()) {
+                        Log.w(TAG, "No audio streams found for $videoId (attempt $attempt)")
+                        continue
+                    }
+
+                    // Pick highest quality audio stream (prioritizing highest averageBitrate)
+                    val bestAudio = audioStreams.maxByOrNull { it.averageBitrate }
+                    val directUrl = bestAudio?.url ?: bestAudio?.content
+
+                    if (!directUrl.isNullOrEmpty()) {
+                        streamCache[videoId] = CachedStream(directUrl)
+                        return@withContext directUrl
+                    } else {
+                        Log.w(TAG, "Best audio stream URL was null for $videoId (attempt $attempt)")
+                    }
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (e: Exception) {
+                    lastException = e
+                    Log.w(TAG, "Resolve attempt $attempt failed for $videoId: ${e.message}")
+                }
             }
 
-            // Pick highest quality audio stream (prioritizing highest averageBitrate)
-            val bestAudio = audioStreams.maxByOrNull { it.averageBitrate }
-            val directUrl = bestAudio?.url ?: bestAudio?.content
-
-            if (!directUrl.isNullOrEmpty()) {
-                streamCache[videoId] = CachedStream(directUrl)
-                return@withContext directUrl
-            } else {
-                Log.w(TAG, "Best audio stream URL was null for $videoId")
-                return@withContext null
-            }
+            Log.e(TAG, "Failed to resolve stream for videoId: $videoId after $MAX_RESOLVE_RETRIES attempts", lastException)
+            return@withContext null
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {

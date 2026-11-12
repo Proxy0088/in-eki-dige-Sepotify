@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
+import java.net.InetAddress
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -20,10 +21,50 @@ import java.util.regex.Pattern
 
 object OnlineMusicService {
 
+    /**
+     * Custom DNS resolver: system first, Google DoH JSON fallback for broken VPN DNS.
+     */
+    private val reliableDns = object : okhttp3.Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            try {
+                val systemResult = okhttp3.Dns.SYSTEM.lookup(hostname)
+                if (systemResult.isNotEmpty()) return systemResult
+            } catch (_: Exception) {}
+
+            try {
+                val url = "https://dns.google/resolve?name=$hostname&type=A"
+                val req = Request.Builder().url(url)
+                    .header("Accept", "application/dns-json")
+                    .build()
+                val fallbackClient = OkHttpClient.Builder()
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build()
+                val resp = fallbackClient.newCall(req).execute()
+                val body = resp.body?.string() ?: ""
+                resp.close()
+                val json = org.json.JSONObject(body)
+                val answers = json.optJSONArray("Answer")
+                if (answers != null && answers.length() > 0) {
+                    val ips = mutableListOf<InetAddress>()
+                    for (i in 0 until answers.length()) {
+                        val data = answers.optJSONObject(i)?.optString("data") ?: continue
+                        try { ips.add(InetAddress.getByName(data)) } catch (_: Exception) {}
+                    }
+                    if (ips.isNotEmpty()) return ips
+                }
+            } catch (_: Exception) {}
+
+            return InetAddress.getAllByName(hostname).toList()
+        }
+    }
+
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(12, TimeUnit.SECONDS)
+        .dns(reliableDns)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
+        .retryOnConnectionFailure(true)
         .build()
 
     private val postMp3Cache = ConcurrentHashMap<String, String>()

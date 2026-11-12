@@ -9,6 +9,7 @@ import org.schabi.newpipe.extractor.downloader.Request
 import org.schabi.newpipe.extractor.downloader.Response
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import java.io.IOException
+import java.net.InetAddress
 import java.util.concurrent.TimeUnit
 
 class NewPipeOkHttpDownloader private constructor(
@@ -19,14 +20,58 @@ class NewPipeOkHttpDownloader private constructor(
         @Volatile
         private var instance: NewPipeOkHttpDownloader? = null
 
+        /**
+         * Custom DNS resolver that tries the system resolver first,
+         * then falls back to Cloudflare (1.1.1.1) and Google (8.8.8.8) DoH-style
+         * hardcoded IPs to work around broken VPN DNS configurations.
+         */
+        private val reliableDns = object : okhttp3.Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                try {
+                    val systemResult = okhttp3.Dns.SYSTEM.lookup(hostname)
+                    if (systemResult.isNotEmpty()) return systemResult
+                } catch (_: Exception) {}
+
+                // Fallback: resolve via Google Public DNS over HTTPS (DoH JSON API)
+                try {
+                    val url = "https://dns.google/resolve?name=$hostname&type=A"
+                    val req = okhttp3.Request.Builder().url(url)
+                        .header("Accept", "application/dns-json")
+                        .build()
+                    val fallbackClient = OkHttpClient.Builder()
+                        .connectTimeout(5, TimeUnit.SECONDS)
+                        .readTimeout(5, TimeUnit.SECONDS)
+                        .build()
+                    val resp = fallbackClient.newCall(req).execute()
+                    val body = resp.body?.string() ?: ""
+                    resp.close()
+                    val json = org.json.JSONObject(body)
+                    val answers = json.optJSONArray("Answer")
+                    if (answers != null && answers.length() > 0) {
+                        val ips = mutableListOf<InetAddress>()
+                        for (i in 0 until answers.length()) {
+                            val data = answers.optJSONObject(i)?.optString("data") ?: continue
+                            try { ips.add(InetAddress.getByName(data)) } catch (_: Exception) {}
+                        }
+                        if (ips.isNotEmpty()) return ips
+                    }
+                } catch (_: Exception) {}
+
+                // Last resort
+                return InetAddress.getAllByName(hostname).toList()
+            }
+        }
+
         fun getInstance(): NewPipeOkHttpDownloader {
             return instance ?: synchronized(this) {
                 instance ?: NewPipeOkHttpDownloader(
                     OkHttpClient.Builder()
-                        .connectTimeout(15, TimeUnit.SECONDS)
-                        .readTimeout(20, TimeUnit.SECONDS)
+                        .dns(reliableDns)
+                        .connectTimeout(20, TimeUnit.SECONDS)
+                        .readTimeout(25, TimeUnit.SECONDS)
                         .followRedirects(true)
                         .followSslRedirects(true)
+                        .retryOnConnectionFailure(true)
                         .build()
                 ).also { instance = it }
             }
